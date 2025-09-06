@@ -1,0 +1,3 @@
+# This is a placeholder for the default avatar image
+# In a real implementation, this would be a PNG file with a default user avatar
+# For now, we'll use a data URI or reference to a CDN image in the code 

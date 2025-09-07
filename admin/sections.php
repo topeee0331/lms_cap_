@@ -276,8 +276,354 @@ $stats_stmt = $db->prepare("
 $stats_stmt->execute();
 $stats = $stats_stmt->fetch();
 
+// Get detailed teacher assignment data
+$teacher_assignments_query = "
+    SELECT 
+        s.id as section_id,
+        s.section_name,
+        s.year_level,
+        ap.academic_year,
+        ap.semester_name,
+        s.teachers,
+        JSON_LENGTH(COALESCE(s.teachers, '[]')) as teacher_count
+    FROM sections s
+    LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id
+    WHERE s.teachers IS NOT NULL 
+    AND JSON_LENGTH(COALESCE(s.teachers, '[]')) > 0
+    ORDER BY s.year_level, s.section_name
+";
+$teacher_assignments_stmt = $db->prepare($teacher_assignments_query);
+$teacher_assignments_stmt->execute();
+$teacher_assignments = $teacher_assignments_stmt->fetchAll();
+
+// Get all assigned teacher details
+$assigned_teachers_details = [];
+if (!empty($teacher_assignments)) {
+    foreach ($teacher_assignments as $assignment) {
+        $teacher_ids = json_decode($assignment['teachers'], true) ?? [];
+        if (!empty($teacher_ids)) {
+            $placeholders = str_repeat('?,', count($teacher_ids) - 1) . '?';
+            $teacher_details_query = "
+                SELECT 
+                    u.id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    u.status
+                FROM users u 
+                WHERE u.id IN ($placeholders) AND u.role = 'teacher'
+            ";
+            $teacher_details_stmt = $db->prepare($teacher_details_query);
+            $teacher_details_stmt->execute($teacher_ids);
+            $teachers = $teacher_details_stmt->fetchAll();
+            
+            $assigned_teachers_details[] = [
+                'section_id' => $assignment['section_id'],
+                'section_name' => $assignment['section_name'],
+                'year_level' => $assignment['year_level'],
+                'academic_year' => $assignment['academic_year'],
+                'semester_name' => $assignment['semester_name'],
+                'teacher_count' => $assignment['teacher_count'],
+                'teachers' => $teachers
+            ];
+        }
+    }
+}
+
+// Get summary statistics for teachers (MariaDB compatible)
+$teacher_summary_query = "
+    SELECT 
+        SUM(JSON_LENGTH(COALESCE(s.teachers, '[]'))) as total_assignments,
+        AVG(JSON_LENGTH(COALESCE(s.teachers, '[]'))) as avg_teachers_per_section,
+        MAX(JSON_LENGTH(COALESCE(s.teachers, '[]'))) as max_teachers_in_section
+    FROM sections s
+    WHERE s.teachers IS NOT NULL 
+    AND JSON_LENGTH(COALESCE(s.teachers, '[]')) > 0
+";
+$teacher_summary_stmt = $db->prepare($teacher_summary_query);
+$teacher_summary_stmt->execute();
+$teacher_summary = $teacher_summary_stmt->fetch();
+
+// Get unique teachers count separately (MariaDB compatible)
+$unique_teachers_query = "
+    SELECT COUNT(DISTINCT u.id) as unique_teachers_assigned
+    FROM users u
+    WHERE u.role = 'teacher' 
+    AND u.id IN (
+        SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(s.teachers, CONCAT('$[', numbers.n, ']')))
+        FROM sections s
+        CROSS JOIN (
+            SELECT 0 as n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
+            UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9
+        ) numbers
+        WHERE s.teachers IS NOT NULL 
+        AND JSON_LENGTH(COALESCE(s.teachers, '[]')) > numbers.n
+        AND JSON_UNQUOTE(JSON_EXTRACT(s.teachers, CONCAT('$[', numbers.n, ']'))) IS NOT NULL
+    )
+";
+$unique_teachers_stmt = $db->prepare($unique_teachers_query);
+$unique_teachers_stmt->execute();
+$unique_teachers_result = $unique_teachers_stmt->fetch();
+
+// Merge the results
+$teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_teachers_assigned'];
+
 
 ?>
+
+<style>
+/* Enhanced Section Row Styling */
+.section-row {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.section-row:hover {
+    background-color: #f8f9fa !important;
+    border-left-color: #0d6efd;
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.section-avatar {
+    transition: transform 0.3s ease;
+}
+
+.section-row:hover .section-avatar {
+    transform: scale(1.05);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+}
+
+/* Statistics Cards Styling */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+    border-left: 4px solid #0d6efd;
+}
+
+.stats-success {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f8f9fa 100%);
+    border-left: 4px solid #198754;
+}
+
+.stats-info {
+    background: linear-gradient(135deg, #e0f7fa 0%, #f8f9fa 100%);
+    border-left: 4px solid #0dcaf0;
+}
+
+.stats-warning {
+    background: linear-gradient(135deg, #fff8e1 0%, #f8f9fa 100%);
+    border-left: 4px solid #ffc107;
+}
+
+.stats-secondary {
+    background: linear-gradient(135deg, #f5f5f5 0%, #f8f9fa 100%);
+    border-left: 4px solid #6c757d;
+}
+
+.stats-danger {
+    background: linear-gradient(135deg, #ffebee 0%, #f8f9fa 100%);
+    border-left: 4px solid #dc3545;
+}
+
+.stats-danger-alt {
+    background: linear-gradient(135deg, #fce4ec 0%, #f8f9fa 100%);
+    border-left: 4px solid #e91e63;
+}
+
+.stats-purple {
+    background: linear-gradient(135deg, #f3e5f5 0%, #f8f9fa 100%);
+    border-left: 4px solid #9c27b0;
+}
+
+.bg-purple {
+    background-color: #9c27b0 !important;
+}
+
+.text-purple {
+    color: #9c27b0 !important;
+}
+
+/* Teacher Assignments Table Styling */
+.teacher-assignments-table .table tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.teacher-assignments-table .badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.students-info-container .btn {
+    transition: all 0.2s ease;
+    min-width: 80px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.students-info-container .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.actions-container {
+    min-width: 450px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+}
+
+.actions-container .btn {
+    transition: all 0.2s ease;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 65px;
+    padding: 0.3rem 0.6rem;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.actions-container .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.description-container {
+    max-width: 200px;
+    word-wrap: break-word;
+}
+
+.courses-container {
+    text-align: center;
+}
+
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Statistics Cards Responsive */
+@media (max-width: 1200px) {
+    .stats-icon {
+        width: 55px;
+        height: 55px;
+    }
+    
+    .stats-card h3 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .actions-container {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .actions-container .btn {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        min-width: 60px;
+    }
+    
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .stats-card h3 {
+        font-size: 1.25rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+    
+    .stats-icon {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .stats-card h3 {
+        font-size: 1.1rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 0.75rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-row:hover {
+        transform: none;
+    }
+    
+    .actions-container {
+        min-width: auto;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .actions-container .btn {
+        width: 100%;
+        justify-content: center;
+        min-width: auto;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        flex-shrink: 1;
+    }
+    
+    .students-info-container .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .students-info-container .btn {
+        width: 100%;
+        justify-content: center;
+        min-width: auto;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+}
+</style>
 
 <div class="container-fluid py-4">
     <!-- Navigation Back to Dashboard -->
@@ -291,95 +637,199 @@ $stats = $stats_stmt->fetch();
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-collection-fill fs-1 text-primary"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-collection-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_sections'] ?></h3>
-                    <p class="text-muted mb-0 small">Total Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Total Sections</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-check-circle-fill fs-1 text-success"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-success border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-check-circle-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['active_sections'] ?></h3>
-                    <p class="text-muted mb-0 small">Active Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['active_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Active Sections</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-calendar-check-fill fs-1 text-info"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-info border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-calendar-check-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['current_period_sections'] ?></h3>
-                    <p class="text-muted mb-0 small">Current Period</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['current_period_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Current Period</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-people-fill fs-1 text-warning"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-warning border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-people-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_students_assigned'] ?></h3>
-                    <p class="text-muted mb-0 small">Students Assigned</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_students_assigned'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Students Assigned</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-mortarboard-fill fs-1 text-secondary"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-secondary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-mortarboard-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['year_levels_covered'] ?></h3>
-                    <p class="text-muted mb-0 small">Year Levels</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['year_levels_covered'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Year Levels</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-book-fill fs-1 text-danger"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-danger border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-book-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_courses'] ?></h3>
-                    <p class="text-muted mb-0 small">Total Courses</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_courses'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Total Courses</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-x-circle-fill fs-1 text-danger"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-danger-alt border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-x-circle-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['inactive_sections'] ?></h3>
-                    <p class="text-muted mb-0 small">Inactive Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['inactive_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Inactive Sections</p>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-people-fill fs-1 text-warning"></i>
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
+            <div class="card stats-card stats-purple border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-purple text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-people-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_students_assigned'] ?></h3>
-                    <p class="text-muted mb-0 small">Students Assigned</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_teachers_assigned'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Teachers Assigned</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Teacher Assignments Overview -->
+    <?php if (!empty($assigned_teachers_details)): ?>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 fw-bold text-dark">
+                                <i class="bi bi-person-workspace me-2 text-purple"></i>Teacher Assignments Overview
+                            </h5>
+                            <small class="text-muted">Detailed view of all teacher assignments across sections</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-purple text-white px-3 py-2">
+                                <i class="bi bi-people me-1"></i><?= $teacher_summary['unique_teachers_assigned'] ?> Unique Teachers
+                            </span>
+                            <span class="badge bg-info text-white px-3 py-2">
+                                <i class="bi bi-diagram-3 me-1"></i><?= $teacher_summary['total_assignments'] ?> Total Assignments
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 teacher-assignments-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">
+                                        <i class="bi bi-collection me-2"></i>Section
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-calendar me-2"></i>Academic Period
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-people me-2"></i>Assigned Teachers
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-hash me-2"></i>Count
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($assigned_teachers_details as $assignment): ?>
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-purple rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-collection text-white"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">BSIT-<?= $assignment['year_level'] ?><?= $assignment['section_name'] ?></h6>
+                                                <small class="text-muted"><?= formatYear($assignment['year_level']) ?></small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            <?= htmlspecialchars($assignment['academic_year']) ?>
+                                        </span>
+                                        <br>
+                                        <small class="text-muted"><?= htmlspecialchars($assignment['semester_name']) ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <?php foreach ($assignment['teachers'] as $teacher): ?>
+                                            <span class="badge bg-purple text-white px-2 py-1">
+                                                <i class="bi bi-person me-1"></i><?= htmlspecialchars($teacher['first_name'] . ' ' . $teacher['last_name']) ?>
+                                            </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark px-3 py-2">
+                                            <i class="bi bi-hash me-1"></i><?= $assignment['teacher_count'] ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Header Section -->
     <div class="row mb-4">
@@ -535,68 +985,82 @@ $stats = $stats_stmt->fetch();
                                         $period_info = $section['academic_year'] . ' - ' . $section['semester_name'];
                                         $is_current_period = $section['period_active'] == 1;
                                         ?>
-                                        <tr data-section-id="<?= $section['id'] ?>">
+                                        <tr data-section-id="<?= $section['id'] ?>" class="section-row">
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="flex-shrink-0">
-                                                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                            <i class="bi bi-collection text-white"></i>
+                                                        <div class="section-avatar position-relative">
+                                                            <div class="bg-gradient-primary rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
+                                                                <i class="bi bi-collection text-white fs-5"></i>
+                                                            </div>
+                                                            <?php if ($is_current_period): ?>
+                                                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6rem;">
+                                                                    <i class="bi bi-circle-fill"></i>
+                                                                </span>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
                                                     <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0 fw-semibold"><?= htmlspecialchars($display_name) ?></h6>
-                                                        <small class="text-muted"><?= htmlspecialchars($section['section_name']) ?></small>
+                                                        <h6 class="mb-1 fw-bold text-dark"><?= htmlspecialchars($display_name) ?></h6>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <span class="badge bg-light text-dark border"><?= htmlspecialchars($section['section_name']) ?></span>
+                                                            <small class="text-muted"><?= htmlspecialchars($period_info) ?></small>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
-                                                <div class="d-flex flex-column">
-                                                    <span class="badge bg-secondary fs-6 mb-1"><?= formatYear($section['year_level']) ?></span>
-                                                    <small class="text-muted">
-                                                        <?= htmlspecialchars($period_info) ?>
-                                                        <?php if ($is_current_period): ?>
-                                                            <span class="badge bg-success ms-1">Current</span>
-                                                        <?php endif; ?>
-                                                    </small>
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <span class="badge bg-secondary text-white fs-6 px-3 py-2 rounded-pill shadow-sm">
+                                                        <i class="bi bi-mortarboard me-1"></i><?= formatYear($section['year_level']) ?>
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td>
-                                                <small class="text-muted">
-                                                    <?= htmlspecialchars($section['description'] ?: 'No description') ?>
-                                                </small>
+                                                <div class="description-container">
+                                                    <?php if ($section['description']): ?>
+                                                        <p class="mb-0 text-dark fw-medium"><?= htmlspecialchars($section['description']) ?></p>
+                                                    <?php else: ?>
+                                                        <span class="text-muted fst-italic">
+                                                            <i class="bi bi-dash-circle me-1"></i>No description
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </td>
                                             <td>
+                                                <div class="d-flex justify-content-center">
                                                 <?php if ($section['is_active']): ?>
-                                                    <span class="badge bg-success">
-                                                        <i class="bi bi-check-circle me-1"></i>Active
+                                                        <span class="badge bg-success text-white px-3 py-2 rounded-pill shadow-sm">
+                                                            <i class="bi bi-check-circle-fill me-1"></i>Active
                                                     </span>
                                                 <?php else: ?>
-                                                    <span class="badge bg-danger">
-                                                        <i class="bi bi-x-circle me-1"></i>Inactive
+                                                        <span class="badge bg-danger text-white px-3 py-2 rounded-pill shadow-sm">
+                                                            <i class="bi bi-x-circle-fill me-1"></i>Inactive
                                                     </span>
                                                 <?php endif; ?>
+                                                </div>
                                             </td>
                                             <td>
-                                                <div class="d-flex flex-column align-items-start">
-                                                    <div class="d-flex gap-1 mb-1">
-                                                        <span class="badge bg-info">
-                                                            <i class="bi bi-people me-1"></i><?= $student_count ?> assigned
+                                                <div class="students-info-container">
+                                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                                        <span class="badge bg-info text-white px-3 py-2 rounded-pill shadow-sm">
+                                                            <i class="bi bi-people-fill me-1"></i><?= $student_count ?> assigned
                                                         </span>
                                                         <?php if ($enrolled_count > 0): ?>
-                                                            <span class="badge bg-success">
-                                                                <i class="bi bi-mortarboard me-1"></i><?= $enrolled_count ?> enrolled
+                                                            <span class="badge bg-success text-white px-3 py-2 rounded-pill shadow-sm">
+                                                                <i class="bi bi-mortarboard-fill me-1"></i><?= $enrolled_count ?> enrolled
                                                             </span>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <div class="d-flex gap-1">
+                                                    <div class="d-flex justify-content-center gap-2 flex-wrap">
                                                         <?php if ($student_count > 0): ?>
-                                                            <button class="btn btn-sm btn-outline-info" 
+                                                            <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-2" 
                                                                     onclick="viewSectionStudents(<?= $section['id'] ?>, '<?= htmlspecialchars($display_name) ?>')"
                                                                     title="View Students">
                                                                 <i class="bi bi-eye me-1"></i>View
                                                             </button>
                                                         <?php endif; ?>
-                                                        <button class="btn btn-sm btn-outline-success" 
+                                                        <button class="btn btn-sm btn-outline-success rounded-pill px-3 py-2" 
                                                                 onclick="openAddStudentsModal(<?= $section['id'] ?>)"
                                                                 title="Add Students">
                                                             <i class="bi bi-person-plus me-1"></i>Add
@@ -605,9 +1069,11 @@ $stats = $stats_stmt->fetch();
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-warning">
-                                                    <i class="bi bi-person-workspace me-1"></i><?= $teacher_count ?> teachers
+                                                <div class="d-flex justify-content-center">
+                                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
+                                                        <i class="bi bi-person-workspace-fill me-1"></i><?= $teacher_count ?> teachers
                                                 </span>
+                                                </div>
                                             </td>
                                             <td>
                                                 <?php
@@ -618,50 +1084,56 @@ $stats = $stats_stmt->fetch();
                                                 $assigned_courses = $cs_stmt->fetchAll();
                                                 
                                                 if (empty($assigned_courses)) {
-                                                    echo '<span class="text-muted">No courses assigned</span>';
+                                                    echo '<div class="d-flex justify-content-center">';
+                                                    echo '<span class="text-muted fst-italic">';
+                                                    echo '<i class="bi bi-dash-circle me-1"></i>No courses assigned';
+                                                    echo '</span>';
+                                                    echo '</div>';
                                                 } else {
-                                                    echo '<div class="d-flex flex-wrap gap-1">';
+                                                    echo '<div class="courses-container">';
+                                                    echo '<div class="d-flex flex-wrap gap-1 mb-2">';
                                                     foreach ($assigned_courses as $course) {
-                                                        $status_class = $course['status'] === 'active' ? 'bg-success' : 'bg-secondary';
-                                                        echo '<span class="badge ' . $status_class . ' small">';
+                                                        $status_class = $course['status'] === 'active' ? 'bg-success text-white' : 'bg-secondary text-white';
+                                                        echo '<span class="badge ' . $status_class . ' px-2 py-1 rounded-pill shadow-sm small">';
                                                         echo htmlspecialchars($course['course_code']);
                                                         echo '</span>';
                                                     }
                                                     echo '</div>';
-                                                    echo '<small class="text-muted d-block mt-1">' . count($assigned_courses) . ' course(s) assigned</small>';
+                                                    echo '<small class="text-muted d-block text-center">' . count($assigned_courses) . ' course(s) assigned</small>';
+                                                    echo '</div>';
                                                 }
                                                 ?>
                                             </td>
                                             <td>
-                                                <div class="d-flex justify-content-center gap-1">
-                                                    <button class="btn btn-sm btn-outline-primary" 
+                                                <div class="actions-container">
+                                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-2" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#editSectionModal<?= $section['id'] ?>"
                                                             title="Edit Section">
-                                                        <i class="bi bi-pencil"></i>
+                                                        <i class="bi bi-pencil me-1"></i>Edit
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-info" 
+                                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-2" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#assignUsersModal<?= $section['id'] ?>"
                                                             title="Assign Users">
-                                                        <i class="bi bi-people"></i>
+                                                        <i class="bi bi-people me-1"></i>Users
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-success" 
+                                                    <button class="btn btn-sm btn-outline-success rounded-pill px-3 py-2" 
                                                             onclick="openAddStudentsModal(<?= $section['id'] ?>)"
                                                             title="Add Students">
-                                                        <i class="bi bi-person-plus"></i>
+                                                        <i class="bi bi-person-plus me-1"></i>Add
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-info" 
+                                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-2" 
                                                             onclick="viewSectionStudents(<?= $section['id'] ?>, '<?= htmlspecialchars($display_name) ?>')"
                                                             title="View Students">
-                                                        <i class="bi bi-eye"></i>
+                                                        <i class="bi bi-eye me-1"></i>View
                                                     </button>
                                                     <form method="post" action="sections.php" 
                                                           style="display:inline;" 
                                                           onsubmit="return confirm('Are you sure you want to delete this section?');">
                                                     <input type="hidden" name="delete_section_id" value="<?= $section['id'] ?>">
-                                                        <button type="submit" name="delete_section" class="btn btn-sm btn-outline-danger" title="Delete Section">
-                                                            <i class="bi bi-trash"></i>
+                                                        <button type="submit" name="delete_section" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2" title="Delete Section">
+                                                            <i class="bi bi-trash me-1"></i>Delete
                                                         </button>
                                                 </form>
                                                 </div>

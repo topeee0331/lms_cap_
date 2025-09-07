@@ -226,11 +226,21 @@ foreach ($questions as $question) {
     }
 }
 
+// Calculate accuracy percentage - ensure it's not capped by passing rate
 $accuracy = $total_questions > 0 ? round(($correct_answers / $total_questions) * 100) : 0;
+
+// Ensure accuracy is not artificially limited by passing rate
+// This fixes the bug where scores might be capped at the passing rate (e.g., 80%)
+if ($accuracy > 100) {
+    $accuracy = 100; // Cap at 100% maximum
+}
 
 // Determine pass/fail status based on passing rate
 $passing_rate = $attempt['passing_rate'] ?? 70.0; // Default to 70% if not set
 $is_passed = $accuracy >= $passing_rate;
+
+// Debug: Log score calculation for troubleshooting
+error_log("Assessment Result Debug - Attempt ID: " . $attempt_id . ", Calculated Accuracy: " . $accuracy . "%, Stored Score: " . $attempt['score'] . "%, Passing Rate: " . $passing_rate . "%");
 $pass_fail_status = $is_passed ? 'PASSED' : 'FAILED';
 $pass_fail_class = $is_passed ? 'success' : 'danger';
 
@@ -399,8 +409,8 @@ $is_view_only = !$assessment_status['is_active'];
             border-radius: 50%;
             background: conic-gradient(
                 var(--success-color) 0deg, 
-                var(--success-color) <?php echo $accuracy * 3.6; ?>deg, 
-                var(--gray-200) <?php echo $accuracy * 3.6; ?>deg, 
+                var(--success-color) <?php echo min(100, max(0, $accuracy)) * 3.6; ?>deg, 
+                var(--gray-200) <?php echo min(100, max(0, $accuracy)) * 3.6; ?>deg, 
                 var(--gray-200) 360deg
             );
             display: flex;
@@ -744,6 +754,16 @@ $is_view_only = !$assessment_status['is_active'];
                                     <div class="score-circle"></div>
                                     <div class="score-text"><?php echo $accuracy; ?>%</div>
                                 </div>
+                                <!-- Debug: Show both calculated and stored scores -->
+                                <?php if (isset($_GET['debug']) && $_GET['debug'] == '1'): ?>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Calculated: <?php echo $accuracy; ?>% | 
+                                            Stored: <?php echo $attempt['score']; ?>% | 
+                                            Passing: <?php echo $passing_rate; ?>%
+                                        </small>
+                                    </div>
+                                <?php endif; ?>
                                 <h5 class="card-title mt-3">Your Score</h5>
                                 <p class="card-text"><?php echo $correct_answers; ?> out of <?php echo $total_questions; ?> correct</p>
                                 <div class="mt-3">

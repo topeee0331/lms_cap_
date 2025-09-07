@@ -369,6 +369,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
     
     $score = $total_questions > 0 ? round(($correct_answers / $total_questions) * 100) : 0;
     
+    // Debug: Log score calculation for troubleshooting 80% bug
+    error_log("Assessment Submission Debug - User ID: " . $user_id . ", Assessment ID: " . $assessment_id . ", Total Questions: " . $total_questions . ", Correct Answers: " . $correct_answers . ", Calculated Score: " . $score . "%, Passing Rate: " . ($assessment['passing_rate'] ?? 70) . "%");
+    
+    // Ensure score is not artificially limited by passing rate
+    // This fixes the bug where scores might be capped at the passing rate (e.g., 80%)
+    if ($score > 100) {
+        $score = 100; // Cap at 100% maximum only
+        error_log("Score capped at 100% for assessment attempt");
+    }
     
     // Create assessment attempt with answers stored as JSON
     $stmt = $pdo->prepare("

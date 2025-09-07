@@ -74,119 +74,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_video' && isset($_GET[
     }
 }
 
-// Handle video actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    $csrf_token = $_POST[CSRF_TOKEN_NAME] ?? '';
-    
-    if (!validateCSRFToken($csrf_token)) {
+    // Handle video actions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+        $csrf_token = $_POST[CSRF_TOKEN_NAME] ?? '';
+        
+        
+        if (!validateCSRFToken($csrf_token)) {
         $message = 'Invalid CSRF token.';
         $message_type = 'danger';
     } else {
         switch ($action) {
-            case 'upload_video':
-                $video_title = sanitizeInput($_POST['video_title'] ?? '');
-                $description = sanitizeInput($_POST['description'] ?? '');
-                $module_id = sanitizeInput($_POST['module_id'] ?? '');
-                $video_order = (int)($_POST['video_order'] ?? 1);
-                $source_type = $_POST['video_source_type'] ?? 'file';
-                $video_url = sanitizeInput($_POST['video_url'] ?? '');
-                
-                // Debug: Log what's being received
-                error_log("Video upload attempt - Title: '$video_title', Module ID: '$module_id', Course: '" . ($_POST['course'] ?? 'not set') . "'");
-                error_log("Full POST data: " . print_r($_POST, true));
-                
-                if (empty($video_title) || empty($module_id)) {
-                    $message = 'Video title and module are required. Please select a course first to load available modules.';
-                    $message_type = 'danger';
-                } else {
-                    $filename = '';
-                    if ($source_type === 'url') {
-                        if (empty($video_url)) {
-                            $message = 'Video URL is required.';
-                            $message_type = 'danger';
-                        } else {
-                            $filename = $video_url; // Save the URL as the filename
-                        }
-                } else {
-                    // Handle file upload
-                    if (isset($_FILES['video_file']) && $_FILES['video_file']['error'] === UPLOAD_ERR_OK) {
-                        $file = $_FILES['video_file'];
-                        $allowed_types = ['video/mp4', 'video/webm', 'video/ogg'];
-                        
-                        if (!in_array($file['type'], $allowed_types)) {
-                            $message = 'Invalid video format. Please upload MP4, WebM, or OGG files.';
-                            $message_type = 'danger';
-                        } else {
-                            $upload_dir = dirname(__DIR__) . '/uploads/videos/';
-                            if (!is_dir($upload_dir)) {
-                                mkdir($upload_dir, 0755, true);
-                            }
-                            
-                                $unique_filename = uniqid() . '_' . sanitizeFilename($file['name']);
-                                $filepath = $upload_dir . $unique_filename;
-                            
-                            if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                                    $filename = $unique_filename;
-                            } else {
-                                $message = 'Failed to upload video.';
-                                $message_type = 'danger';
-                            }
-                        }
-                    } else {
-                            $message = 'Please select a video file or provide a URL.';
-                        $message_type = 'danger';
-                        }
-                    }
-
-                    if (!empty($filename) && empty($message)) {
-                        // Find the course that contains this module
-                        $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
-                        $stmt->execute([$_SESSION['user_id']]);
-                        $courses_data = $stmt->fetchAll();
-                        
-                        $video_added = false;
-                        foreach ($courses_data as $course) {
-                            $modules_data = json_decode($course['modules'], true);
-                            if (is_array($modules_data)) {
-                                foreach ($modules_data as &$module) {
-                                    if ($module['id'] === $module_id) {
-                                        // Create new video object
-                                        $new_video = [
-                                            'id' => uniqid('vid_'),
-                                            'video_title' => $video_title,
-                                            'video_description' => $description,
-                                            'video_order' => $video_order,
-                                            'video_file' => $filename,
-                                            'created_at' => date('Y-m-d H:i:s')
-                                        ];
-                                        
-                                        // Add video to module's videos array
-                                        if (!isset($module['videos'])) {
-                                            $module['videos'] = [];
-                                        }
-                                        $module['videos'][] = $new_video;
-                                        
-                                        // Update course with new modules JSON
-                                        $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
-                                        $stmt->execute([json_encode($modules_data), $course['id']]);
-                                        
-                                        $video_added = true;
-                                        break 2;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if ($video_added) {
-                            $message = 'Video uploaded successfully.';
-                            $message_type = 'success';
-                        } else {
-                            $message = 'Module not found.';
-                            $message_type = 'danger';
-                        }
-                    }
-                }
+            case 'upload_video_disabled':
+                $message = 'Video upload functionality has been disabled.';
+                $message_type = 'warning';
                 break;
                 
             case 'update_video':
@@ -210,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $message = 'Video URL is required if source is URL.';
                             $message_type = 'danger';
                         } else {
-                            $filename = $video_url;
+                            $filename = ''; // Don't save URL as filename
                             $update_file = true;
                         }
                     } elseif ($source_type === 'file') {
@@ -252,7 +153,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 $video['video_description'] = $description;
                                                 $video['video_order'] = $video_order;
                                                 if ($update_file) {
-                                                    $video['video_file'] = $filename;
+                                                    if ($source_type === 'url') {
+                                                        $video['video_url'] = $video_url;
+                                                        unset($video['video_file']); // Remove old file reference
+                                                    } else {
+                                                        $video['video_file'] = $filename;
+                                                        unset($video['video_url']); // Remove old URL reference
+                                                    }
                                                 }
                                                 $video['updated_at'] = date('Y-m-d H:i:s');
                                                 $video_updated = true;
@@ -479,11 +386,6 @@ error_log("Total videos found: " . count($videos));
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3">Videos</h1>
-                <?php if ($is_acad_period_active): ?>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadVideoModal">
-                        <i class="bi bi-upload me-2"></i>Upload Video
-                    </button>
-                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -494,6 +396,7 @@ error_log("Total videos found: " . count($videos));
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
+    
 
     <?php if (!$is_acad_period_active): ?>
         <div class="alert alert-warning mb-4">
@@ -571,6 +474,13 @@ error_log("Total videos found: " . count($videos));
                                             <?php
                                             $video_url = $video['video_url'] ?? '';
                                             $video_file = $video['video_file'] ?? '';
+                                            
+                                            // Check if video_file contains a URL (from old data)
+                                            if (!empty($video_file) && (strpos($video_file, 'http') === 0 || strpos($video_file, 'www.') === 0)) {
+                                                $video_url = $video_file;
+                                                $video_file = '';
+                                            }
+                                            
                                             if (!empty($video_url)) {
                                                 if (preg_match('/youtu\.be|youtube\.com/', $video_url)) {
                                                     if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_url, $matches)) {
@@ -628,7 +538,7 @@ error_log("Total videos found: " . count($videos));
                                                     <button class="btn btn-outline-secondary" onclick="editVideo(<?php echo htmlspecialchars(json_encode($video)); ?>)">
                                                         <i class="bi bi-pencil me-1"></i>Edit
                                                     </button>
-                                                    <button class="btn btn-outline-info" onclick="viewVideoStats(<?php echo $video['id']; ?>)">
+                                                    <button class="btn btn-outline-info" onclick="viewVideoStats('<?php echo $video['id']; ?>')">
                                                         <i class="bi bi-graph-up me-1"></i>Stats
                                                     </button>
                                                     <a href="?action=delete_video&video_id=<?php echo urlencode($video['id']); ?>&confirm=1" 
@@ -650,91 +560,6 @@ error_log("Total videos found: " . count($videos));
     </div>
 </div>
 
-<!-- Upload Video Modal -->
-<div class="modal fade" id="uploadVideoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Upload Video</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <input type="hidden" name="action" value="upload_video">
-                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                    
-                    <div class="mb-3">
-                        <label for="upload_video_title" class="form-label">Video Title</label>
-                        <input type="text" class="form-control" id="upload_video_title" name="video_title" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="upload_description" class="form-label">Description</label>
-                        <textarea class="form-control" id="upload_description" name="description" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="upload_course" class="form-label">Course</label>
-                            <select class="form-select" id="upload_course" name="course" required onchange="loadUploadModules(this.value)">
-                                <option value="">Select Course</option>
-                                <?php foreach ($courses as $course): ?>
-                                    <option value="<?php echo $course['id']; ?>">
-                                        <?php echo htmlspecialchars($course['course_name'] . ' (' . $course['course_code'] . ')'); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="upload_module_id" class="form-label">Module</label>
-                            <select class="form-select" id="upload_module_id" name="module_id" required>
-                                <option value="">Select a course first to load modules</option>
-                            </select>
-                            <div class="form-text">Select a course above to see available modules</div>
-                        </div>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="upload_video_order" class="form-label">Video Order</label>
-                            <input type="number" class="form-control" id="upload_video_order" name="video_order" 
-                                   value="1" min="1" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="upload_duration" class="form-label">Duration (seconds)</label>
-                            <input type="number" class="form-control" id="upload_duration" name="duration" 
-                                   min="1" placeholder="Optional">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="video_source_type" class="form-label">Video Source</label>
-                        <select class="form-select" id="video_source_type" name="video_source_type">
-                            <option value="file" selected>Upload File</option>
-                            <option value="url">URL (e.g., YouTube)</option>
-                        </select>
-                    </div>
-
-                    <div id="file_upload_section">
-                        <label for="upload_video_file" class="form-label">Video File</label>
-                        <input type="file" class="form-control" id="upload_video_file" name="video_file" accept="video/*">
-                        <div class="form-text">Supported formats: MP4, WebM, OGG.</div>
-                    </div>
-
-                    <div id="url_input_section" style="display: none;">
-                        <label for="video_url" class="form-label">Video URL</label>
-                        <input type="text" class="form-control" id="video_url" name="video_url" placeholder="Enter video URL (e.g., YouTube link)">
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" onclick="return validateUploadForm()">Upload Video</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- Edit Video Modal -->
 <div class="modal fade" id="editVideoModal" tabindex="-1">
@@ -890,32 +715,6 @@ function loadModules(courseId) {
         });
 }
 
-function loadUploadModules(courseId) {
-    const moduleSelect = document.getElementById('upload_module_id');
-    moduleSelect.innerHTML = '<option value="">Loading modules...</option>';
-    
-    if (!courseId) {
-        moduleSelect.innerHTML = '<option value="">Select Module</option>';
-        return;
-    }
-    
-    console.log('Loading modules for course:', courseId);
-    
-    fetch(`get_modules.php?course_id=${courseId}`)
-        .then(response => response.json())
-        .then(modules => {
-            console.log('Modules received:', modules);
-            moduleSelect.innerHTML = '<option value="">Select Module</option>';
-            modules.forEach(module => {
-                console.log('Adding module:', module.id, module.module_title);
-                moduleSelect.innerHTML += `<option value="${module.id}">${module.module_title}</option>`;
-            });
-        })
-        .catch(error => {
-            console.error('Error loading modules:', error);
-            moduleSelect.innerHTML = '<option value="">Error loading modules</option>';
-        });
-}
 
 function loadEditModules(courseId) {
     const moduleSelect = document.getElementById('edit_module_id');
@@ -989,63 +788,32 @@ function viewVideoStats(videoId) {
     window.location.href = `video_stats.php?id=${videoId}`;
 }
 
-// Add this script to toggle between file upload and URL input
-document.getElementById('video_source_type').addEventListener('change', function() {
-    if (this.value === 'file') {
-        document.getElementById('file_upload_section').style.display = 'block';
-        document.getElementById('url_input_section').style.display = 'none';
-        document.getElementById('upload_video_file').required = true;
-        document.getElementById('video_url').required = false;
-    } else {
-        document.getElementById('file_upload_section').style.display = 'none';
-        document.getElementById('url_input_section').style.display = 'block';
-        document.getElementById('upload_video_file').required = false;
-        document.getElementById('video_url').required = true;
-    }
-});
-// Trigger the change event on page load to set the initial state
-document.getElementById('video_source_type').dispatchEvent(new Event('change'));
+// Upload functionality removed - no longer needed
 
-// Form validation function
-function validateUploadForm() {
-    const courseSelect = document.getElementById('upload_course');
-    const moduleSelect = document.getElementById('upload_module_id');
-    const titleInput = document.getElementById('upload_video_title');
-    
-    if (!courseSelect.value) {
-        alert('Please select a course first.');
-        courseSelect.focus();
-        return false;
-    }
-    
-    if (!moduleSelect.value) {
-        alert('Please select a module. If no modules appear, please select a course first.');
-        moduleSelect.focus();
-        return false;
-    }
-    
-    if (!titleInput.value.trim()) {
-        alert('Please enter a video title.');
-        titleInput.focus();
-        return false;
-    }
-    
-    return true;
-}
 
 // Add this script for the edit modal
-document.getElementById('edit_video_source_type').addEventListener('change', function() {
-    document.getElementById('edit_file_upload_section').style.display = 'none';
-    document.getElementById('edit_url_input_section').style.display = 'none';
-    document.getElementById('edit_video_file').required = false;
-    document.getElementById('edit_video_url').required = false;
+document.addEventListener('DOMContentLoaded', function() {
+    const editSourceType = document.getElementById('edit_video_source_type');
+    if (editSourceType) {
+        editSourceType.addEventListener('change', function() {
+            const fileSection = document.getElementById('edit_file_upload_section');
+            const urlSection = document.getElementById('edit_url_input_section');
+            const fileInput = document.getElementById('edit_video_file');
+            const urlInput = document.getElementById('edit_video_url');
+            
+            if (fileSection) fileSection.style.display = 'none';
+            if (urlSection) urlSection.style.display = 'none';
+            if (fileInput) fileInput.required = false;
+            if (urlInput) urlInput.required = false;
 
-    if (this.value === 'file') {
-        document.getElementById('edit_file_upload_section').style.display = 'block';
-        document.getElementById('edit_video_file').required = true;
-    } else if (this.value === 'url') {
-        document.getElementById('edit_url_input_section').style.display = 'block';
-        document.getElementById('edit_video_url').required = true;
+            if (this.value === 'file' && fileSection && fileInput) {
+                fileSection.style.display = 'block';
+                fileInput.required = true;
+            } else if (this.value === 'url' && urlSection && urlInput) {
+                urlSection.style.display = 'block';
+                urlInput.required = true;
+            }
+        });
     }
 });
 </script>

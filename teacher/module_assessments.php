@@ -6,6 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_SERVER['HTTP_X_REQUESTED_W
     
     // Include necessary files for AJAX processing
 require_once '../config/config.php';
+require_once '../includes/assessment_order_manager.php';
     
     // Start session for CSRF validation
     if (session_status() === PHP_SESSION_NONE) {
@@ -56,6 +57,7 @@ $stmt = $db->prepare("
     
     // Process AJAX actions
     switch ($action) {
+            
         case 'get_questions':
             $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
             
@@ -547,7 +549,7 @@ $assessments = [];
 // Get all assessments for this course first
 $stmt = $db->prepare("
     SELECT id, assessment_title, description, time_limit, difficulty, status, 
-           num_questions, passing_rate, attempt_limit, is_locked, lock_type,
+           num_questions, passing_rate, attempt_limit, assessment_order, is_locked, lock_type,
            prerequisite_assessment_id, prerequisite_score, prerequisite_video_count,
            unlock_date, lock_message, created_at
     FROM assessments 
@@ -685,7 +687,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 $num_questions = (int)($_POST['edit_num_questions'] ?? 10);
                 $passing_rate = (float)($_POST['edit_passing_rate'] ?? 70.0);
                 $attempt_limit = (int)($_POST['edit_attempt_limit'] ?? 3);
-                $assessment_order = (int)($_POST['edit_assessment_order'] ?? 1);
+                $assessment_order = (int)($_POST['edit_assessment_order'] ?? 0);
+                
+                // Use provided order or default to 1
+                if ($assessment_order < 1) {
+                    $assessment_order = 1;
+                }
                 
                 // Debug: Log the assessment order being updated
                 error_log("Updating assessment order for ID: $assessment_id, New order: $assessment_order");
@@ -1279,18 +1286,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             </button>
                         </div>
                     <?php else: ?>
+
                         <div class="row">
                                     <?php foreach ($assessments as $assessment): ?>
                                 <div class="col-md-6 col-lg-4 mb-4">
                                     <div class="card h-100 border-0 shadow-sm hover-shadow">
-                                        <div class="card-header bg-<?php echo $assessment['is_active'] ? 'success' : 'secondary'; ?> text-white">
+                                        <div class="card-header bg-<?php echo $assessment['status'] === 'active' ? 'success' : 'secondary'; ?> text-white">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <h6 class="mb-0 text-white fw-bold"><?php echo htmlspecialchars($assessment['assessment_title']); ?></h6>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-light text-dark me-2"><?php echo $assessment['assessment_order'] ?? 1; ?></span>
+                                                    <h6 class="mb-0 text-white fw-bold"><?php echo htmlspecialchars($assessment['assessment_title']); ?></h6>
+                                                </div>
                                                 <div class="form-check form-switch">
                                                     <input class="form-check-input" type="checkbox" 
                                                            onchange="toggleAssessmentStatus('<?php echo $assessment['id']; ?>', this.checked)"
-                                                           <?php echo $assessment['is_active'] ? 'checked' : ''; ?>
-                                                           title="<?php echo $assessment['is_active'] ? 'Deactivate' : 'Activate'; ?>">
+                                                           <?php echo $assessment['status'] === 'active' ? 'checked' : ''; ?>
+                                                           title="<?php echo $assessment['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>">
                                                 </div>
                                             </div>
                                         </div>
@@ -1404,6 +1415,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                   placeholder="Enter assessment description (optional)"></textarea>
                     </div>
                     
+                    <!-- Current Assessment Sequence Display -->
+                    <div id="current-sequence" class="mb-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Current Assessment Sequence:</strong>
+                            <div class="mt-2">
+                                <span id="sequence-list"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="time_limit" class="form-label fw-bold">
@@ -1452,8 +1474,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 <i class="bi bi-sort-numeric-down me-1 text-primary"></i>Assessment Order
                             </label>
                             <input type="number" class="form-control" id="assessment_order" name="assessment_order" 
-                                   placeholder="Enter order number" min="1" max="100" required>
-                            <div class="form-text text-muted">Manual order assignment - enter the order number (1 = first assessment)</div>
+                                   placeholder="Enter order number" min="1" max="100">
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Specify the order number for this assessment
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1548,8 +1573,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 <i class="bi bi-sort-numeric-down me-1 text-primary"></i>Assessment Order
                             </label>
                             <input type="number" class="form-control" id="edit_assessment_order" name="edit_assessment_order" 
-                                   min="1" max="100" required>
-                            <div class="form-text text-muted">Manual order assignment - enter the order number (1 = first assessment)</div>
+                                   min="1" max="100">
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Specify the order number for this assessment
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1986,6 +2014,7 @@ function deleteAssessment(assessmentId, assessmentTitle) {
         document.getElementById('deleteAssessmentForm').submit();
     }
 }
+
 
 function exportAssessmentStats() {
     const assessmentTitle = document.getElementById('stats_assessment_title').textContent;

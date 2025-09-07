@@ -1,0 +1,197 @@
+=== DEBUGGING ACTUAL ATTEMPT 33 ===
+
+Attempt Details:
+ID: 33
+Student ID: 4
+Assessment ID: assess_68bd7bcfaa39e
+Score: 100.00
+Max Score: 10.00
+Status: completed
+
+Raw Answers JSON:
+[
+    {
+        "question_id": 109,
+        "question_text": "sqwdsqdweferfefer",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 115,
+        "question_text": "gertwgrtghrteg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 114,
+        "question_text": "rtgrtghrtghrt",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 116,
+        "question_text": "rtgrwtgrtert",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 113,
+        "question_text": "rtgrtgwrtgrtg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 112,
+        "question_text": "erwggrtg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 110,
+        "question_text": "efergferfgergrwtg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 111,
+        "question_text": "egwregrtegwrtgg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 117,
+        "question_text": "rtgrwtghrrt",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    },
+    {
+        "question_id": 118,
+        "question_text": "rgrtgrtgrtgwrtgrtg",
+        "question_type": "true_false",
+        "student_answer": "True",
+        "is_correct": true,
+        "points": 1
+    }
+]
+
+Questions in database:
+1. ID: 109 - Order: 1 - sqwdsqdweferfefer...
+2. ID: 110 - Order: 2 - efergferfgergrwtg...
+3. ID: 111 - Order: 3 - egwregrtegwrtgg...
+4. ID: 112 - Order: 4 - erwggrtg...
+5. ID: 113 - Order: 5 - rtgrtgwrtgrtg...
+6. ID: 114 - Order: 6 - rtgrtghrtghrt...
+7. ID: 115 - Order: 7 - gertwgrtghrteg...
+8. ID: 116 - Order: 8 - rtgrwtgrtert...
+9. ID: 117 - Order: 9 - rtgrwtghrrt...
+10. ID: 118 - Order: 10 - rgrtgrtgrtgwrtgrtg...
+
+=== TESTING EXACT VALIDATION LOGIC ===
+
+Question Analysis:
+Q1 (ID: 109):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q2 (ID: 110):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q3 (ID: 111):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q4 (ID: 112):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q5 (ID: 113):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q6 (ID: 114):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q7 (ID: 115):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q8 (ID: 116):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q9 (ID: 117):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+Q10 (ID: 117):
+  Type: true_false
+  Student Answer: 'True'
+  Is Answered: Yes
+  Is Unanswered: No
+  Is Correct: Yes
+  Correct Answer Index: 0
+---
+
+=== STATISTICS ===
+Total questions: 10
+Correct answers: 10
+Incorrect answers: 0
+Unanswered: 0
+Calculated accuracy: 100%
+Stored score: 100.00%

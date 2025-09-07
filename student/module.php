@@ -93,22 +93,34 @@ if ($enrollment) {
 $is_completed = isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1;
 $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_id]['completed_at'] : null;
 
-// Get videos and assessments from module data
+// Get videos from module data
 $videos = $module['videos'] ?? [];
-$assessments = $module['assessments'] ?? [];
 
-
-
-// Remove duplicate assessments based on ID
-$unique_assessments = [];
-$seen_ids = [];
-foreach ($assessments as $assessment) {
-    if (!in_array($assessment['id'], $seen_ids)) {
-        $unique_assessments[] = $assessment;
-        $seen_ids[] = $assessment['id'];
+// Get assessments that belong to the current module from course modules JSON
+$assessments = [];
+if (isset($module['assessments']) && is_array($module['assessments'])) {
+    $module_assessment_ids = array_column($module['assessments'], 'id');
+    
+    if (!empty($module_assessment_ids)) {
+        $placeholders = str_repeat('?,', count($module_assessment_ids) - 1) . '?';
+        $stmt = $pdo->prepare("
+            SELECT id, assessment_title, description, time_limit, difficulty, 
+                   num_questions, passing_rate, attempt_limit, assessment_order,
+                   is_locked, lock_type, prerequisite_assessment_id, 
+                   prerequisite_score, prerequisite_video_count, unlock_date, lock_message,
+                   created_at
+            FROM assessments 
+            WHERE id IN ($placeholders) AND status = 'active'
+            ORDER BY assessment_order ASC
+        ");
+        $stmt->execute($module_assessment_ids);
+        $assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
-$assessments = $unique_assessments;
+
+
+
+// Assessments are already unique since they come from database
 
 // Remove duplicate videos based on ID (similar to assessments)
 $unique_videos = [];
@@ -137,7 +149,7 @@ usort($videos, function($a, $b) {
 
 
 // Add comprehensive assessment attempt data
-foreach ($assessments as &$assessment) {
+foreach ($assessments as $index => $assessment) {
 $stmt = $pdo->prepare("
         SELECT COUNT(*) as attempt_count, 
                MAX(score) as best_score,
@@ -153,15 +165,15 @@ $stmt = $pdo->prepare("
     $stmt->execute([$assessment['id'], $user_id]);
     $attempt_data = $stmt->fetch();
     
-    $assessment['attempt_count'] = $attempt_data['attempt_count'] ?? 0;
-    $assessment['best_score'] = $attempt_data['best_score'] ?? null;
-    $assessment['average_score'] = $attempt_data['average_score'] ?? null;
-    $assessment['worst_score'] = $attempt_data['worst_score'] ?? null;
-    $assessment['passed_attempts'] = $attempt_data['passed_attempts'] ?? 0;
-    $assessment['has_ever_passed'] = $attempt_data['has_ever_passed'] ?? 0;
-    $assessment['last_attempt_date'] = $attempt_data['last_attempt_date'] ?? null;
-    $assessment['total_time_spent'] = $attempt_data['total_time_spent'] ?? 0;
-    $assessment['pass_rate'] = $attempt_data['attempt_count'] > 0 ? 
+    $assessments[$index]['attempt_count'] = $attempt_data['attempt_count'] ?? 0;
+    $assessments[$index]['best_score'] = $attempt_data['best_score'] ?? null;
+    $assessments[$index]['average_score'] = $attempt_data['average_score'] ?? null;
+    $assessments[$index]['worst_score'] = $attempt_data['worst_score'] ?? null;
+    $assessments[$index]['passed_attempts'] = $attempt_data['passed_attempts'] ?? 0;
+    $assessments[$index]['has_ever_passed'] = $attempt_data['has_ever_passed'] ?? 0;
+    $assessments[$index]['last_attempt_date'] = $attempt_data['last_attempt_date'] ?? null;
+    $assessments[$index]['total_time_spent'] = $attempt_data['total_time_spent'] ?? 0;
+    $assessments[$index]['pass_rate'] = $attempt_data['attempt_count'] > 0 ? 
         round(($attempt_data['passed_attempts'] / $attempt_data['attempt_count']) * 100, 1) : 0;
 }
 
@@ -272,43 +284,20 @@ $video_progress_percentage = $total_videos > 0 ? round(($watched_videos / $total
 $unlocked = [];
 $best_scores = [];
 
-// First, get assessment data from the database to have complete information
-$assessment_ids = array_column($assessments, 'id');
-if (!empty($assessment_ids)) {
-    $placeholders = str_repeat('?,', count($assessment_ids) - 1) . '?';
-    $stmt = $pdo->prepare("
-        SELECT id, assessment_title, prerequisite_assessment_id, passing_rate, assessment_order
-        FROM assessments 
-        WHERE id IN ($placeholders)
-        ORDER BY assessment_order ASC
-    ");
-    $stmt->execute($assessment_ids);
-    $db_assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Create a lookup array for database assessment data
-    $db_assessment_lookup = [];
-    foreach ($db_assessments as $db_assessment) {
-        $db_assessment_lookup[$db_assessment['id']] = $db_assessment;
-    }
-    
-    // Merge database data with module assessment data
-    foreach ($assessments as &$assessment) {
-        $assessment_id = $assessment['id'];
-        if (isset($db_assessment_lookup[$assessment_id])) {
-            $db_data = $db_assessment_lookup[$assessment_id];
-            $assessment['prerequisite_assessment_id'] = $db_data['prerequisite_assessment_id'];
-            $assessment['passing_rate'] = $db_data['passing_rate'] ?? $assessment['passing_rate'] ?? 70;
-            $assessment['assessment_order'] = $db_data['assessment_order'] ?? 1;
-        }
-    }
-}
+// Assessments already have all the data from database query
 
 // Sort assessments by assessment_order (manual order set by teacher)
 usort($assessments, function($a, $b) {
     $order_a = $a['assessment_order'] ?? 999;
     $order_b = $b['assessment_order'] ?? 999;
     
-    // Pure manual ordering - no date fallback
+    // If orders are the same, sort by creation date as fallback
+    if ($order_a == $order_b) {
+        $date_a = strtotime($a['created_at'] ?? '1970-01-01');
+        $date_b = strtotime($b['created_at'] ?? '1970-01-01');
+        return $date_a - $date_b;
+    }
+    
     return $order_a - $order_b;
 });
 
@@ -331,6 +320,7 @@ foreach ($assessments as $index => $a) {
         // For assessments with order > 1, check if the previous order assessment is completed
         $previous_order = $assessment_order - 1;
         $previous_assessment_completed = false;
+        $previous_assessment_title = '';
         
         // Find the assessment with the previous order
         foreach ($assessments as $prev_assessment) {
@@ -338,12 +328,19 @@ foreach ($assessments as $index => $a) {
             if ($prev_order == $previous_order) {
                 $prev_best_score = $prev_assessment['best_score'] ?? 0;
                 $prev_passing_rate = $prev_assessment['passing_rate'] ?? 70;
+                $previous_assessment_title = $prev_assessment['assessment_title'] ?? 'Previous Assessment';
                 $previous_assessment_completed = ($prev_best_score >= $prev_passing_rate);
                 break;
             }
         }
         
         $unlocked[$assessment_id] = $previous_assessment_completed;
+        
+        // Store prerequisite information for display
+        if (!$previous_assessment_completed) {
+            $a['prerequisite_title'] = $previous_assessment_title;
+            $a['prerequisite_order'] = $previous_order;
+        }
     }
 }
 
@@ -562,8 +559,28 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .assessment-card.locked {
-            opacity: 0.7;
-            background: linear-gradient(135deg, var(--gray-100) 0%, rgba(255, 255, 255, 0.95) 100%);
+            opacity: 0.8;
+            background: linear-gradient(135deg, #f8f9fa 0%, rgba(255, 255, 255, 0.95) 100%);
+            border: 2px dashed #dee2e6;
+            position: relative;
+        }
+        
+        .assessment-card.locked::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 49%, #dee2e6 50%, transparent 51%);
+            background-size: 20px 20px;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        
+        .assessment-card.locked .card-body {
+            position: relative;
+            z-index: 1;
         }
 
         /* Progress Circle */
@@ -1225,9 +1242,12 @@ $module_files = []; // This would need to be implemented based on how files are 
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
                                                 <h5 class="card-title">
+                                                    <span class="badge bg-<?php echo $is_locked ? 'secondary' : 'primary'; ?> me-2">
+                                                        <?php echo $assessment['assessment_order'] ?? 1; ?>
+                                                    </span>
                                                     <?php echo htmlspecialchars($assessment['assessment_title'] ?? ''); ?>
                                                     <?php if ($unlocked[$assessment['id']] && !$is_locked && ($assessment['assessment_order'] ?? 1) == 1): ?>
-                                                        <span class="badge bg-primary ms-2">
+                                                        <span class="badge bg-success ms-2">
                                                             <i class="fas fa-star"></i> First
                                                         </span>
                                                     <?php endif; ?>
@@ -1237,7 +1257,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                         <i class="fas fa-check"></i> Passed
                                                     </span>
                                                 <?php elseif ($is_locked): ?>
-                                                    <span class="badge bg-secondary">
+                                                    <span class="badge bg-warning">
                                                         <i class="fas fa-lock"></i> Locked
                                                     </span>
                                                 <?php endif; ?>
@@ -1310,7 +1330,12 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 <?php if ($is_locked): ?>
                                                     <div class="action-button view-only" style="cursor: not-allowed; opacity: 0.7;">
                                                         <i class="fas fa-lock"></i>
-                                                        <span>Complete Assessment <?php echo ($assessment['assessment_order'] ?? 1) - 1; ?> first</span>
+                                                        <span>
+                                                            Complete Assessment <?php echo ($assessment['assessment_order'] ?? 1) - 1; ?> first
+                                                            <?php if (isset($assessment['prerequisite_title'])): ?>
+                                                                <br><small class="text-muted">(<?php echo htmlspecialchars($assessment['prerequisite_title']); ?>)</small>
+                                                            <?php endif; ?>
+                                                        </span>
                                                     </div>
                                                     <small class="text-muted text-center">
                                                         You must pass Assessment <?php echo ($assessment['assessment_order'] ?? 1) - 1; ?> to unlock this assessment

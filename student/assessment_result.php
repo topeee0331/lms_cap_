@@ -174,6 +174,8 @@ foreach ($questions as &$question) {
     $question['student_answer'] = null;
     $question['student_id_answer'] = null;
     $question['is_correct'] = false;
+    $question['is_answered'] = false;
+    $question['is_unanswered'] = false;
     
     // Find the answer for this question in the JSON data
     foreach ($answers_data as $answer_data) {
@@ -182,42 +184,62 @@ foreach ($questions as &$question) {
             // For identification and true/false, student_answer contains the text answer
             if ($question['question_type'] === 'multiple_choice') {
                 $question['student_answer'] = $answer_data['student_answer'] ?? null;
+                $question['is_answered'] = $question['student_answer'] !== null && $question['student_answer'] !== '';
             } else {
                 $question['student_id_answer'] = $answer_data['student_answer'] ?? null;
+                $question['is_answered'] = !empty($question['student_id_answer']);
             }
-            $question['is_correct'] = $answer_data['is_correct'] ?? false;
+            
+            // Determine if the question is truly answered (not just visited)
+            if ($question['is_answered']) {
+                // Re-validate the answer to ensure accuracy
+                if ($question['question_type'] === 'identification') {
+                    $correct_text = null;
+                    foreach ($question['options'] as $option) {
+                        if ($option['is_correct']) {
+                            $correct_text = $option['text'] ?? '';
+                            break;
+                        }
+                    }
+                    $question['is_correct'] = strtoupper(trim($question['student_id_answer'] ?? '')) === strtoupper(trim($correct_text ?? ''));
+                } elseif ($question['question_type'] === 'true_false') {
+                    $correct_text = null;
+                    foreach ($question['options'] as $option) {
+                        if ($option['is_correct']) {
+                            $correct_text = $option['text'] ?? '';
+                            break;
+                        }
+                    }
+                    $question['is_correct'] = strtoupper(trim($question['student_id_answer'] ?? '')) === strtoupper(trim($correct_text ?? ''));
+                } else {
+                    // Multiple choice
+                    $question['is_correct'] = $question['student_answer'] === $question['correct_answer'];
+                }
+            } else {
+                // Question was visited but not answered (empty answer)
+                $question['is_unanswered'] = true;
+                $question['is_correct'] = false;
+            }
             break;
         }
+    }
+    
+    // If no answer entry found at all, question was never visited
+    if (!$question['is_answered'] && !$question['is_unanswered']) {
+        $question['is_unanswered'] = true;
+        $question['is_correct'] = false;
     }
 }
 unset($question);
 
-// Calculate statistics using the stored is_correct status
+// Calculate statistics using the corrected validation logic
 $total_questions = count($questions);
 $correct_answers = 0;
 $incorrect_answers = 0;
 $unanswered = 0;
 
 foreach ($questions as $question) {
-    // Check if question was answered (has an entry in answers_data, even if empty)
-    $has_answer_entry = false;
-    $is_answered = false;
-    
-    if ($question['question_type'] === 'identification') {
-        $has_answer_entry = isset($question['student_id_answer']);
-        $is_answered = !empty($question['student_id_answer']);
-    } elseif ($question['question_type'] === 'true_false') {
-        $has_answer_entry = isset($question['student_id_answer']);
-        $is_answered = !empty($question['student_id_answer']);
-    } else {
-        // Multiple choice questions
-        $has_answer_entry = isset($question['student_answer']);
-        // For multiple choice, check if answer is not null/empty, but '0' is valid
-        $is_answered = $question['student_answer'] !== null && $question['student_answer'] !== '';
-    }
-    
-    // If there's no answer entry at all, it means the question was never visited
-    if (!$has_answer_entry) {
+    if ($question['is_unanswered']) {
         $unanswered++;
     } elseif ($question['is_correct']) {
         $correct_answers++;
@@ -912,47 +934,10 @@ $is_view_only = !$assessment_status['is_active'];
                     <div class="card-body">
                         <?php foreach ($questions as $index => $question): ?>
                             <?php 
-                            if ($question['question_type'] === 'identification') {
-                                // Check if question was never visited (no answer entry) vs visited but empty
-                                $has_answer_entry = isset($question['student_id_answer']);
-                                $is_unanswered = !$has_answer_entry;
-                                $is_empty_answer = $has_answer_entry && ($question['student_id_answer'] === null || $question['student_id_answer'] === '');
-                                
-                                $correct_text = null;
-                                foreach ($question['options'] as $option) {
-                                    if ($option['is_correct']) {
-                                        $correct_text = $option['text'] ?? '';
-                                        break;
-                                    }
-                                }
-                                $is_correct = !$is_unanswered && !$is_empty_answer && strtoupper(trim($question['student_id_answer'] ?? '')) === strtoupper(trim($correct_text ?? ''));
-                                $result_class = $is_correct ? 'correct' : ($is_unanswered ? 'unanswered' : 'incorrect');
-                            } elseif ($question['question_type'] === 'true_false') {
-                                // Check if question was never visited (no answer entry) vs visited but empty
-                                $has_answer_entry = isset($question['student_id_answer']);
-                                $is_unanswered = !$has_answer_entry;
-                                $is_empty_answer = $has_answer_entry && ($question['student_id_answer'] === null || $question['student_id_answer'] === '');
-                                
-                                $correct_text = null;
-                                foreach ($question['options'] as $option) {
-                                    if ($option['is_correct']) {
-                                        $correct_text = $option['text'] ?? '';
-                                        break;
-                                    }
-                                }
-                                $is_correct = !$is_unanswered && !$is_empty_answer && strtoupper(trim($question['student_id_answer'] ?? '')) === strtoupper(trim($correct_text ?? ''));
-                                $result_class = $is_correct ? 'correct' : ($is_unanswered ? 'unanswered' : 'incorrect');
-                            } else {
-                                // Multiple choice questions
-                                // Check if question was never visited (no answer entry) vs visited but empty
-                                $has_answer_entry = isset($question['student_answer']);
-                                $is_unanswered = !$has_answer_entry;
-                                // For multiple choice, '0' is a valid answer, so only check for null/empty string
-                                $is_empty_answer = $has_answer_entry && ($question['student_answer'] === null || $question['student_answer'] === '');
-                                
-                                $is_correct = !$is_unanswered && !$is_empty_answer && $question['student_answer'] === $question['correct_answer'];
-                                $result_class = $is_correct ? 'correct' : ($is_unanswered ? 'unanswered' : 'incorrect');
-                            }
+                            // Use the corrected validation logic from above
+                            $is_correct = $question['is_correct'];
+                            $is_unanswered = $question['is_unanswered'];
+                            $result_class = $is_correct ? 'correct' : ($is_unanswered ? 'unanswered' : 'incorrect');
                             ?>
                             <div class="question-result <?php echo $result_class; ?> p-3">
                                 <div class="d-flex justify-content-between align-items-start mb-3">

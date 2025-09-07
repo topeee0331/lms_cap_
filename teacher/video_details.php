@@ -225,19 +225,22 @@ $page_title = 'Video Details: ' . htmlspecialchars($video['video_title']);
                                 <p class="mb-1"><strong>Order:</strong> <?php echo $video['video_order'] ?? 'Not set'; ?></p>
                                 <p class="mb-1"><strong>Type:</strong> 
                                     <?php 
-                                    if ($video['video_file'] && !preg_match('/^https?:\/\//', $video['video_file'])) {
+                                    $video_file = $video['video_file'] ?? '';
+                                    $video_url = $video['video_url'] ?? '';
+                                    
+                                    if ($video_file && !preg_match('/^https?:\/\//', $video_file)) {
                                         echo 'Uploaded File';
-                                    } elseif ($video['video_url'] || ($video['video_file'] && preg_match('/^https?:\/\//', $video['video_file']))) {
+                                    } elseif ($video_url || ($video_file && preg_match('/^https?:\/\//', $video_file))) {
                                         echo 'External Link';
                                     } else {
                                         echo 'Unknown';
                                     }
                                     ?>
                                 </p>
-                                <?php if (($video['video_url'] ?? '') || ($video['video_file'] && preg_match('/^https?:\/\//', $video['video_file']))): ?>
+                                <?php if ($video_url || ($video_file && preg_match('/^https?:\/\//', $video_file))): ?>
                                     <p class="mb-0"><strong>Source:</strong> 
-                                        <a href="<?php echo htmlspecialchars($video['video_url'] ?: $video['video_file']); ?>" target="_blank" class="text-decoration-none">
-                                            <?php echo htmlspecialchars($video['video_url'] ?: $video['video_file']); ?>
+                                        <a href="<?php echo htmlspecialchars($video_url ?: $video_file); ?>" target="_blank" class="text-decoration-none">
+                                            <?php echo htmlspecialchars($video_url ?: $video_file); ?>
                                         </a>
                                     </p>
                                 <?php endif; ?>
@@ -259,9 +262,6 @@ $page_title = 'Video Details: ' . htmlspecialchars($video['video_title']);
                                     <i class="fas fa-list me-1"></i>View All Videos
                                 </a>
                                 <?php if ($is_acad_period_active): ?>
-                                    <button class="btn btn-outline-secondary" onclick="editVideo(<?php echo htmlspecialchars(json_encode($video)); ?>)">
-                                        <i class="fas fa-edit me-1"></i>Edit Video
-                                    </button>
                                     <a href="video_stats.php?id=<?php echo $video_id; ?>" class="btn btn-outline-info">
                                         <i class="fas fa-chart-bar me-1"></i>View Statistics
                                     </a>
@@ -275,17 +275,5 @@ $page_title = 'Video Details: ' . htmlspecialchars($video['video_title']);
     </div>
 </div>
 
-<script>
-function editVideo(video) {
-    // Populate edit modal with video data
-    document.getElementById('edit_video_id').value = video.id;
-    document.getElementById('edit_video_title').value = video.video_title;
-    document.getElementById('edit_description').value = video.video_description;
-    document.getElementById('edit_video_order').value = video.video_order;
-    
-    // Show the edit modal
-    new bootstrap.Modal(document.getElementById('editVideoModal')).show();
-}
-</script>
 
 <?php include '../includes/footer.php'; ?> 

@@ -97,6 +97,8 @@ $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_i
 $videos = $module['videos'] ?? [];
 $assessments = $module['assessments'] ?? [];
 
+
+
 // Remove duplicate assessments based on ID
 $unique_assessments = [];
 $seen_ids = [];
@@ -108,10 +110,31 @@ foreach ($assessments as $assessment) {
 }
 $assessments = $unique_assessments;
 
-// Add video watch status
+// Remove duplicate videos based on ID (similar to assessments)
+$unique_videos = [];
+$seen_video_ids = [];
+foreach ($videos as $video) {
+    if (!in_array($video['id'], $seen_video_ids)) {
+        $unique_videos[] = $video;
+        $seen_video_ids[] = $video['id'];
+    }
+}
+$videos = $unique_videos;
+
+// Add video watch status and duration
 foreach ($videos as &$video) {
     $video['is_watched'] = isset($video_progress[$video['id']]) && $video_progress[$video['id']]['is_watched'] == 1;
+    $video['watch_duration'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['watch_duration'] ?? 0) : 0;
+    $video['completion_percentage'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['completion_percentage'] ?? 0) : 0;
 }
+
+// Sort videos by video_order to ensure proper display order
+usort($videos, function($a, $b) {
+    $order_a = $a['video_order'] ?? 999;
+    $order_b = $b['video_order'] ?? 999;
+    return $order_a - $order_b;
+});
+
 
 // Add comprehensive assessment attempt data
 foreach ($assessments as &$assessment) {
@@ -147,28 +170,10 @@ $is_acad_year_active = (bool)$course['academic_period_active'];
 $is_semester_active = $is_acad_year_active;
 $is_view_only = !$is_acad_year_active || !$is_semester_active;
 
-// Handle video view tracking
+// Handle video view tracking (legacy - now handled by video_player.php)
 if (isset($_POST['mark_video_watched'])) {
-    $video_id = $_POST['video_id'];
-    
-    // Update video progress
-    $video_progress[$video_id] = [
-        'is_watched' => 1,
-        'watched_at' => date('Y-m-d H:i:s')
-    ];
-    
-    // Update enrollment
-    $stmt = $pdo->prepare("
-        UPDATE course_enrollments 
-        SET video_progress = ?
-        WHERE student_id = ? AND course_id = ?
-    ");
-    $stmt->execute([
-        json_encode($video_progress),
-        $user_id,
-        $course['id']
-    ]);
-    
+    // This is now handled by the video player with time tracking
+    // Redirect to prevent accidental double-submission
     header('Location: module.php?id=' . $module_id);
     exit();
 }
@@ -250,10 +255,15 @@ $course_themes = [
 // Calculate video progress
 $total_videos = count($videos);
 $watched_videos = 0;
+$total_watch_time = 0;
+$total_required_time = 0;
+
 foreach ($videos as $video) {
     if ($video['is_watched']) {
         $watched_videos++;
+        $total_watch_time += $video['watch_duration'] ?? 0;
     }
+    $total_required_time += ($video['min_watch_time'] ?? 5) * 60; // Convert minutes to seconds
 }
 
 $video_progress_percentage = $total_videos > 0 ? round(($watched_videos / $total_videos) * 100) : 0;
@@ -1084,6 +1094,13 @@ $module_files = []; // This would need to be implemented based on how files are 
                                 <h5 class="card-title mt-3">Video Progress</h5>
                                 <p class="card-text"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
                                 
+                                <?php if ($total_watch_time > 0): ?>
+                                    <div class="mt-2">
+                                        <small class="text-muted">Total Watch Time: </small>
+                                        <strong class="text-info"><?php echo gmdate("H:i:s", $total_watch_time); ?></strong>
+                                    </div>
+                                <?php endif; ?>
+                                
                                 <!-- Additional Progress Stats -->
                                 <div class="mt-3">
                                     <div class="row text-center">
@@ -1147,7 +1164,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 <div class="col-6">
                                                     <small class="text-muted">
                                                         <i class="fas fa-clock"></i><br>
-                                                        <?php echo $video['min_watch_time'] ?? 0; ?> min
+                                                        <?php echo $video['min_watch_time'] ?? 5; ?> min
                                                     </small>
                                                 </div>
                                                 <div class="col-6">
@@ -1159,25 +1176,33 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             </div>
                                             
                                             <div class="d-grid gap-2">
-                                                <?php if ($video['video_url'] ?? ''): ?>
-                                                    <a href="video.php?id=<?php echo $video['id']; ?>" class="action-button start">
-                                                        <i class="fas fa-play"></i>
-                                                        <span>Watch Video</span>
-                                                    </a>
-                                                <?php elseif ($video['video_file'] ?? ''): ?>
-                                                    <a href="video.php?id=<?php echo $video['id']; ?>" class="action-button start">
+                                                <?php if ($video['video_url'] ?? $video['video_file'] ?? ''): ?>
+                                                    <a href="video_player.php?id=<?php echo $video['id']; ?>&module_id=<?php echo $module_id; ?>" class="action-button start">
                                                         <i class="fas fa-play"></i>
                                                         <span>Watch Video</span>
                                                     </a>
                                                 <?php endif; ?>
                                                 
-                                                <?php if (!$video['is_watched']): ?>
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="video_id" value="<?php echo $video['id']; ?>">
-                                                        <button type="submit" name="mark_video_watched" class="btn btn-outline-success btn-sm">
-                                                            <i class="fas fa-check"></i> Mark as Watched
-                                                        </button>
-                                                    </form>
+                                                <?php if ($video['is_watched']): ?>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-check"></i> Completed
+                                                        </span>
+                                                        <?php if (isset($video_progress[$video['id']]['watch_duration'])): ?>
+                                                            <div class="small text-muted mt-1">
+                                                                Watched for <?php echo gmdate("H:i:s", $video_progress[$video['id']]['watch_duration']); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-secondary">
+                                                            <i class="fas fa-clock"></i> Not Watched
+                                                        </span>
+                                                        <div class="small text-muted mt-1">
+                                                            Min: <?php echo $video['min_watch_time'] ?? 5; ?> min
+                                                        </div>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                         </div>

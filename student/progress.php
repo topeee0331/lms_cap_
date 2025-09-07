@@ -255,11 +255,13 @@ $monthly_progress = $stmt->fetchAll();
             width: 100px;
             height: 100px;
             border-radius: 50%;
+            background: #e9ecef; /* Fallback for older browsers */
             background: conic-gradient(#007bff 0deg, #007bff <?php echo $module_progress * 3.6; ?>deg, #e9ecef <?php echo $module_progress * 3.6; ?>deg, #e9ecef 360deg);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto;
+            position: relative;
         }
         .progress-circle::before {
             content: '';
@@ -267,9 +269,14 @@ $monthly_progress = $stmt->fetchAll();
             height: 80px;
             border-radius: 50%;
             background: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
         .progress-text {
-            position: absolute;
+            position: relative;
+            z-index: 1;
             font-size: 1.2rem;
             font-weight: bold;
             color: #007bff;

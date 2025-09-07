@@ -24,6 +24,43 @@ if ($row = $stmt->fetch()) {
     if ($completion > $current) {
         $stmt = $pdo->prepare("UPDATE video_views SET completion_percentage = ?, watched_at = NOW() WHERE student_id = ? AND video_id = ?");
         $stmt->execute([$completion, $user_id, $video_id]);
+        
+        // Send notification to teacher if completion is significant (e.g., > 80%)
+        if ($completion >= 80) {
+            require_once '../config/pusher.php';
+            require_once '../includes/pusher_notifications.php';
+            
+            // Get video and course details
+            $stmt = $pdo->prepare("
+                SELECT c.course_name, c.teacher_id, c.modules, u.first_name, u.last_name
+                FROM courses c
+                JOIN users u ON c.teacher_id = u.id
+                WHERE c.modules LIKE ?
+            ");
+            $stmt->execute(['%"id":' . $video_id . '%']);
+            $courseData = $stmt->fetch();
+            
+            if ($courseData) {
+                $modules = json_decode($courseData['modules'], true);
+                if ($modules) {
+                    foreach ($modules as $module) {
+                        if (isset($module['videos'])) {
+                            foreach ($module['videos'] as $video) {
+                                if (isset($video['id']) && $video['id'] == $video_id) {
+                                    PusherNotifications::sendVideoProgressToTeacher(
+                                        $courseData['teacher_id'],
+                                        $_SESSION['first_name'] . ' ' . $_SESSION['last_name'],
+                                        $video['title'] ?? 'Unknown Video',
+                                        $courseData['course_name']
+                                    );
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 } else {
     $stmt = $pdo->prepare("INSERT INTO video_views (student_id, video_id, completion_percentage, watched_at) VALUES (?, ?, ?, NOW())");

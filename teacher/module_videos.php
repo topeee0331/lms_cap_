@@ -171,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif (empty($video_url)) {
                     $message = 'Video link is required.';
                     $message_type = 'danger';
-                } elseif ($min_watch_time < 10 || $min_watch_time > 600) {
-                    $message = 'Minimum watch time must be between 10 and 600 seconds.';
+                } elseif ($min_watch_time < 1 || $min_watch_time > 30) {
+                    $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
                 } elseif (!validateVideoOrder($videos, $video_order)) {
                     $message = 'Video order ' . $video_order . ' is already taken. Please choose a different order number.';
@@ -226,8 +226,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (empty($video_title)) {
                     $message = 'Video title is required.';
                     $message_type = 'danger';
-                } elseif ($min_watch_time < 10 || $min_watch_time > 600) {
-                    $message = 'Minimum watch time must be between 10 and 600 seconds.';
+                } elseif ($min_watch_time < 1 || $min_watch_time > 30) {
+                    $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
                 } elseif (!validateVideoOrder($videos, $video_order, $video_id)) {
                     $message = 'Video order ' . $video_order . ' is already taken. Please choose a different order number.';
@@ -325,6 +325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $student_names = [];
 $student_ids = [];
 $video_viewers = [];
+$video_stats = [];
 
 if ($course['sections']) {
     $section_ids = json_decode($course['sections'], true);
@@ -340,12 +341,81 @@ foreach ($stmt->fetchAll() as $stu) {
     $student_ids[] = $stu['id'];
 }
         
-        // For each video, check which students have watched it (placeholder for now)
+        // Get video statistics from video_views table
 if ($videos && $student_ids) {
     foreach ($videos as $video) {
-                $video_viewers[$video['id']] = []; // Placeholder - would need to calculate from video_progress JSON
+                $video_id = $video['id'];
+                $video_viewers[$video_id] = [];
+                $video_stats[$video_id] = [
+                    'total_views' => 0,
+                    'unique_viewers' => 0,
+                    'avg_completion' => 0,
+                    'total_watch_time' => 0
+                ];
+                
+                // Get video view statistics
+                $stmt = $db->prepare("
+                    SELECT 
+                        COUNT(*) as total_views,
+                        COUNT(DISTINCT student_id) as unique_viewers,
+                        AVG(completion_percentage) as avg_completion,
+                        SUM(watch_duration) as total_watch_time,
+                        GROUP_CONCAT(DISTINCT student_id) as viewer_ids
+                    FROM video_views 
+                    WHERE video_id = ? AND student_id IN (" . str_repeat('?,', count($student_ids) - 1) . "?)
+                ");
+                $params = array_merge([$video_id], $student_ids);
+                $stmt->execute($params);
+                $stats = $stmt->fetch();
+                
+                if ($stats) {
+                    $video_stats[$video_id] = [
+                        'total_views' => (int)$stats['total_views'],
+                        'unique_viewers' => (int)$stats['unique_viewers'],
+                        'avg_completion' => round((float)$stats['avg_completion'], 1),
+                        'total_watch_time' => (int)$stats['total_watch_time']
+                    ];
+                    
+                    // Get individual viewers
+                    if ($stats['viewer_ids']) {
+                        $viewer_ids = explode(',', $stats['viewer_ids']);
+                        $video_viewers[$video_id] = array_map('intval', $viewer_ids);
+                    }
+                }
             }
         }
+    }
+}
+
+// Update video data with real statistics
+foreach ($videos as &$video) {
+    $video_id = $video['id'];
+    if (isset($video_stats[$video_id])) {
+        $video['view_count'] = $video_stats[$video_id]['total_views'];
+        $video['unique_viewers'] = $video_stats[$video_id]['unique_viewers'];
+        $video['avg_completion'] = $video_stats[$video_id]['avg_completion'];
+        $video['total_watch_time'] = $video_stats[$video_id]['total_watch_time'];
+    }
+}
+
+// Debug function to check video tracking
+function checkVideoTracking($video_id, $db) {
+    $stmt = $db->prepare("SELECT COUNT(*) as count FROM video_views WHERE video_id = ?");
+    $stmt->execute([$video_id]);
+    return $stmt->fetch()['count'];
+}
+
+// Add debug information if requested
+$debug_info = [];
+if (isset($_GET['debug'])) {
+    foreach ($videos as $video) {
+        $debug_info[$video['id']] = [
+            'video_title' => $video['video_title'],
+            'total_views_in_db' => checkVideoTracking($video['id'], $db),
+            'displayed_views' => $video['view_count'] ?? 0,
+            'unique_viewers' => $video['unique_viewers'] ?? 0,
+            'avg_completion' => $video['avg_completion'] ?? 0
+        ];
     }
 }
 ?>
@@ -404,6 +474,53 @@ if ($videos && $student_ids) {
         </div>
     </div>
 
+    <!-- Video Statistics Summary -->
+    <?php if (!empty($videos)): ?>
+        <?php
+        $total_views = array_sum(array_column($video_stats, 'total_views'));
+        $total_unique_viewers = array_sum(array_column($video_stats, 'unique_viewers'));
+        $avg_completion = count($video_stats) > 0 ? round(array_sum(array_column($video_stats, 'avg_completion')) / count($video_stats), 1) : 0;
+        $total_watch_time = array_sum(array_column($video_stats, 'total_watch_time'));
+        ?>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Module Video Statistics</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-primary mb-1"><?php echo $total_views; ?></h4>
+                                    <small class="text-muted">Total Views</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info mb-1"><?php echo $total_unique_viewers; ?></h4>
+                                    <small class="text-muted">Unique Viewers</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-success mb-1"><?php echo $avg_completion; ?>%</h4>
+                                    <small class="text-muted">Avg Completion</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-warning mb-1"><?php echo gmdate("H:i:s", $total_watch_time); ?></h4>
+                                    <small class="text-muted">Total Watch Time</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Video Time Requirements Info -->
     <div class="row mb-4">
         <div class="col-12">
@@ -422,8 +539,8 @@ if ($videos && $student_ids) {
                         </div>
                         <div class="col-md-4">
                             <div class="text-end">
-                                <span class="badge bg-info">Default: 30 seconds</span>
-                                <span class="badge bg-warning">Range: 10-600 seconds</span>
+                                <span class="badge bg-info">Default: 5 minutes</span>
+                                <span class="badge bg-warning">Range: 1-30 minutes</span>
                             </div>
                         </div>
                     </div>
@@ -446,10 +563,10 @@ if ($videos && $student_ids) {
                                 <label class="form-label fw-bold">Minimum Watch Time</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="minWatchDuration" 
-                                           min="10" max="300" step="10" value="30">
-                                    <span class="input-group-text">seconds</span>
+                                           min="1" max="30" step="1" value="5">
+                                    <span class="input-group-text">minutes</span>
                                 </div>
-                                <small class="text-muted">Minimum seconds that must be watched for video to count</small>
+                                <small class="text-muted">Minimum minutes that must be watched for video to count (1-30 minutes)</small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -510,7 +627,19 @@ if ($videos && $student_ids) {
                             <strong>Debug Info:</strong><br>
                             Videos count: <?php echo count($videos); ?><br>
                             Module ID: <?php echo htmlspecialchars($module_id); ?><br>
-                            Videos data: <pre><?php echo htmlspecialchars(print_r($videos, true)); ?></pre>
+                            Students in course: <?php echo count($student_ids); ?><br>
+                            <strong>Video Tracking Status:</strong><br>
+                            <?php foreach ($debug_info as $video_id => $info): ?>
+                                <div class="mt-2 p-2 border rounded">
+                                    <strong><?php echo htmlspecialchars($info['video_title']); ?></strong><br>
+                                    <small>
+                                        DB Views: <?php echo $info['total_views_in_db']; ?> | 
+                                        Displayed: <?php echo $info['displayed_views']; ?> | 
+                                        Unique: <?php echo $info['unique_viewers']; ?> | 
+                                        Completion: <?php echo $info['avg_completion']; ?>%
+                                    </small>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                     
@@ -608,21 +737,37 @@ if ($videos && $student_ids) {
                                                     <i class="bi bi-clock me-1"></i>Min Watch: <?php echo $video['min_watch_time'] ?? 30; ?> seconds
                                                 </small>
                                             </div>
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <small class="text-muted">
-                                                    <i class="bi bi-eye me-1"></i><?php echo $video['view_count']; ?> views
+                                            <div class="mb-2">
+                                                <div class="row g-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block">
+                                                            <i class="bi bi-eye me-1"></i><?php echo $video['view_count'] ?? 0; ?> total views
                                                 </small>
-                                                <small class="text-muted">
-                                                    <?php if ($video['avg_completion']): ?>
-                                                        <i class="bi bi-check-circle me-1"></i><?php echo number_format($video['avg_completion'], 1); ?>% completion
-                                                    <?php endif; ?>
+                                                        <small class="text-info d-block">
+                                                            <i class="bi bi-people me-1"></i><?php echo $video['unique_viewers'] ?? 0; ?> unique viewers
                                                 </small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-success d-block">
+                                                            <i class="bi bi-check-circle me-1"></i><?php echo number_format($video['avg_completion'] ?? 0, 1); ?>% avg completion
+                                                        </small>
+                                                        <?php if (isset($video['total_watch_time']) && $video['total_watch_time'] > 0): ?>
+                                                            <small class="text-warning d-block">
+                                                                <i class="bi bi-clock me-1"></i><?php echo gmdate("H:i:s", $video['total_watch_time']); ?> total time
+                                                            </small>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
                                                 <?php if (!empty($video_viewers[$video['id']])): ?>
-                                                    <span class="badge bg-success ms-2" data-bs-toggle="tooltip" data-bs-title="<?php echo htmlspecialchars(implode(', ', array_map(function($id) use ($student_names) { return $student_names[$id] ?? $id; }, $video_viewers[$video['id']]))); ?>">
-                                                        <?php echo count($video_viewers[$video['id']]); ?> viewers
+                                                    <span class="badge bg-success" data-bs-toggle="tooltip" data-bs-title="<?php echo htmlspecialchars(implode(', ', array_map(function($id) use ($student_names) { return $student_names[$id] ?? 'Student ' . $id; }, $video_viewers[$video['id']]))); ?>">
+                                                        <i class="bi bi-person-check me-1"></i><?php echo count($video_viewers[$video['id']]); ?> students watched
                                                     </span>
                                                 <?php else: ?>
-                                                    <span class="badge bg-secondary ms-2">0 viewers</span>
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-person-x me-1"></i>No students watched yet
+                                                    </span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="mb-2">
@@ -687,10 +832,10 @@ if ($videos && $student_ids) {
                             <div class="form-text">Next available order number</div>
                         </div>
                         <div class="col-md-6">
-                            <label for="upload_min_watch_time" class="form-label">Minimum Watch Time (seconds)</label>
+                            <label for="upload_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
                             <input type="number" class="form-control" id="upload_min_watch_time" name="min_watch_time" 
-                                   value="30" min="10" max="600" step="5" required>
-                            <div class="form-text">Minimum time students must watch to count as "viewed"</div>
+                                   value="5" min="1" max="30" step="1" required>
+                            <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -738,10 +883,10 @@ if ($videos && $student_ids) {
                             <input type="number" class="form-control" id="edit_video_order" name="video_order" min="1" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="edit_min_watch_time" class="form-label">Minimum Watch Time (seconds)</label>
+                            <label for="edit_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
                             <input type="number" class="form-control" id="edit_min_watch_time" name="min_watch_time" 
-                                   min="10" max="600" step="5" required>
-                            <div class="form-text">Minimum time students must watch to count as "viewed"</div>
+                                   min="1" max="30" step="1" required>
+                            <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
                         </div>
                     </div>
                 </div>
@@ -826,7 +971,7 @@ function updateVideoRequirements() {
 }
 
 function resetToDefaults() {
-    document.getElementById('minWatchDuration').value = 30;
+    document.getElementById('minWatchDuration').value = 5;
     document.getElementById('completionThreshold').value = 80;
     
     // Update displays

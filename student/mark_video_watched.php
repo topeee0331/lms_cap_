@@ -27,17 +27,38 @@ if ($stmt->rowCount() == 0) {
     require_once '../config/pusher.php';
     require_once '../includes/pusher_notifications.php';
     
-    // Get video and course details
+    // Get video and course details from JSON modules structure
     $stmt = $pdo->prepare("
-        SELECT cv.video_title, c.course_name, c.teacher_id, u.first_name, u.last_name
-        FROM course_videos cv
-        JOIN course_modules cm ON cv.module_id = cm.id
-        JOIN courses c ON cm.course_id = c.id
+        SELECT c.course_name, c.teacher_id, c.modules, u.first_name, u.last_name
+        FROM courses c
         JOIN users u ON c.teacher_id = u.id
-        WHERE cv.id = ?
+        WHERE c.modules LIKE ?
     ");
-    $stmt->execute([$video_id]);
-    $videoDetails = $stmt->fetch();
+    $stmt->execute(['%"id":' . $video_id . '%']);
+    $courseData = $stmt->fetch();
+    
+    $videoDetails = null;
+    if ($courseData) {
+        $modules = json_decode($courseData['modules'], true);
+        if ($modules) {
+            foreach ($modules as $module) {
+                if (isset($module['videos'])) {
+                    foreach ($module['videos'] as $video) {
+                        if (isset($video['id']) && $video['id'] == $video_id) {
+                            $videoDetails = [
+                                'video_title' => $video['title'] ?? 'Unknown Video',
+                                'course_name' => $courseData['course_name'],
+                                'teacher_id' => $courseData['teacher_id'],
+                                'first_name' => $courseData['first_name'],
+                                'last_name' => $courseData['last_name']
+                            ];
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     if ($videoDetails) {
         // Send notification to student

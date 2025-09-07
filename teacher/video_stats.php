@@ -147,7 +147,7 @@ $hourly_engagement = $stmt->fetchAll();
                     <h1 class="h3 mb-1">Video Statistics</h1>
                     <p class="text-muted mb-0">
                         <?php echo htmlspecialchars($video['video_title']); ?> • 
-                        <?php echo htmlspecialchars($video['course_name']); ?>
+                        <?php echo htmlspecialchars($course['course_name'] ?? 'Unknown Course'); ?>
                     </p>
                 </div>
                 <div class="btn-group">
@@ -217,12 +217,12 @@ $hourly_engagement = $stmt->fetchAll();
                             <?php endif; ?>
                             <div class="row">
                                 <div class="col-6">
-                                    <strong>Module:</strong> <?php echo htmlspecialchars($video['module_title']); ?><br>
-                                    <strong>Course:</strong> <?php echo htmlspecialchars($video['course_name']); ?><br>
+                                    <strong>Module:</strong> <?php echo htmlspecialchars($module['module_title'] ?? $module['title'] ?? 'Unknown Module'); ?><br>
+                                    <strong>Course:</strong> <?php echo htmlspecialchars($course['course_name'] ?? 'Unknown Course'); ?><br>
                                 </div>
                                 <div class="col-6">
-                                    <strong>Order:</strong> <?php echo $video['video_order']; ?><br>
-                                    <strong>Uploaded:</strong> <?php echo date('M j, Y', strtotime($video['created_at'])); ?><br>
+                                    <strong>Order:</strong> <?php echo $video['video_order'] ?? 'Not set'; ?><br>
+                                    <strong>Uploaded:</strong> <?php echo isset($video['created_at']) ? date('M j, Y', strtotime($video['created_at'])) : 'Unknown'; ?><br>
                                 </div>
                             </div>
                         </div>
@@ -411,11 +411,11 @@ $hourly_engagement = $stmt->fetchAll();
                     </div>
                     <div class="mb-3">
                         <label for="edit_video_description" class="form-label">Description</label>
-                        <textarea class="form-control" id="edit_video_description" name="video_description" rows="3"><?php echo htmlspecialchars($video['video_description']); ?></textarea>
+                        <textarea class="form-control" id="edit_video_description" name="video_description" rows="3"><?php echo htmlspecialchars($video['video_description'] ?? ''); ?></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="edit_video_url" class="form-label">Video Link (YouTube, Google Drive, or direct .mp4 link)</label>
-                        <input type="url" class="form-control" id="edit_video_url" name="video_url" value="<?php echo htmlspecialchars($video['video_url']); ?>" required>
+                        <input type="url" class="form-control" id="edit_video_url" name="video_url" value="<?php echo htmlspecialchars($video['video_url'] ?? ''); ?>" required>
                     </div>
                 </div>
                 <div class="modal-footer">

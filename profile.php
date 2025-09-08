@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Profile';
-require_once 'includes/header.php';
+require_once 'config/config.php';
 requireLogin();
+require_once 'includes/header.php';
 
 // Add modern profile page styling
 echo '<style>

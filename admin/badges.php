@@ -1,6 +1,7 @@
 <?php
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('admin');
+require_once '../includes/header.php';
 
 // Handle create, edit, delete actions
 $message = '';

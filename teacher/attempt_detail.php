@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Attempt Detail';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('teacher');
+require_once '../includes/header.php';
 
 $attempt_id = (int)($_GET['id'] ?? 0);
 

@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Students';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('teacher');
+require_once '../includes/header.php';
 
 $message = '';
 $message_type = '';

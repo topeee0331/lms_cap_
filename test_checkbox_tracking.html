@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkbox Tracking Test</title>
+    <style>
+        .option-item {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .option-item:hover {
+            background-color: #f8f9fa;
+        }
+        .option-item.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .checkbox-option {
+            position: relative;
+        }
+        .checkbox-icon {
+            font-size: 1.2rem;
+            margin-right: 10px;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        .checkbox-option.selected .checkbox-icon {
+            color: #007bff;
+        }
+        .checkbox-option.selected .checkbox-icon::before {
+            content: "☑";
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Multiple Choice Checkbox Tracking Test</h2>
+    <p>Test the checkbox selection tracking functionality:</p>
+    
+    <div class="question-card">
+        <h4>Question 1: Which of the following are programming languages? (Select all that apply)</h4>
+        <div class="options">
+            <div class="mb-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Select all correct answers. You can choose multiple options.
+                </small>
+            </div>
+            
+            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, 'q1', '1')">
+                <input type="checkbox" name="answers[q1][]" value="1" style="display: none;">
+                <span class="checkbox-icon">☐</span>
+                <strong>1.</strong> JavaScript
+            </div>
+            
+            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, 'q1', '2')">
+                <input type="checkbox" name="answers[q1][]" value="2" style="display: none;">
+                <span class="checkbox-icon">☐</span>
+                <strong>2.</strong> HTML
+            </div>
+            
+            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, 'q1', '3')">
+                <input type="checkbox" name="answers[q1][]" value="3" style="display: none;">
+                <span class="checkbox-icon">☐</span>
+                <strong>3.</strong> Python
+            </div>
+            
+            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, 'q1', '4')">
+                <input type="checkbox" name="answers[q1][]" value="4" style="display: none;">
+                <span class="checkbox-icon">☐</span>
+                <strong>4.</strong> CSS
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-results">
+        <h4>Test Results:</h4>
+        <div id="current-answer">Current Answer: <span id="answer-display">None</span></div>
+        <div id="saved-answer">Saved Answer: <span id="saved-display">None</span></div>
+        <div id="checkbox-states">Checkbox States: <span id="states-display">None</span></div>
+        
+        <button onclick="testSaveAnswer()" style="margin-top: 10px; padding: 5px 10px;">Test Save Answer</button>
+        <button onclick="testLoadAnswer()" style="margin-top: 10px; padding: 5px 10px;">Test Load Answer</button>
+        <button onclick="clearAnswers()" style="margin-top: 10px; padding: 5px 10px;">Clear All</button>
+    </div>
+
+    <script>
+        // Function for multiple choice checkboxes
+        function selectMultipleOption(element, questionId, optionValue) {
+            // Toggle the selected class
+            element.classList.toggle('selected');
+            
+            // Toggle the checkbox
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            checkbox.checked = !checkbox.checked;
+            
+            // Update the checkbox icon
+            const icon = element.querySelector('.checkbox-icon');
+            if (checkbox.checked) {
+                icon.textContent = '☑';
+            } else {
+                icon.textContent = '☐';
+            }
+            
+            // Save answer immediately when checkbox is toggled
+            saveCurrentAnswer(questionId);
+            updateDisplay();
+        }
+        
+        // Function to save current answer immediately
+        function saveCurrentAnswer(questionId) {
+            let answer = '';
+            
+            // Check if this is a multiple choice question with checkboxes
+            const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+            if (checkboxes.length > 0) {
+                // Multiple choice with checkboxes - collect all selected values
+                const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                answer = selectedValues.join(',');
+            }
+            
+            // Save answer to localStorage
+            localStorage.setItem('assessment_test_q_' + questionId, answer);
+            console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
+        }
+        
+        // Function to update display
+        function updateDisplay() {
+            const questionId = 'q1';
+            
+            // Get current answer
+            const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+            const currentAnswer = selectedValues.join(',') || 'None';
+            
+            // Get saved answer
+            const savedAnswer = localStorage.getItem('assessment_test_q_' + questionId) || 'None';
+            
+            // Get checkbox states
+            const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
+            const states = Array.from(allCheckboxes).map(cb => `${cb.value}:${cb.checked ? 'checked' : 'unchecked'}`).join(', ');
+            
+            document.getElementById('answer-display').textContent = currentAnswer;
+            document.getElementById('saved-display').textContent = savedAnswer;
+            document.getElementById('states-display').textContent = states;
+        }
+        
+        // Test functions
+        function testSaveAnswer() {
+            saveCurrentAnswer('q1');
+            updateDisplay();
+            alert('Answer saved! Check the display above.');
+        }
+        
+        function testLoadAnswer() {
+            const savedAnswer = localStorage.getItem('assessment_test_q_q1');
+            if (savedAnswer) {
+                // Clear all checkboxes first
+                const allCheckboxes = document.querySelectorAll(`input[name="answers[q1][]"]`);
+                allCheckboxes.forEach(cb => {
+                    cb.checked = false;
+                    const optionItem = cb.closest('.option-item');
+                    optionItem.classList.remove('selected');
+                    const icon = optionItem.querySelector('.checkbox-icon');
+                    icon.textContent = '☐';
+                });
+                
+                // Load saved answer
+                if (savedAnswer.includes(',')) {
+                    const selectedValues = savedAnswer.split(',');
+                    selectedValues.forEach(value => {
+                        const checkbox = document.querySelector(`input[name="answers[q1][]"][value="${value}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            const optionItem = checkbox.closest('.option-item');
+                            optionItem.classList.add('selected');
+                            const icon = optionItem.querySelector('.checkbox-icon');
+                            icon.textContent = '☑';
+                        }
+                    });
+                } else if (savedAnswer) {
+                    const checkbox = document.querySelector(`input[name="answers[q1][]"][value="${savedAnswer}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        const optionItem = checkbox.closest('.option-item');
+                        optionItem.classList.add('selected');
+                        const icon = optionItem.querySelector('.checkbox-icon');
+                        icon.textContent = '☑';
+                    }
+                }
+                
+                updateDisplay();
+                alert('Answer loaded! Check the display above.');
+            } else {
+                alert('No saved answer found!');
+            }
+        }
+        
+        function clearAnswers() {
+            // Clear all checkboxes
+            const allCheckboxes = document.querySelectorAll(`input[name="answers[q1][]"]`);
+            allCheckboxes.forEach(cb => {
+                cb.checked = false;
+                const optionItem = cb.closest('.option-item');
+                optionItem.classList.remove('selected');
+                const icon = optionItem.querySelector('.checkbox-icon');
+                icon.textContent = '☐';
+            });
+            
+            // Clear localStorage
+            localStorage.removeItem('assessment_test_q_q1');
+            
+            updateDisplay();
+            alert('All answers cleared!');
+        }
+        
+        // Initialize display
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDisplay();
+        });
+    </script>
+</body>
+</html>

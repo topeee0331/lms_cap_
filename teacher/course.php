@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Course Management';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('teacher');
+require_once '../includes/header.php';
 
 // Helper function to get next available module order
 function getNextAvailableModuleOrder($modules) {

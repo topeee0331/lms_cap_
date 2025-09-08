@@ -314,12 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
                 }
             }
             
+            // Compare student answer with correct answer (case-insensitive)
             if (strtoupper(trim($student_answer)) == strtoupper(trim($correct_answer))) {
                 $correct_answers++;
                 $is_correct = true;
             }
         } elseif ($question['question_type'] === 'true_false') {
-            // For true/false questions
+            // For true/false questions, compare with the correct option text
             $options = json_decode($question['options'], true);
             $correct_answer = '';
             
@@ -332,6 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
                 }
             }
             
+            // Compare student answer with correct answer (case-insensitive)
             if (strtoupper(trim($student_answer)) == strtoupper(trim($correct_answer))) {
                 $correct_answers++;
                 $is_correct = true;
@@ -339,20 +341,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
         } else {
             // For multiple choice questions
             $options = json_decode($question['options'], true);
-            $correct_option_order = null;
+            $correct_option_orders = [];
             
             if ($options && is_array($options)) {
-                foreach ($options as $order => $option) {
+                foreach ($options as $option) {
                     if (isset($option['is_correct']) && $option['is_correct']) {
-                        $correct_option_order = $order;
-                        break;
+                        $correct_option_orders[] = (int)$option['order'];
                     }
                 }
             }
             
-            if (!empty($student_answer) && $student_answer == $correct_option_order) {
-                $correct_answers++;
-                $is_correct = true;
+            // Check if student answer matches any of the correct answers
+            if (!empty($student_answer)) {
+                // Handle both single and multiple answers
+                $student_answers = strpos($student_answer, ',') !== false ? 
+                    explode(',', $student_answer) : [$student_answer];
+                
+                // Convert to integers for comparison
+                $student_answers = array_map('intval', $student_answers);
+                
+                // Check if all student answers are correct and all correct answers are selected
+                sort($student_answers);
+                sort($correct_option_orders);
+                
+                if ($student_answers === $correct_option_orders) {
+                    $correct_answers++;
+                    $is_correct = true;
+                }
             }
         }
         
@@ -814,6 +829,8 @@ $previous_attempts = $stmt->fetchAll();
             margin-bottom: 10px;
             cursor: pointer;
             transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
         }
         .option-item:hover {
             background-color: #f8f9fa;
@@ -822,6 +839,25 @@ $previous_attempts = $stmt->fetchAll();
             background-color: #007bff;
             color: white;
             border-color: #007bff;
+        }
+        
+        .checkbox-option {
+            position: relative;
+        }
+        
+        .checkbox-icon {
+            font-size: 1.2rem;
+            margin-right: 10px;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-option.selected .checkbox-icon {
+            color: #007bff;
+        }
+        
+        .checkbox-option.selected .checkbox-icon::before {
+            content: "☑";
         }
         .progress-bar {
             height: 5px;
@@ -954,6 +990,12 @@ $previous_attempts = $stmt->fetchAll();
                                     </div>
                                 <?php else: ?>
                                     <div class="options">
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Select all correct answers. You can choose multiple options.
+                                            </small>
+                                        </div>
                                         <?php 
                                         $options_array = [];
                                         if ($current_question_data['options']) {
@@ -967,11 +1009,12 @@ $previous_attempts = $stmt->fetchAll();
                                         
                                         foreach ($options_array as $key => $option): 
                                         ?>
-                                            <div class="option-item" onclick="selectOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
-                                                <input type="radio" 
-                                                       name="answers[<?php echo $current_question_data['id']; ?>]" 
+                                            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
+                                                <input type="checkbox" 
+                                                       name="answers[<?php echo $current_question_data['id']; ?>][]" 
                                                        value="<?php echo $key; ?>" 
                                                        style="display: none;">
+                                                <span class="checkbox-icon">☐</span>
                                                 <strong><?php echo $key; ?>.</strong> <?php echo htmlspecialchars($option); ?>
                                             </div>
                                         <?php endforeach; ?>
@@ -1326,6 +1369,59 @@ $previous_attempts = $stmt->fetchAll();
             // Set the radio button value
             const radioButton = element.querySelector('input[type="radio"]');
             radioButton.checked = true;
+            
+            // Save answer immediately when option is selected
+            saveCurrentAnswer(questionId);
+        }
+        
+        // Function for multiple choice checkboxes
+        function selectMultipleOption(element, questionId, optionValue) {
+            // Toggle the selected class
+            element.classList.toggle('selected');
+            
+            // Toggle the checkbox
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            checkbox.checked = !checkbox.checked;
+            
+            // Update the checkbox icon
+            const icon = element.querySelector('.checkbox-icon');
+            if (checkbox.checked) {
+                icon.textContent = '☑';
+            } else {
+                icon.textContent = '☐';
+            }
+            
+            // Save answer immediately when checkbox is toggled
+            saveCurrentAnswer(questionId);
+        }
+        
+        // Function to save current answer immediately
+        function saveCurrentAnswer(questionId) {
+            let answer = '';
+            
+            // For identification questions (text input)
+            const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
+            if (textInput) {
+                answer = textInput.value.trim();
+            } else {
+                // Check if this is a multiple choice question with checkboxes
+                const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                if (checkboxes.length > 0) {
+                    // Multiple choice with checkboxes - collect all selected values
+                    const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                    answer = selectedValues.join(',');
+                } else {
+                    // For true/false questions (radio button)
+                    const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
+                    if (radioButton) {
+                        answer = radioButton.value;
+                    }
+                }
+            }
+            
+            // Save answer to localStorage
+            localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
+            console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
         }
 
         // Save answer and navigate to next question
@@ -1341,10 +1437,18 @@ $previous_attempts = $stmt->fetchAll();
                 if (textInput) {
                     answer = textInput.value.trim();
                 } else {
-                    // For multiple choice and true/false questions (radio button)
-                    const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
-                    if (radioButton) {
-                        answer = radioButton.value;
+                    // Check if this is a multiple choice question with checkboxes
+                    const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                    if (checkboxes.length > 0) {
+                        // Multiple choice with checkboxes - collect all selected values
+                        const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                        answer = selectedValues.join(',');
+                    } else {
+                        // For true/false questions (radio button)
+                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
+                        if (radioButton) {
+                            answer = radioButton.value;
+                        }
                     }
                 }
                 
@@ -1375,13 +1479,44 @@ $previous_attempts = $stmt->fetchAll();
                     const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
                     if (textInput) {
                         textInput.value = savedAnswer;
+                        
+                        // Add real-time saving for text input
+                        textInput.addEventListener('input', function() {
+                            saveCurrentAnswer(questionId);
+                        });
                     }
                     
-                    // For multiple choice and true/false questions (radio button)
-                    const radioButton = document.querySelector(`input[name="answers[${questionId}]"][value="${savedAnswer}"]`);
-                    if (radioButton) {
-                        radioButton.checked = true;
-                        radioButton.closest('.option-item').classList.add('selected');
+                    // Check if this is a multiple choice question with checkboxes
+                    if (savedAnswer.includes(',')) {
+                        // Multiple answers (comma-separated)
+                        const selectedValues = savedAnswer.split(',');
+                        selectedValues.forEach(value => {
+                            const checkbox = document.querySelector(`input[name="answers[${questionId}][]"][value="${value}"]`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                const optionItem = checkbox.closest('.option-item');
+                                optionItem.classList.add('selected');
+                                const icon = optionItem.querySelector('.checkbox-icon');
+                                if (icon) {
+                                    icon.textContent = '☑';
+                                }
+                            }
+                        });
+                    } else {
+                        // Single answer (radio button for true/false)
+                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"][value="${savedAnswer}"]`);
+                        if (radioButton) {
+                            radioButton.checked = true;
+                            radioButton.closest('.option-item').classList.add('selected');
+                        }
+                    }
+                } else {
+                    // Add real-time saving for text input even if no saved answer
+                    const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
+                    if (textInput) {
+                        textInput.addEventListener('input', function() {
+                            saveCurrentAnswer(questionId);
+                        });
                     }
                 }
             }
@@ -1398,16 +1533,24 @@ $previous_attempts = $stmt->fetchAll();
                 if (textInput) {
                     answer = textInput.value.trim();
                 } else {
-                    // For multiple choice and true/false questions (radio button)
-                    const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
-                    if (radioButton) {
-                        answer = radioButton.value;
+                    // Check if this is a multiple choice question with checkboxes
+                    const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                    if (checkboxes.length > 0) {
+                        // Multiple choice with checkboxes - collect all selected values
+                        const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                        answer = selectedValues.join(',');
+                    } else {
+                        // For true/false questions (radio button)
+                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
+                        if (radioButton) {
+                            answer = radioButton.value;
+                        }
                     }
                 }
                 
                 // Always save answer to localStorage (even if empty, to track that question was visited)
                 localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
-                console.log('Saved answer for question ' + questionId + ': "' + answer + '"');
+                console.log('Auto-saved answer for question ' + questionId + ': "' + answer + '"');
             }
         }, 5000); // Auto-save every 5 seconds
     </script>

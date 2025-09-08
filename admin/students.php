@@ -1,8 +1,9 @@
 <?php
 $page_title = 'Manage Students';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 require_once '../includes/student_id_generator.php';
 requireRole('admin');
+require_once '../includes/header.php';
 
 $message = '';
 $message_type = '';

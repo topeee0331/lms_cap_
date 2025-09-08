@@ -290,13 +290,16 @@ $stmt = $db->prepare("
             
             if ($question_type === 'multiple_choice') {
                 $options_input = $_POST['options'] ?? $_POST['edit_options'] ?? [];
-                $correct_option = (int)($_POST['correct_option'] ?? $_POST['edit_correct_option'] ?? 0);
+                $correct_options = $_POST['correct_options'] ?? $_POST['edit_correct_options'] ?? [];
+                
+                // Convert correct_options to array of integers
+                $correct_indices = array_map('intval', $correct_options);
                 
                 foreach ($options_input as $index => $option_text) {
                     if (!empty($option_text)) {
                         $options[] = [
                             'text' => $option_text,
-                            'is_correct' => ($index == $correct_option),
+                            'is_correct' => in_array($index, $correct_indices),
                             'order' => $index + 1
                         ];
                     }
@@ -392,12 +395,168 @@ $stmt = $db->prepare("
             }
             exit;
             
+        case 'create_single_question':
+            $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
+            $question_text = sanitizeInput($_POST['question_text'] ?? '');
+            $question_type = sanitizeInput($_POST['question_type'] ?? 'multiple_choice');
+            $points = (int)($_POST['points'] ?? 1);
+            
+            if (empty($assessment_id) || empty($question_text)) {
+                echo json_encode(['success' => false, 'message' => 'Assessment ID and question text are required.']);
+                exit;
+            }
+            
+            // Get assessment details to check question limit
+            $stmt = $db->prepare("SELECT num_questions FROM assessments WHERE id = ?");
+            $stmt->execute([$assessment_id]);
+            $assessment = $stmt->fetch();
+            
+            if (!$assessment) {
+                echo json_encode(['success' => false, 'message' => 'Assessment not found.']);
+                exit;
+            }
+            
+            // Count existing questions
+            $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
+            $stmt->execute([$assessment_id]);
+            $existing_count = $stmt->fetchColumn();
+            
+            // Check if adding a question would exceed the limit
+            if ($existing_count >= $assessment['num_questions']) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => "Cannot add more questions. Assessment limit is {$assessment['num_questions']} questions. Currently has {$existing_count} questions."
+                ]);
+                exit;
+            }
+            
+            // Prepare options array
+            $options = [];
+            
+            if ($question_type === 'multiple_choice') {
+                $options_input = $_POST['options'] ?? [];
+                $correct_options = $_POST['correct_options'] ?? [];
+                
+                // Convert correct_options to array of integers
+                $correct_indices = array_map('intval', $correct_options);
+                
+                foreach ($options_input as $i => $option_text) {
+                    if (!empty(trim($option_text))) {
+                        $options[] = [
+                            'text' => trim($option_text),
+                            'is_correct' => in_array($i, $correct_indices),
+                            'order' => $i + 1
+                        ];
+                    }
+                }
+            } elseif ($question_type === 'true_false') {
+                $correct_tf = $_POST['correct_tf'] ?? 'true';
+                $options = [
+                    [
+                        'text' => 'True',
+                        'is_correct' => ($correct_tf === 'true'),
+                        'order' => 1
+                    ],
+                    [
+                        'text' => 'False',
+                        'is_correct' => ($correct_tf === 'false'),
+                        'order' => 2
+                    ]
+                ];
+            } elseif ($question_type === 'identification') {
+                $correct_answer = strtoupper(trim($_POST['correct_answer'] ?? ''));
+                if (!empty($correct_answer)) {
+                    $options = [
+                        [
+                            'text' => $correct_answer,
+                            'is_correct' => true,
+                            'order' => 1
+                        ]
+                    ];
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Identification questions require a correct answer.']);
+                    exit;
+                }
+            }
+            
+            // Get next order number
+            $stmt = $db->prepare("SELECT COALESCE(MAX(question_order), 0) + 1 as next_order FROM questions WHERE assessment_id = ?");
+            $stmt->execute([$assessment_id]);
+            $next_order = $stmt->fetchColumn();
+            
+            // Insert question into database
+            $stmt = $db->prepare("
+                INSERT INTO questions 
+                (assessment_id, question_text, question_type, question_order, points, options) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            
+            $options_json = json_encode($options);
+            
+            // Debug logging
+            error_log("Single Question Insert - Assessment ID: " . $assessment_id);
+            error_log("Single Question Insert - Question Text: " . $question_text);
+            error_log("Single Question Insert - Question Type: " . $question_type);
+            error_log("Single Question Insert - Points: " . $points);
+            error_log("Single Question Insert - Options JSON: " . $options_json);
+            
+            if ($stmt->execute([
+                $assessment_id,
+                $question_text,
+                $question_type,
+                $next_order,
+                $points,
+                $options_json
+            ])) {
+                $inserted_id = $db->lastInsertId();
+                error_log("Single Question Insert - Success! Inserted ID: " . $inserted_id);
+                echo json_encode(['success' => true, 'message' => 'Question added successfully.', 'question_id' => $inserted_id]);
+            } else {
+                $error_info = $stmt->errorInfo();
+                error_log("Single Question Insert - Failed! Error: " . print_r($error_info, true));
+                echo json_encode(['success' => false, 'message' => 'Failed to add question. Error: ' . $error_info[2]]);
+            }
+            exit;
+            
         case 'create_bulk_questions':
             $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
             $questions_data = $_POST['questions'] ?? [];
             
             if (empty($assessment_id)) {
                 echo json_encode(['success' => false, 'message' => 'Assessment ID is required.']);
+                exit;
+            }
+            
+            // Get assessment details to check question limit
+            $stmt = $db->prepare("SELECT num_questions FROM assessments WHERE id = ?");
+            $stmt->execute([$assessment_id]);
+            $assessment = $stmt->fetch();
+            
+            if (!$assessment) {
+                echo json_encode(['success' => false, 'message' => 'Assessment not found.']);
+                exit;
+            }
+            
+            // Count existing questions
+            $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
+            $stmt->execute([$assessment_id]);
+            $existing_count = $stmt->fetchColumn();
+            
+            // Count new questions to be added
+            $new_questions_count = 0;
+            foreach ($questions_data as $question_data) {
+                $question_text = sanitizeInput($question_data['question_text'] ?? '');
+                if (!empty($question_text)) {
+                    $new_questions_count++;
+                }
+            }
+            
+            // Check if adding new questions would exceed the limit
+            if (($existing_count + $new_questions_count) > $assessment['num_questions']) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => "Cannot add {$new_questions_count} questions. Assessment limit is {$assessment['num_questions']} questions. Currently has {$existing_count} questions."
+                ]);
                 exit;
             }
             
@@ -419,18 +578,39 @@ $stmt = $db->prepare("
                     continue;
                 }
                 
+                // For identification questions, also check if correct answer is provided
+                if ($question_type === 'identification') {
+                    $correct_answer = trim($question_data['correct_answer'] ?? '');
+                    if (empty($correct_answer)) {
+                        $errors[] = "Question {$index}: Identification questions require a correct answer.";
+                        continue;
+                    }
+                }
+                
+                // For multiple choice questions, check if at least one correct answer is selected
+                if ($question_type === 'multiple_choice') {
+                    $correct_options = $question_data['correct_options'] ?? [];
+                    if (empty($correct_options)) {
+                        $errors[] = "Question {$index}: Multiple choice questions require at least one correct answer.";
+                        continue;
+                    }
+                }
+                
                 // Prepare options array
                 $options = [];
                 
                 if ($question_type === 'multiple_choice') {
                     $options_input = $question_data['options'] ?? [];
-                    $correct_option = (int)($question_data['correct_option'] ?? 0);
+                    $correct_options = $question_data['correct_options'] ?? [];
+                    
+                    // Convert correct_options to array of integers
+                    $correct_indices = array_map('intval', $correct_options);
                     
                     foreach ($options_input as $i => $option_text) {
                         if (!empty(trim($option_text))) {
                             $options[] = [
                                 'text' => trim($option_text),
-                                'is_correct' => ($i === $correct_option),
+                                'is_correct' => in_array($i, $correct_indices),
                                 'order' => $i + 1
                             ];
                         }
@@ -459,6 +639,9 @@ $stmt = $db->prepare("
                                 'order' => 1
                             ]
                         ];
+                    } else {
+                        // Skip identification questions without correct answer
+                        continue;
                     }
                 }
                 
@@ -469,29 +652,46 @@ $stmt = $db->prepare("
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 
+                $options_json = json_encode($options);
+                
+                // Debug logging
+                error_log("Bulk Question Insert - Assessment ID: " . $assessment_id);
+                error_log("Bulk Question Insert - Question Text: " . $question_text);
+                error_log("Bulk Question Insert - Question Type: " . $question_type);
+                error_log("Bulk Question Insert - Points: " . $points);
+                error_log("Bulk Question Insert - Options JSON: " . $options_json);
+                
                 if ($stmt->execute([
                     $assessment_id,
                     $question_text,
                     $question_type,
                     $next_order,
                     $points,
-                    json_encode($options)
+                    $options_json
                 ])) {
+                    $inserted_id = $db->lastInsertId();
+                    error_log("Bulk Question Insert - Success! Inserted ID: " . $inserted_id);
                     $created_count++;
                     $next_order++;
                 } else {
-                    $errors[] = "Failed to create question " . ($index + 1);
+                    $error_info = $stmt->errorInfo();
+                    error_log("Bulk Question Insert - Failed! Error: " . print_r($error_info, true));
+                    $errors[] = "Failed to create question " . ($index + 1) . ": " . $error_info[2];
                 }
             }
             
             if ($created_count > 0) {
                 $message = "Successfully created {$created_count} question(s).";
                 if (!empty($errors)) {
-                    $message .= " Errors: " . implode(', ', $errors);
+                    $message .= " Warnings: " . implode(', ', $errors);
                 }
                 echo json_encode(['success' => true, 'message' => $message, 'created_count' => $created_count]);
             } else {
-                echo json_encode(['success' => false, 'message' => 'No valid questions were created.']);
+                $error_message = 'No valid questions were created.';
+                if (!empty($errors)) {
+                    $error_message .= " Errors: " . implode(', ', $errors);
+                }
+                echo json_encode(['success' => false, 'message' => $error_message]);
             }
             exit;
             
@@ -506,8 +706,9 @@ $stmt = $db->prepare("
 
 // Regular page load - include header and continue with normal page processing
 $page_title = 'Module Assessments';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('teacher');
+require_once '../includes/header.php';
 
 $module_id = sanitizeInput($_GET['module_id'] ?? '');
 
@@ -884,13 +1085,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     
                     if ($question_type === 'multiple_choice') {
                         $options_input = $_POST['options'] ?? [];
-                        $correct_option = (int)($_POST['correct_option'] ?? 0);
+                        $correct_options = $_POST['correct_options'] ?? [];
+                        
+                        // Convert correct_options to array of integers
+                        $correct_indices = array_map('intval', $correct_options);
                         
                         foreach ($options_input as $index => $option_text) {
                             if (!empty($option_text)) {
                                 $options[] = [
                                     'text' => $option_text,
-                                    'is_correct' => ($index == $correct_option),
+                                    'is_correct' => in_array($index, $correct_indices),
                                     'order' => $index + 1
                                 ];
                             }
@@ -962,13 +1166,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     
                     if ($question_type === 'multiple_choice') {
                         $options_input = $_POST['options'] ?? [];
-                        $correct_option = (int)($_POST['correct_option'] ?? 0);
+                        $correct_options = $_POST['correct_options'] ?? [];
+                        
+                        // Convert correct_options to array of integers
+                        $correct_indices = array_map('intval', $correct_options);
                         
                         foreach ($options_input as $index => $option_text) {
                             if (!empty($option_text)) {
                                 $options[] = [
                                     'text' => $option_text,
-                                    'is_correct' => ($index == $correct_option),
+                                    'is_correct' => in_array($index, $correct_indices),
                                     'order' => $index + 1
                                 ];
                             }
@@ -1449,11 +1656,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             <label for="num_questions" class="form-label fw-bold">
                                 <i class="bi bi-question-circle me-1 text-success"></i>Number of Questions
                             </label>
-                            <select class="form-select" id="num_questions" name="num_questions" required>
-                                <option value="10" selected>10 Questions</option>
-                                <option value="30">30 Questions</option>
-                                <option value="50">50 Questions</option>
-                            </select>
+                            <input type="number" class="form-control" id="num_questions" name="num_questions" 
+                                   value="10" min="1" max="100" required 
+                                   placeholder="Enter number of questions (1-100)">
+                            <div class="form-text">You can create between 1 and 100 questions for this assessment.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="passing_rate" class="form-label fw-bold">
@@ -1548,11 +1754,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             <label for="edit_num_questions" class="form-label fw-bold">
                                 <i class="bi bi-question-circle me-1 text-success"></i>Number of Questions
                             </label>
-                            <select class="form-select" id="edit_num_questions" name="edit_num_questions" required>
-                                <option value="10">10 Questions</option>
-                                <option value="30">30 Questions</option>
-                                <option value="50">50 Questions</option>
-                            </select>
+                            <input type="number" class="form-control" id="edit_num_questions" name="edit_num_questions" 
+                                   value="10" min="1" max="100" required 
+                                   placeholder="Enter number of questions (1-100)">
+                            <div class="form-text">You can create between 1 and 100 questions for this assessment.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="edit_passing_rate" class="form-label fw-bold">
@@ -1675,9 +1880,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             <div class="modal-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">Assessment Questions</h6>
-                    <button type="button" class="btn btn-success btn-sm" onclick="showAddQuestionForm()">
-                        <i class="bi bi-plus-circle me-1"></i>Add Question
-                    </button>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-success btn-sm" onclick="showAddSingleQuestionForm()">
+                            <i class="bi bi-plus-circle me-1"></i>Add Single Question
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="showBulkQuestionForm()">
+                            <i class="bi bi-plus-square me-1"></i>Bulk Add Questions
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Questions List -->
@@ -1685,53 +1895,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     <!-- Questions will be loaded here -->
                 </div>
                 
+                <!-- Single Question Creation Form -->
+                <div id="singleQuestionForm" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-plus-circle me-2"></i>Add Single Question
+                                </h6>
+                                <button type="button" class="btn-close btn-close-white" onclick="hideSingleQuestionForm()"></button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="singleQuestionFormElement">
+                                <input type="hidden" id="single_assessment_id" name="assessment_id">
+                                <input type="hidden" name="action" value="create_single_question">
+                                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                                
+                                <div class="mb-3">
+                                    <label for="single_question_text" class="form-label">Question Text</label>
+                                    <textarea class="form-control" id="single_question_text" name="question_text" rows="3" 
+                                              placeholder="Enter your question here..." required></textarea>
+                                </div>
+                                
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-8">
+                                        <label for="single_question_type" class="form-label">Question Type</label>
+                                        <select class="form-select" id="single_question_type" name="question_type" onchange="toggleSingleQuestionOptions()">
+                                            <option value="multiple_choice">📝 Multiple Choice</option>
+                                            <option value="true_false">✅ True/False</option>
+                                            <option value="identification">🔍 Identification</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="single_points" class="form-label">Points</label>
+                                        <input type="number" class="form-control" id="single_points" name="points" value="1" min="1" max="100" required>
+                                    </div>
+                                </div>
+                                
+                                <div id="singleQuestionOptions">
+                                    <!-- Options will be generated here -->
+                                </div>
+                                
+                                <div class="d-flex justify-content-end gap-2 mt-4">
+                                    <button type="button" class="btn btn-secondary" onclick="hideSingleQuestionForm()">Cancel</button>
+                                    <button type="submit" class="btn btn-success">Add Question</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Bulk Question Creation Form -->
-                <div id="questionForm" style="display: none;">
+                <div id="bulkQuestionForm" style="display: none;">
                     <div class="card">
                         <div class="card-header bg-primary text-white">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0">
-                                    <i class="bi bi-plus-circle me-2"></i>Create Assessment Questions
+                                    <i class="bi bi-plus-square me-2"></i>Bulk Add Questions
                                 </h6>
-                                <span class="badge bg-light text-primary fs-6" id="questionCounter">0 / <span id="maxQuestions">10</span> Questions</span>
-                            </div>
-                            <div class="progress mt-2" style="height: 6px;">
-                                <div class="progress-bar bg-light" id="questionProgress" role="progressbar" style="width: 0%"></div>
+                                <button type="button" class="btn-close btn-close-white" onclick="hideBulkQuestionForm()"></button>
                             </div>
                         </div>
-                        <div class="card-body p-0">
-                            <form id="bulkQuestionForm">
-                                <input type="hidden" id="assessment_id" name="assessment_id">
+                        <div class="card-body">
+                            <form id="bulkQuestionFormElement">
+                                <input type="hidden" id="bulk_assessment_id" name="assessment_id">
                                 <input type="hidden" name="action" value="create_bulk_questions">
-    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                 
-                                <div class="p-4">
-                                    <div class="row g-4" id="questionSlots">
-                                        <!-- Question slots will be generated here -->
-                                    </div>
+                                <div class="mb-3">
+                                    <label for="bulk_question_count" class="form-label">How many questions do you want to add?</label>
+                                    <input type="number" class="form-control" id="bulk_question_count" name="question_count" 
+                                           value="3" min="1" max="50" onchange="generateBulkQuestionForm()" required>
+                                    <div class="form-text">Enter the number of questions you want to create (1-50).</div>
                                 </div>
                                 
-                                <!-- Action Buttons -->
-                                <div class="bg-light p-3 border-top">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="form-text">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Fill out the questions you want to include. Empty questions will be skipped.
-                                        </div>
-                                        <div>
-                                            <button type="button" class="btn btn-outline-secondary me-2" onclick="hideQuestionForm()">
-                                                <i class="bi bi-x-circle me-1"></i>Cancel
-                                            </button>
-                                            <button type="button" class="btn btn-outline-primary me-2" onclick="clearAllQuestions()">
-                                                <i class="bi bi-arrow-clockwise me-1"></i>Clear All
-                                            </button>
-                                            <button type="submit" class="btn btn-success">
-                                                <i class="bi bi-check-circle me-1"></i>Save Questions
-                                            </button>
-                                        </div>
-                                    </div>
+                                <div id="bulkQuestionsContainer">
+                                    <!-- Bulk questions will be generated here -->
                                 </div>
-</form>
+                                
+                                <div class="d-flex justify-content-end gap-2 mt-4">
+                                    <button type="button" class="btn btn-secondary" onclick="hideBulkQuestionForm()">Cancel</button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="clearBulkQuestions()">Clear All</button>
+                                    <button type="submit" class="btn btn-primary">Add All Questions</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -1953,16 +2201,8 @@ function editAssessment(assessment) {
         document.getElementById('edit_description').value = assessmentData.description || '';
         document.getElementById('edit_time_limit').value = assessmentData.time_limit || '';
         document.getElementById('edit_difficulty').value = assessmentData.difficulty || 'medium';
-        // Set the number of questions dropdown
-        const numQuestionsSelect = document.getElementById('edit_num_questions');
-        const numQuestions = assessmentData.num_questions || 10;
-        // Find and select the matching option
-        for (let option of numQuestionsSelect.options) {
-            if (parseInt(option.value) === numQuestions) {
-                option.selected = true;
-                break;
-            }
-        }
+        // Set the number of questions input
+        document.getElementById('edit_num_questions').value = assessmentData.num_questions || 10;
         document.getElementById('edit_passing_rate').value = assessmentData.passing_rate || 70;
         document.getElementById('edit_attempt_limit').value = assessmentData.attempt_limit || 3;
         document.getElementById('edit_assessment_order').value = assessmentData.assessment_order || 1;
@@ -2083,9 +2323,27 @@ let currentAssessmentId = null;
 let currentAssessmentNumQuestions = 10;
 
 function manageQuestions(assessmentId, assessmentTitle) {
+    console.log('🔍 manageQuestions called with:', assessmentId, assessmentTitle);
+    
     currentAssessmentId = assessmentId;
-    document.getElementById('question_modal_title').textContent = assessmentTitle;
-    document.getElementById('assessment_id').value = assessmentId;
+    
+    // Check if modal elements exist
+    const modalElement = document.getElementById('questionManagementModal');
+    const titleElement = document.getElementById('question_modal_title');
+    
+    if (!modalElement) {
+        console.error('❌ Modal element not found!');
+        showNotification('Modal not found. Please refresh the page.', 'error');
+        return;
+    }
+    
+    if (!titleElement) {
+        console.error('❌ Title element not found!');
+        showNotification('Title element not found. Please refresh the page.', 'error');
+        return;
+    }
+    
+    titleElement.textContent = assessmentTitle;
     
     // Get the assessment data to determine num_questions
     const assessmentsData = <?php echo json_encode($assessments); ?>;
@@ -2110,11 +2368,25 @@ function manageQuestions(assessmentId, assessmentTitle) {
     loadQuestions(assessmentId);
     
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('questionManagementModal'));
-    modal.show();
+    try {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        console.log('✅ Modal shown successfully');
+    } catch (error) {
+        console.error('❌ Error showing modal:', error);
+        showNotification('Error opening modal: ' + error.message, 'error');
+    }
 }
 
 function loadQuestions(assessmentId) {
+    console.log('🔍 loadQuestions called with assessmentId:', assessmentId);
+    
+    // Show loading state
+    const questionsList = document.getElementById('questionsList');
+    if (questionsList) {
+        questionsList.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split me-2"></i>Loading questions...</div>';
+    }
+    
     // Make AJAX request to load questions
     const formData = new FormData();
     formData.append('action', 'get_questions');
@@ -2175,6 +2447,26 @@ function displayQuestions(questions) {
     
     let html = '<div class="row g-3">';
     questions.forEach((question, index) => {
+        let optionsHtml = '';
+        
+        // Display options for multiple choice questions
+        if (question.question_type === 'multiple_choice' && question.options) {
+            try {
+                const options = JSON.parse(question.options);
+                if (Array.isArray(options)) {
+                    optionsHtml = '<div class="mt-2"><strong>Options:</strong><ul class="list-unstyled mt-1">';
+                    options.forEach((option, optIndex) => {
+                        const correctClass = option.is_correct ? 'text-success fw-bold' : 'text-muted';
+                        const correctIcon = option.is_correct ? '✅' : '⚪';
+                        optionsHtml += `<li class="${correctClass}">${correctIcon} ${option.text}</li>`;
+                    });
+                    optionsHtml += '</ul></div>';
+                }
+            } catch (e) {
+                console.error('Error parsing options:', e);
+            }
+        }
+        
         html += `
             <div class="col-12">
                 <div class="card">
@@ -2183,7 +2475,8 @@ function displayQuestions(questions) {
                             <div class="col-md-8">
                                 <h6 class="card-title">Question ${question.question_order}</h6>
                                 <p class="card-text">${question.question_text}</p>
-                                <div class="d-flex gap-2">
+                                ${optionsHtml}
+                                <div class="d-flex gap-2 mt-2">
                                     <span class="badge bg-primary">${question.question_type.replace('_', ' ').toUpperCase()}</span>
                                     <span class="badge bg-secondary">${question.points} point${question.points > 1 ? 's' : ''}</span>
                                 </div>
@@ -2209,18 +2502,38 @@ function displayQuestions(questions) {
     container.innerHTML = html;
 }
 
-function showAddQuestionForm() {
-    document.getElementById('questionForm').style.display = 'block';
+function showAddSingleQuestionForm() {
+    document.getElementById('singleQuestionForm').style.display = 'block';
+    document.getElementById('bulkQuestionForm').style.display = 'none';
     
-    // Update the max questions display
-    document.getElementById('maxQuestions').textContent = currentAssessmentNumQuestions;
+    // Set assessment ID
+    document.getElementById('single_assessment_id').value = currentAssessmentId;
     
-    // Check for existing questions first
-    checkExistingQuestions();
+    // Initialize question type options
+    toggleSingleQuestionOptions();
 }
 
-function hideQuestionForm() {
-    document.getElementById('questionForm').style.display = 'none';
+function hideSingleQuestionForm() {
+    document.getElementById('singleQuestionForm').style.display = 'none';
+    // Clear form
+    document.getElementById('singleQuestionFormElement').reset();
+}
+
+function showBulkQuestionForm() {
+    document.getElementById('bulkQuestionForm').style.display = 'block';
+    document.getElementById('singleQuestionForm').style.display = 'none';
+    
+    // Set assessment ID
+    document.getElementById('bulk_assessment_id').value = currentAssessmentId;
+    
+    // Generate initial form
+    generateBulkQuestionForm();
+}
+
+function hideBulkQuestionForm() {
+    document.getElementById('bulkQuestionForm').style.display = 'none';
+    // Clear form
+    document.getElementById('bulkQuestionFormElement').reset();
 }
 
 // Check for existing questions and display them
@@ -2346,40 +2659,28 @@ function displayQuestionSlotsWithExisting(existingQuestions) {
                             
                             <!-- Multiple Choice Options -->
                             <div id="mc_options_${i}" class="question-type-options">
-                                <label class="form-label">Options</label>
-                                <div class="row g-2">
+                                <div class="row g-2 mb-2">
                                     <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-text">
-                                                <input type="radio" name="questions[${i}][correct_option]" value="0">
-                                            </div>
-                                            <input type="text" class="form-control" name="questions[${i}][options][]" placeholder="Option 1">
-                                        </div>
+                                        <label class="form-label">Number of Options</label>
+                                        <select class="form-select" name="questions[${i}][option_count]" onchange="updateMultipleChoiceOptions(${i})">
+                                            <option value="2">2 Options</option>
+                                            <option value="3">3 Options</option>
+                                            <option value="4" selected>4 Options</option>
+                                            <option value="5">5 Options</option>
+                                            <option value="6">6 Options</option>
+                                            <option value="7">7 Options</option>
+                                            <option value="8">8 Options</option>
+                                            <option value="9">9 Options</option>
+                                            <option value="10">10 Options</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-text">
-                                                <input type="radio" name="questions[${i}][correct_option]" value="1">
-                                            </div>
-                                            <input type="text" class="form-control" name="questions[${i}][options][]" placeholder="Option 2">
-                                        </div>
+                                        <label class="form-label">Options</label>
+                                        <div class="form-text">Select the correct answer for each option</div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-text">
-                                                <input type="radio" name="questions[${i}][correct_option]" value="2">
-                                            </div>
-                                            <input type="text" class="form-control" name="questions[${i}][options][]" placeholder="Option 3">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-text">
-                                                <input type="radio" name="questions[${i}][correct_option]" value="3">
-                                            </div>
-                                            <input type="text" class="form-control" name="questions[${i}][options][]" placeholder="Option 4">
-                                        </div>
-                                    </div>
+                                </div>
+                                <div id="mc_options_container_${i}" class="row g-2">
+                                    <!-- Dynamic options will be generated here -->
                                 </div>
                             </div>
                             
@@ -2454,23 +2755,284 @@ function toggleQuestionSlot(questionNum) {
     updateQuestionCounter();
 }
 
-// Toggle question type options
-function toggleQuestionTypeOptions(questionNum) {
-    const questionType = document.querySelector(`select[name="questions[${questionNum}][question_type]"]`).value;
+// Toggle single question type options
+function toggleSingleQuestionOptions() {
+    const questionType = document.getElementById('single_question_type').value;
+    const container = document.getElementById('singleQuestionOptions');
     
-    // Hide all options
-    document.getElementById(`mc_options_${questionNum}`).style.display = 'none';
-    document.getElementById(`tf_options_${questionNum}`).style.display = 'none';
-    document.getElementById(`id_options_${questionNum}`).style.display = 'none';
+    let html = '';
     
-    // Show relevant options
     if (questionType === 'multiple_choice') {
-        document.getElementById(`mc_options_${questionNum}`).style.display = 'block';
+        html = `
+            <div class="mb-3">
+                <label class="form-label">Number of Options</label>
+                <select class="form-select" name="option_count" onchange="updateSingleMultipleChoiceOptions()">
+                    <option value="2">2 Options</option>
+                    <option value="3">3 Options</option>
+                    <option value="4" selected>4 Options</option>
+                    <option value="5">5 Options</option>
+                    <option value="6">6 Options</option>
+                    <option value="7">7 Options</option>
+                    <option value="8">8 Options</option>
+                    <option value="9">9 Options</option>
+                    <option value="10">10 Options</option>
+                </select>
+            </div>
+            <div id="singleMcOptionsContainer">
+                <!-- Dynamic options will be generated here -->
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Check the boxes for all correct answers. You can select multiple correct options.
+                </small>
+            </div>
+        `;
     } else if (questionType === 'true_false') {
-        document.getElementById(`tf_options_${questionNum}`).style.display = 'block';
+        html = `
+            <div class="mb-3">
+                <label class="form-label">Correct Answer</label>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct_tf" value="true" checked>
+                            <label class="form-check-label text-success fw-bold">✅ True</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct_tf" value="false">
+                            <label class="form-check-label text-danger fw-bold">❌ False</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     } else if (questionType === 'identification') {
-        document.getElementById(`id_options_${questionNum}`).style.display = 'block';
+        html = `
+            <div class="mb-3">
+                <label class="form-label">Correct Answer</label>
+                <input type="text" class="form-control" name="correct_answer" 
+                       placeholder="Enter the correct answer..." required>
+            </div>
+        `;
     }
+    
+    container.innerHTML = html;
+    
+    // Initialize multiple choice options if needed
+    if (questionType === 'multiple_choice') {
+        updateSingleMultipleChoiceOptions();
+    }
+}
+
+// Update single question multiple choice options
+function updateSingleMultipleChoiceOptions() {
+    const optionCount = parseInt(document.querySelector('select[name="option_count"]').value);
+    const container = document.getElementById('singleMcOptionsContainer');
+    
+    let html = '<div class="row g-2">';
+    for (let i = 0; i < optionCount; i++) {
+        const colSize = optionCount <= 4 ? 'col-md-6' : 'col-md-4';
+        html += `
+            <div class="${colSize}">
+                <div class="input-group input-group-sm">
+                    <div class="input-group-text">
+                        <input type="checkbox" name="correct_options[]" value="${i}" class="form-check-input">
+                    </div>
+                    <input type="text" class="form-control" name="options[]" placeholder="Option ${i + 1}" required>
+                </div>
+            </div>
+        `;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// Generate bulk question form
+function generateBulkQuestionForm() {
+    const questionCount = parseInt(document.getElementById('bulk_question_count').value);
+    const container = document.getElementById('bulkQuestionsContainer');
+    
+    let html = '';
+    for (let i = 1; i <= questionCount; i++) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Question ${i}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Question Text</label>
+                        <textarea class="form-control" name="questions[${i}][question_text]" rows="2" 
+                                  placeholder="Enter your question here..." required></textarea>
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" name="questions[${i}][question_type]" onchange="toggleBulkQuestionTypeOptions(${i})">
+                                <option value="multiple_choice">📝 Multiple Choice</option>
+                                <option value="true_false">✅ True/False</option>
+                                <option value="identification">🔍 Identification</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Points</label>
+                            <input type="number" class="form-control" name="questions[${i}][points]" value="1" min="1" max="100">
+                        </div>
+                    </div>
+                    
+                    <div id="bulk_question_options_${i}">
+                        <!-- Options will be generated here -->
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Initialize options for all questions
+    for (let i = 1; i <= questionCount; i++) {
+        toggleBulkQuestionTypeOptions(i);
+    }
+}
+
+// Toggle bulk question type options
+function toggleBulkQuestionTypeOptions(questionNum) {
+    const questionType = document.querySelector(`select[name="questions[${questionNum}][question_type]"]`).value;
+    const container = document.getElementById(`bulk_question_options_${questionNum}`);
+    
+    let html = '';
+    
+    if (questionType === 'multiple_choice') {
+        html = `
+            <div class="mb-2">
+                <label class="form-label">Number of Options</label>
+                <select class="form-select" name="questions[${questionNum}][option_count]" onchange="updateBulkMultipleChoiceOptions(${questionNum})">
+                    <option value="2">2 Options</option>
+                    <option value="3">3 Options</option>
+                    <option value="4" selected>4 Options</option>
+                    <option value="5">5 Options</option>
+                    <option value="6">6 Options</option>
+                    <option value="7">7 Options</option>
+                    <option value="8">8 Options</option>
+                    <option value="9">9 Options</option>
+                    <option value="10">10 Options</option>
+                </select>
+            </div>
+            <div id="bulk_mc_options_container_${questionNum}">
+                <!-- Dynamic options will be generated here -->
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Check the boxes for all correct answers.
+                </small>
+            </div>
+        `;
+    } else if (questionType === 'true_false') {
+        html = `
+            <div class="mb-3">
+                <label class="form-label">Correct Answer</label>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="questions[${questionNum}][correct_tf]" value="true" checked>
+                            <label class="form-check-label text-success fw-bold">✅ True</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="questions[${questionNum}][correct_tf]" value="false">
+                            <label class="form-check-label text-danger fw-bold">❌ False</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (questionType === 'identification') {
+        html = `
+            <div class="mb-3">
+                <label class="form-label">Correct Answer</label>
+                <input type="text" class="form-control" name="questions[${questionNum}][correct_answer]" 
+                       placeholder="Enter the correct answer..." required>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Initialize multiple choice options if needed
+    if (questionType === 'multiple_choice') {
+        updateBulkMultipleChoiceOptions(questionNum);
+    }
+}
+
+// Update bulk multiple choice options
+function updateBulkMultipleChoiceOptions(questionNum) {
+    const optionCount = parseInt(document.querySelector(`select[name="questions[${questionNum}][option_count]"]`).value);
+    const container = document.getElementById(`bulk_mc_options_container_${questionNum}`);
+    
+    let html = '<div class="row g-2">';
+    for (let i = 0; i < optionCount; i++) {
+        const colSize = optionCount <= 4 ? 'col-md-6' : 'col-md-4';
+        html += `
+            <div class="${colSize}">
+                <div class="input-group input-group-sm">
+                    <div class="input-group-text">
+                        <input type="checkbox" name="questions[${questionNum}][correct_options][]" value="${i}" class="form-check-input">
+                    </div>
+                    <input type="text" class="form-control" name="questions[${questionNum}][options][]" placeholder="Option ${i + 1}" required>
+                </div>
+            </div>
+        `;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// Clear bulk questions
+function clearBulkQuestions() {
+    const container = document.getElementById('bulkQuestionsContainer');
+    container.innerHTML = '';
+    generateBulkQuestionForm();
+}
+
+// Update multiple choice options based on selected count
+function updateMultipleChoiceOptions(questionNum) {
+    const optionCount = parseInt(document.querySelector(`select[name="questions[${questionNum}][option_count]"]`).value);
+    const container = document.getElementById(`mc_options_container_${questionNum}`);
+    
+    let html = '';
+    for (let i = 0; i < optionCount; i++) {
+        const colSize = optionCount <= 4 ? 'col-md-6' : 'col-md-4';
+        html += `
+            <div class="${colSize}">
+                <div class="input-group input-group-sm">
+                    <div class="input-group-text">
+                        <input type="checkbox" name="questions[${questionNum}][correct_options][]" value="${i}" class="form-check-input">
+                    </div>
+                    <input type="text" class="form-control" name="questions[${questionNum}][options][]" placeholder="Option ${i + 1}" required>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add instruction text
+    html += `
+        <div class="col-12 mt-2">
+            <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                Check the boxes for all correct answers. You can select multiple correct options.
+            </small>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
 
 // View existing question details
@@ -2697,12 +3259,20 @@ function showEditQuestionModal(question) {
             optionsHtml += `
                 <div class="input-group mb-2">
                     <div class="input-group-text">
-                        <input class="form-check-input mt-0" type="radio" name="edit_correct_option" value="${index}" ${isCorrect}>
+                        <input class="form-check-input mt-0" type="checkbox" name="edit_correct_options[]" value="${index}" ${isCorrect}>
                     </div>
                     <input type="text" class="form-control" name="edit_options[]" value="${option.text}" placeholder="Option ${index + 1}">
                 </div>
             `;
         });
+        optionsHtml += `
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Check the boxes for all correct answers. You can select multiple correct options.
+                </small>
+            </div>
+        `;
     } else if (question.question_type === 'true_false') {
         const trueChecked = options[0] && options[0].is_correct ? 'checked' : '';
         const falseChecked = options[1] && options[1].is_correct ? 'checked' : '';
@@ -2930,7 +3500,87 @@ function toggleQuestionOptions() {
     }
 }
 
-// Handle bulk question form submission
+// Handle single question form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const singleForm = document.getElementById('singleQuestionFormElement');
+    if (singleForm) {
+        singleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Adding...';
+            submitBtn.disabled = true;
+            
+            fetch('module_assessments.php?module_id=<?php echo $module_id; ?>', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    hideSingleQuestionForm();
+                    loadQuestions(); // Reload questions list
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error adding question: ' + error.message, 'error');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+    
+    // Handle bulk question form submission
+    const bulkForm = document.getElementById('bulkQuestionFormElement');
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Adding...';
+            submitBtn.disabled = true;
+            
+            fetch('module_assessments.php?module_id=<?php echo $module_id; ?>', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    hideBulkQuestionForm();
+                    loadQuestions(); // Reload questions list
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error adding questions: ' + error.message, 'error');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+});
+
+// Handle bulk question form submission (legacy)
 document.getElementById('bulkQuestionForm').addEventListener('submit', function(e) {
     e.preventDefault();
     

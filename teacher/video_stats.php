@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Video Statistics';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('teacher');
+require_once '../includes/header.php';
 
 $video_id = sanitizeInput($_GET['id'] ?? '');
 

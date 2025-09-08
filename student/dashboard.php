@@ -805,7 +805,7 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                                             <br>
                                             <small><?php echo htmlspecialchars($badge['badge_name']); ?></small>
                                             <br>
-                                            <small class="text-muted"><?php echo date('M j, Y', strtotime($badge['earned_at'])); ?></small>
+                                            <small class="text-muted"><?php echo !empty($badge['earned_at']) ? date('M j, Y', strtotime($badge['earned_at'])) : 'Date not available'; ?></small>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

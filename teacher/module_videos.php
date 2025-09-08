@@ -1,48 +1,27 @@
 <?php
+// Start output buffering to prevent header issues
+ob_start();
+
 $page_title = 'Module Videos';
 require_once '../includes/header.php';
 requireRole('teacher');
 
-// Helper function to get next available video order
+
+// Helper function to get next available video order (simplified)
 function getNextAvailableVideoOrder($videos) {
     if (empty($videos)) {
         return 1;
     }
     
-    $existing_orders = array_column($videos, 'video_order');
-    $existing_orders = array_filter($existing_orders, function($order) {
-        return is_numeric($order) && $order > 0;
-    });
-    
-    if (empty($existing_orders)) {
-        return 1;
-    }
-    
-    // Find the next available order number
-    $max_order = max($existing_orders);
-    $next_order = $max_order + 1;
-    
-    // Check for gaps in the sequence
-    for ($i = 1; $i <= $max_order; $i++) {
-        if (!in_array($i, $existing_orders)) {
-            return $i;
-        }
-    }
-    
-    return $next_order;
-}
-
-// Helper function to validate video order uniqueness
-function validateVideoOrder($videos, $new_order, $exclude_id = null) {
+    $max_order = 0;
     foreach ($videos as $video) {
-        if ($exclude_id && $video['id'] === $exclude_id) {
-            continue; // Skip the video being edited
-        }
-        if (isset($video['video_order']) && $video['video_order'] == $new_order) {
-            return false; // Order already exists
+        $order = (int)($video['video_order'] ?? 0);
+        if ($order > $max_order) {
+            $max_order = $order;
         }
     }
-    return true; // Order is unique
+    
+    return $max_order + 1;
 }
 
 // Helper function to refresh and sort videos array
@@ -93,62 +72,19 @@ if (!$module) {
 $message = '';
 $message_type = '';
 
-// Get videos for this module from JSON (do this BEFORE handling POST actions)
-$videos = [];
-if (isset($module['videos']) && is_array($module['videos'])) {
-    $videos = $module['videos'];
-    
-    // Debug: Log the videos found (only if debug mode is enabled)
-    if (isset($_GET['debug'])) {
-        error_log("Found " . count($videos) . " videos in module " . $module_id);
-        error_log("Videos data: " . print_r($videos, true));
-        echo "<script>console.log('Found " . count($videos) . " videos in module " . $module_id . "');</script>";
-        echo "<script>console.log('Videos data:', " . json_encode($videos) . ");</script>";
-    }
-    
-    // Create a clean copy of videos with required fields
-    $processed_videos = [];
-    foreach ($videos as $video) {
-        $processed_video = $video;
-        
-        // Set default values for missing fields
-        if (!isset($processed_video['min_watch_time'])) {
-            $processed_video['min_watch_time'] = 30;
-        }
-        if (!isset($processed_video['video_order'])) {
-            $processed_video['video_order'] = 1;
-        }
-        if (!isset($processed_video['video_description'])) {
-            $processed_video['video_description'] = '';
-        }
-        
-        // Add placeholder stats
-        $processed_video['view_count'] = 0;
-        $processed_video['avg_completion'] = 0;
-        
-        $processed_videos[] = $processed_video;
-    }
-    
-    // Replace original array with processed one
-    $videos = $processed_videos;
-    
-    // Sort videos by order
-    usort($videos, function($a, $b) {
-        return ($a['video_order'] ?? 1) - ($b['video_order'] ?? 1);
-    });
-    
-    if (isset($_GET['debug'])) {
-        error_log("After processing: " . count($videos) . " videos");
-    }
-} else {
-    // Debug: Log when no videos are found (only if debug mode is enabled)
-    if (isset($_GET['debug'])) {
-        error_log("No videos found in module " . $module_id);
-        error_log("Module data: " . print_r($module, true));
-    }
+// Check for success message from redirect
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $message = 'Video link added successfully.';
+    $message_type = 'success';
+} elseif (isset($_GET['updated']) && $_GET['updated'] == '1') {
+    $message = 'Video updated successfully.';
+    $message_type = 'success';
+} elseif (isset($_GET['deleted']) && $_GET['deleted'] == '1') {
+    $message = 'Video deleted successfully.';
+    $message_type = 'success';
 }
 
-// Handle video actions
+// Handle video actions (same method as videos.php)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $csrf_token = $_POST[CSRF_TOKEN_NAME] ?? '';
@@ -174,10 +110,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif ($min_watch_time < 1 || $min_watch_time > 30) {
                     $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
-                } elseif (!validateVideoOrder($videos, $video_order)) {
-                    $message = 'Video order ' . $video_order . ' is already taken. Please choose a different order number.';
-                    $message_type = 'danger';
                 } else {
+                    // Find and add the video to the JSON structure (same as videos.php)
+                    $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
+                    $stmt->execute([$_SESSION['user_id']]);
+                    $courses_data = $stmt->fetchAll();
+                    
+                    $video_added = false;
+                    foreach ($courses_data as $course) {
+                        $modules_data = json_decode($course['modules'], true);
+                        if (is_array($modules_data)) {
+                            foreach ($modules_data as &$module) {
+                                if ($module['id'] === $module_id) {
                     // Create new video object
                     $new_video = [
                         'id' => uniqid('vid_'),
@@ -194,25 +138,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $module['videos'] = [];
                     }
                     $module['videos'][] = $new_video;
-                    
-                    // Update the module in the modules array
-                    foreach ($modules_data as &$mod) {
-                        if ($mod['id'] === $module_id) {
-                            $mod = $module;
-                            break;
-                        }
-                    }
-                    
-                                         // Update course with new modules JSON
+                                    $video_added = true;
+                                    break 2;
+                                }
+                            }
+                            
+                            if ($video_added) {
+                                // Update course with updated modules JSON
                      $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
                      $stmt->execute([json_encode($modules_data), $course['id']]);
+                                break;
+                            }
+                        }
+                    }
                      
-                     // Refresh the videos array to show the newly added video immediately
-                     $videos[] = $new_video;
-                     refreshAndSortVideos($videos);
-                     
+                    if ($video_added) {
                      $message = 'Video link added successfully.';
                      $message_type = 'success';
+                        // Use JavaScript redirect instead of header redirect
+                        echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&success=1";</script>';
+                        exit();
+                    } else {
+                        $message = 'Failed to add video.';
+                        $message_type = 'danger';
+                    }
                 }
                 break;
                 
@@ -222,58 +171,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $description = sanitizeInput($_POST['description'] ?? '');
                 $video_order = (int)($_POST['video_order'] ?? 1);
                 $min_watch_time = (int)($_POST['min_watch_time'] ?? 30);
+                $video_url = trim($_POST['video_url'] ?? '');
                 
-                if (empty($video_title)) {
-                    $message = 'Video title is required.';
+                if (empty($video_title) || empty($video_id)) {
+                    $message = 'Video title and ID are required.';
                     $message_type = 'danger';
                 } elseif ($min_watch_time < 1 || $min_watch_time > 30) {
                     $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
-                } elseif (!validateVideoOrder($videos, $video_order, $video_id)) {
-                    $message = 'Video order ' . $video_order . ' is already taken. Please choose a different order number.';
-                    $message_type = 'danger';
                 } else {
-                    // Find and update the video in the module
+                    // Find and update the video in the JSON structure (same as videos.php)
+                    $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
+                    $stmt->execute([$_SESSION['user_id']]);
+                    $courses_data = $stmt->fetchAll();
+                    
+                    $video_updated = false;
+                    foreach ($courses_data as $course) {
+                        $modules_data = json_decode($course['modules'], true);
+                        if (is_array($modules_data)) {
+                            foreach ($modules_data as &$module) {
+                                if ($module['id'] === $module_id) {
                     if (isset($module['videos']) && is_array($module['videos'])) {
                         foreach ($module['videos'] as &$video) {
                             if ($video['id'] === $video_id) {
                                 $video['video_title'] = $video_title;
                                 $video['video_description'] = $description;
                                 $video['video_order'] = $video_order;
+                                                $video['video_url'] = $video_url;
                                 $video['min_watch_time'] = $min_watch_time;
                                 $video['updated_at'] = date('Y-m-d H:i:s');
-                                break;
+                                                $video_updated = true;
+                                                break 2;
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                        }
-                        
-                        // Update the module in the modules array
-                        foreach ($modules_data as &$mod) {
-                            if ($mod['id'] === $module_id) {
-                                $mod = $module;
-                                break;
-                            }
-                        }
-                        
+                            
+                            if ($video_updated) {
                                                  // Update course with updated modules JSON
                          $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
                          $stmt->execute([json_encode($modules_data), $course['id']]);
-                         
-                         // Refresh the videos array to show the updated video immediately
-                         foreach ($videos as &$v) {
-                             if ($v['id'] === $video_id) {
-                                 $v['video_title'] = $video_title;
-                                 $v['video_description'] = $description;
-                                 $v['video_order'] = $video_order;
-                                 $v['min_watch_time'] = $min_watch_time;
                                  break;
+                            }
                              }
                          }
                          
-                         // Re-sort videos after update
-                         refreshAndSortVideos($videos);
-                         
+                    if ($video_updated) {
                          $message = 'Video updated successfully.';
                          $message_type = 'success';
+                        // Use JavaScript redirect instead of header redirect
+                        echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&updated=1";</script>';
+                        exit();
                     } else {
                         $message = 'Video not found.';
                         $message_type = 'danger';
@@ -284,42 +233,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'delete_video':
                 $video_id = sanitizeInput($_POST['video_id'] ?? '');
                 
-                // Find and remove the video from the module
-                if (isset($module['videos']) && is_array($module['videos'])) {
-                    $module['videos'] = array_filter($module['videos'], function($video) use ($video_id) {
-                        return $video['id'] !== $video_id;
-                    });
-                    
-                    // Update the module in the modules array
-                    foreach ($modules_data as &$mod) {
-                        if ($mod['id'] === $module_id) {
-                            $mod = $module;
+                if (empty($video_id)) {
+                    $message = 'Video ID is required.';
+                    $message_type = 'danger';
                             break;
+                }
+                
+                // Find and remove the video from the JSON structure (same as videos.php)
+                $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
+                $stmt->execute([$_SESSION['user_id']]);
+                $courses_data = $stmt->fetchAll();
+                
+                $video_deleted = false;
+                foreach ($courses_data as $course) {
+                    $modules_data = json_decode($course['modules'], true);
+                    if (is_array($modules_data)) {
+                        foreach ($modules_data as &$module) {
+                            if ($module['id'] === $module_id) {
+                                if (isset($module['videos']) && is_array($module['videos'])) {
+                                    // Find and remove the video
+                                    foreach ($module['videos'] as $index => $video) {
+                                        if (isset($video['id']) && $video['id'] === $video_id) {
+                                            // Remove video from array
+                                            array_splice($module['videos'], $index, 1);
+                                            $video_deleted = true;
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    }
-                    
+                        
+                        if ($video_deleted) {
                                          // Update course with updated modules JSON
                      $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
                      $stmt->execute([json_encode($modules_data), $course['id']]);
-                     
-                     // Refresh the videos array to remove the deleted video immediately
-                     $videos = array_filter($videos, function($video) use ($video_id) {
-                         return $video['id'] !== $video_id;
-                     });
-                     
-                     // Re-sort videos after deletion
-                     refreshAndSortVideos($videos);
-                     
+                            break;
+                        }
+                    }
+                }
+                
+                if ($video_deleted) {
                      $message = 'Video deleted successfully.';
                      $message_type = 'success';
+                    // Use JavaScript redirect instead of header redirect
+                    echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&deleted=1";</script>';
+                    exit();
                 } else {
-                    $message = 'Video not found.';
+                    $message = 'Video not found or could not be deleted.';
                     $message_type = 'danger';
                 }
                 break;
         }
     }
 }
+
+// Get videos from JSON modules (same method as videos.php)
+$videos = [];
+$stmt = $db->prepare("
+    SELECT c.id, c.course_name, c.course_code, c.modules
+    FROM courses c
+    WHERE c.teacher_id = ? AND JSON_SEARCH(c.modules, 'one', ?) IS NOT NULL
+");
+$stmt->execute([$_SESSION['user_id'], $module_id]);
+$courses_data = $stmt->fetchAll();
+
+foreach ($courses_data as $course) {
+    $modules_data = json_decode($course['modules'], true);
+    if (is_array($modules_data)) {
+        foreach ($modules_data as $module) {
+            if ($module['id'] === $module_id) {
+                if (isset($module['videos']) && is_array($module['videos'])) {
+                    foreach ($module['videos'] as $video) {
+                        // Skip videos that don't have required fields
+                        if (!isset($video['id']) || !isset($video['video_title'])) {
+                            continue;
+                        }
+                        
+                        $video['course_name'] = $course['course_name'];
+                        $video['course_code'] = $course['course_code'];
+                        $video['module_title'] = $module['module_title'] ?? 'Unknown Module';
+                        $video['course_id'] = $course['id'];
+                        $video['module_id'] = $module['id'];
+                        $video['view_count'] = 0; // Placeholder - would need to calculate from video_progress
+                        $video['avg_completion'] = 0; // Placeholder - would need to calculate from video_progress
+                        $videos[] = $video;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Sort videos by order (same as videos.php)
+usort($videos, function($a, $b) {
+    return ($a['video_order'] ?? 0) - ($b['video_order'] ?? 0);
+});
+
+// Debug logging for video count (same as videos.php)
+error_log("Total videos found: " . count($videos));
 
 // Get students in sections for this course
 $student_names = [];
@@ -549,55 +561,6 @@ if (isset($_GET['debug'])) {
         </div>
     </div>
 
-    <!-- Video Watch Requirements Configuration -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Video Watch Requirements Configuration</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label fw-bold">Minimum Watch Time</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="minWatchDuration" 
-                                           min="1" max="30" step="1" value="5">
-                                    <span class="input-group-text">minutes</span>
-                                </div>
-                                <small class="text-muted">Minimum minutes that must be watched for video to count (1-30 minutes)</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label fw-bold">Completion Threshold</label>
-                                <div class="input-group">
-                                    <input type="range" class="form-range" id="completionThreshold" 
-                                           min="70" max="95" step="5" value="80"
-                                           onchange="updateThresholdDisplay(this.value, 'completionDisplay')">
-                                    <span class="input-group-text" id="completionDisplay">80%</span>
-                                </div>
-                                <small class="text-muted">% required for "fully watched" status</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-primary" onclick="updateVideoRequirements()">
-                                    <i class="bi bi-save me-1"></i>Update Requirements
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="resetToDefaults()">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Reset to Defaults
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Videos Grid -->
     <div class="row">
@@ -627,17 +590,12 @@ if (isset($_GET['debug'])) {
                             <strong>Debug Info:</strong><br>
                             Videos count: <?php echo count($videos); ?><br>
                             Module ID: <?php echo htmlspecialchars($module_id); ?><br>
-                            Students in course: <?php echo count($student_ids); ?><br>
-                            <strong>Video Tracking Status:</strong><br>
-                            <?php foreach ($debug_info as $video_id => $info): ?>
-                                <div class="mt-2 p-2 border rounded">
-                                    <strong><?php echo htmlspecialchars($info['video_title']); ?></strong><br>
-                                    <small>
-                                        DB Views: <?php echo $info['total_views_in_db']; ?> | 
-                                        Displayed: <?php echo $info['displayed_views']; ?> | 
-                                        Unique: <?php echo $info['unique_viewers']; ?> | 
-                                        Completion: <?php echo $info['avg_completion']; ?>%
-                                    </small>
+                            <strong>Videos List:</strong><br>
+                            <?php foreach ($videos as $index => $video): ?>
+                                <div class="mt-1 p-2 border rounded">
+                                    <strong>Video <?php echo $index; ?>:</strong> 
+                                    ID=<?php echo htmlspecialchars($video['id'] ?? 'NO_ID'); ?> | 
+                                    Title=<?php echo htmlspecialchars($video['video_title'] ?? 'NO_TITLE'); ?>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -656,123 +614,69 @@ if (isset($_GET['debug'])) {
                         </div>
                     <?php else: ?>
                         <div class="row">
-                            <?php 
-                            // Debug: Log each video being processed
-                            if (isset($_GET['debug'])) {
-                                echo "<!-- Processing " . count($videos) . " videos -->\n";
-                            }
-                            foreach ($videos as $index => $video): 
-                                if (isset($_GET['debug'])) {
-                                    echo "<!-- Video $index: " . htmlspecialchars(json_encode($video)) . " -->\n";
-                                }
-                            ?>
+                            <?php foreach ($videos as $video): ?>
                                 <div class="col-md-6 col-lg-4 mb-4">
                                     <div class="card h-100">
-                                        <div class="position-relative">
+                                        <div class="video-card-preview">
                                             <?php 
-                                            // Determine the video source - check both video_url and video_file
-                                            $video_source = $video['video_url'] ?? $video['video_file'] ?? '';
-                                            $is_url = false;
+                                            $video_url = $video['video_url'] ?? '';
+                                            $video_file = $video['video_file'] ?? '';
                                             
-                                            if (!empty($video_source)) {
-                                                // Check if video_file contains a URL (from videos.php)
-                                                if (isset($video['video_file']) && !empty($video['video_file']) && 
-                                                    (preg_match('/^https?:\/\//', $video['video_file']) || 
-                                                     preg_match('/^www\./', $video['video_file']))) {
-                                                    $video_source = $video['video_file'];
-                                                    $is_url = true;
-                                                } elseif (!empty($video['video_url'])) {
-                                                    $video_source = $video['video_url'];
-                                                    $is_url = true;
-                                                }
-                                                
-                                                if ($is_url) {
-                                                    // Handle URL-based videos (YouTube, Google Drive, direct links)
-                                                    if (preg_match('/youtu\.be|youtube\.com/', $video_source)) {
-                                                        // YouTube embed
-                                                        if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_source, $matches)) {
+                                            // Check if video_file contains a URL (from old data)
+                                            if (!empty($video_file) && (strpos($video_file, 'http') === 0 || strpos($video_file, 'www.') === 0)) {
+                                                $video_url = $video_file;
+                                                $video_file = '';
+                                            }
+                                            
+                                            if (!empty($video_url)) {
+                                                if (preg_match('/youtu\.be|youtube\.com/', $video_url)) {
+                                                    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_url, $matches)) {
                                                             $youtube_id = $matches[1];
                                                             echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="https://www.youtube.com/embed/' . htmlspecialchars($youtube_id) . '" frameborder="0" allowfullscreen></iframe>';
                                                         } else {
                                                             echo '<div class="text-danger">Invalid YouTube link</div>';
                                                         }
-                                                    } elseif (preg_match('/drive\.google\.com/', $video_source)) {
-                                                        // Google Drive embed
-                                                        if (preg_match('~/d/([a-zA-Z0-9_-]+)~', $video_source, $matches)) {
+                                                } elseif (preg_match('/drive\.google\.com/', $video_url)) {
+                                                    // Google Drive
+                                                    if (preg_match('~/d/([a-zA-Z0-9_-]+)~', $video_url, $matches)) {
                                                             $drive_id = $matches[1];
                                                             echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="https://drive.google.com/file/d/' . htmlspecialchars($drive_id) . '/preview" allowfullscreen></iframe>';
                                                         } else {
                                                             echo '<div class="text-danger">Invalid Google Drive link</div>';
                                                         }
-                                                    } elseif (preg_match('/\.mp4$|\.webm$|\.ogg$/', $video_source)) {
+                                                } elseif (preg_match('/\.mp4$|\.webm$|\.ogg$/', $video_url)) {
                                                         // Direct video file
-                                                        echo '<video class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;" controls><source src="' . htmlspecialchars($video_source) . '">Your browser does not support the video tag.</video>';
+                                                    echo '<video class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;" controls><source src="' . htmlspecialchars($video_url) . '">Your browser does not support the video tag.</video>';
                                                     } else {
                                                         // Generic iframe
-                                                        echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="' . htmlspecialchars($video_source) . '" allowfullscreen></iframe>';
-                                                    }
-                                                } else {
-                                                    // Handle uploaded video files
-                                                    echo '<video class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;" controls>';
-                                                    echo '<source src="../uploads/videos/' . htmlspecialchars($video_source) . '" type="video/mp4">';
-                                                    echo 'Your browser does not support the video tag.';
-                                                    echo '</video>';
+                                                    echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="' . htmlspecialchars($video_url) . '" allowfullscreen></iframe>';
                                                 }
+                                            } elseif (!empty($video_file)) {
+                                                $ext = strtolower(pathinfo($video_file, PATHINFO_EXTENSION));
+                                                $mime = 'video/mp4';
+                                                if ($ext === 'webm') $mime = 'video/webm';
+                                                elseif ($ext === 'ogg' || $ext === 'ogv') $mime = 'video/ogg';
+                                                echo '<video class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;" controls><source src="/lms_cap/uploads/videos/' . htmlspecialchars($video_file) . '" type="' . $mime . '">Your browser does not support the video tag.</video>';
                                             }
                                             ?>
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-primary">Video</span>
-                                            </div>
                                         </div>
                                         <div class="card-body">
                                             <h6 class="card-title"><?php echo htmlspecialchars($video['video_title']); ?></h6>
-                                            <?php if (!empty($video['video_description'])): ?>
+                                            <?php if ($video['video_description']): ?>
                                                 <p class="card-text small text-muted"><?php echo htmlspecialchars(substr($video['video_description'], 0, 100)) . '...'; ?></p>
                                             <?php endif; ?>
                                             <div class="mb-2">
                                                 <small class="text-muted">
-                                                    <i class="bi bi-sort-numeric-up me-1"></i>Order: <?php echo $video['video_order'] ?? 1; ?>
-                                                </small>
-                                                <small class="text-info d-block">
+                                                    <i class="bi bi-sort-numeric-up me-1"></i>Order: <?php echo $video['video_order'] ?? 1; ?><br>
                                                     <i class="bi bi-clock me-1"></i>Min Watch: <?php echo $video['min_watch_time'] ?? 30; ?> seconds
                                                 </small>
                                             </div>
-                                            <div class="mb-2">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block">
-                                                            <i class="bi bi-eye me-1"></i><?php echo $video['view_count'] ?? 0; ?> total views
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <small class="text-muted">
+                                                    <i class="bi bi-eye me-1"></i><?php echo $video['view_count']; ?> views
                                                 </small>
-                                                        <small class="text-info d-block">
+                                                <small class="text-muted">
                                                             <i class="bi bi-people me-1"></i><?php echo $video['unique_viewers'] ?? 0; ?> unique viewers
-                                                </small>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-success d-block">
-                                                            <i class="bi bi-check-circle me-1"></i><?php echo number_format($video['avg_completion'] ?? 0, 1); ?>% avg completion
-                                                        </small>
-                                                        <?php if (isset($video['total_watch_time']) && $video['total_watch_time'] > 0): ?>
-                                                            <small class="text-warning d-block">
-                                                                <i class="bi bi-clock me-1"></i><?php echo gmdate("H:i:s", $video['total_watch_time']); ?> total time
-                                                            </small>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="mb-2">
-                                                <?php if (!empty($video_viewers[$video['id']])): ?>
-                                                    <span class="badge bg-success" data-bs-toggle="tooltip" data-bs-title="<?php echo htmlspecialchars(implode(', ', array_map(function($id) use ($student_names) { return $student_names[$id] ?? 'Student ' . $id; }, $video_viewers[$video['id']]))); ?>">
-                                                        <i class="bi bi-person-check me-1"></i><?php echo count($video_viewers[$video['id']]); ?> students watched
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-secondary">
-                                                        <i class="bi bi-person-x me-1"></i>No students watched yet
-                                                    </span>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="mb-2">
-                                                <small class="text-success">
-                                                    <i class="bi bi-shield-check me-1"></i>Time requirement: <?php echo $video['min_watch_time'] ?? 30; ?>s
                                                 </small>
                                             </div>
                                             <div class="btn-group btn-group-sm w-100">
@@ -826,10 +730,10 @@ if (isset($_GET['debug'])) {
                     
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="upload_video_order" class="form-label">Video Order</label>
+                            <label for="upload_video_order" class="form-label">Video Order (Optional)</label>
                             <input type="number" class="form-control" id="upload_video_order" name="video_order" 
-                                   value="<?php echo getNextAvailableVideoOrder($videos); ?>" min="1" required>
-                            <div class="form-text">Next available order number</div>
+                                   value="<?php echo getNextAvailableVideoOrder($videos); ?>" min="1">
+                            <div class="form-text">Order for display purposes (auto-generated if not specified)</div>
                         </div>
                         <div class="col-md-6">
                             <label for="upload_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
@@ -879,8 +783,9 @@ if (isset($_GET['debug'])) {
                     
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="edit_video_order" class="form-label">Video Order</label>
-                            <input type="number" class="form-control" id="edit_video_order" name="video_order" min="1" required>
+                            <label for="edit_video_order" class="form-label">Video Order (Optional)</label>
+                            <input type="number" class="form-control" id="edit_video_order" name="video_order" min="1">
+                            <div class="form-text">Order for display purposes only</div>
                         </div>
                         <div class="col-md-6">
                             <label for="edit_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
@@ -951,98 +856,21 @@ function viewVideoStats(videoId) {
     }
 }
 
-// Video Watch Requirements Configuration Functions
-function updateThresholdDisplay(value, displayId) {
-    document.getElementById(displayId).textContent = value + '%';
-}
 
-function updateVideoRequirements() {
-    const minWatchDuration = parseInt(document.getElementById('minWatchDuration').value);
-    const completionThreshold = document.getElementById('completionThreshold').value;
-    
-    // Show success message
-    showConfigurationMessage('Video requirements updated successfully!', 'success');
-    
-    // Here you could add AJAX call to save to database
-    console.log('New requirements:', {
-        minWatchDuration: minWatchDuration,
-        completionThreshold: completionThreshold
-    });
-}
-
-function resetToDefaults() {
-    document.getElementById('minWatchDuration').value = 5;
-    document.getElementById('completionThreshold').value = 80;
-    
-    // Update displays
-    updateThresholdDisplay(80, 'completionDisplay');
-    updateVideoRequirements();
-    
-    showConfigurationMessage('Reset to default values!', 'info');
-}
-
-function showConfigurationMessage(message, type) {
-    // Create a temporary alert
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // Insert at the top of the page
-    const container = document.querySelector('.container-fluid');
-    container.insertBefore(alertDiv, container.firstChild);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
-}
-
-// Form validation functions
-function validateVideoOrderInput(input, isEdit = false) {
-    const orderValue = parseInt(input.value);
-    const currentVideos = <?php echo json_encode($videos); ?>;
-    const currentOrder = input.value;
-    
-    // Check if order is already taken
-    for (let video of currentVideos) {
-        if (isEdit && video.id === document.getElementById('edit_video_id').value) {
-            continue; // Skip the video being edited
-        }
-        if (video.video_order == orderValue) {
-            input.setCustomValidity('This order number is already taken. Please choose a different number.');
-            return false;
-        }
-    }
-    
-    input.setCustomValidity('');
-    return true;
-}
-
-// Add event listeners for order validation
+// Add event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    const uploadOrderInput = document.getElementById('upload_video_order');
-    const editOrderInput = document.getElementById('edit_video_order');
+    console.log('🔍 Debug: Page loaded, checking video display...');
+    console.log('🔍 Videos count from PHP:', <?php echo count($videos); ?>);
+    console.log('🔍 Videos data from PHP:', <?php echo json_encode($videos); ?>);
     
-    if (uploadOrderInput) {
-        uploadOrderInput.addEventListener('input', function() {
-            validateVideoOrderInput(this, false);
-        });
-    }
-    
-    if (editOrderInput) {
-        editOrderInput.addEventListener('input', function() {
-            validateVideoOrderInput(this, true);
-        });
-    }
+    // Check if we have videos to display
+    const videoCards = document.querySelectorAll('.col-md-6.col-lg-4.mb-4');
+    console.log('🔍 Video cards found in DOM:', videoCards.length);
     
          // Auto-hide success messages after 5 seconds to prevent them from staying visible
      const successAlert = document.querySelector('.alert-success');
      if (successAlert) {
+        console.log('🔍 Success alert found:', successAlert.textContent);
          setTimeout(() => {
              successAlert.style.transition = 'opacity 0.5s ease-out';
              successAlert.style.opacity = '0';

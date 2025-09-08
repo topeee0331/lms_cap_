@@ -292,7 +292,7 @@ foreach ($all_badges as $badge) {
                                                         </span>
                                                         <?php if ($badge['is_earned']): ?>
                                                             <small class="text-muted">
-                                                                Earned <?php echo date('M j, Y', strtotime($badge['earned_at'])); ?>
+                                                                Earned <?php echo !empty($badge['earned_at']) ? date('M j, Y', strtotime($badge['earned_at'])) : 'Date not available'; ?>
                                                             </small>
                                                         <?php else: ?>
                                                             <small class="text-muted">
@@ -346,7 +346,7 @@ foreach ($all_badges as $badge) {
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($badge['badge_name']); ?></h6>
                                                 <small class="text-muted">
-                                                    <i class="fas fa-calendar-check text-success"></i> Earned <?php echo date('M j, Y', strtotime($badge['earned_at'])); ?>
+                                                    <i class="fas fa-calendar-check text-success"></i> Earned <?php echo !empty($badge['earned_at']) ? date('M j, Y', strtotime($badge['earned_at'])) : 'Date not available'; ?>
                                                 </small>
                                             </div>
                                             <span class="badge bg-warning text-dark">

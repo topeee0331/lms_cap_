@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Admin Dashboard';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('admin');
+require_once '../includes/header.php';
 
 // 1. Fetch all active academic periods for the dropdown
 $ay_stmt = $db->prepare('SELECT id, CONCAT(academic_year, " - ", semester_name) as period_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name');

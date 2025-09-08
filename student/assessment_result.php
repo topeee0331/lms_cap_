@@ -161,12 +161,15 @@ foreach ($questions as &$question) {
     // Options are already decoded as array from the previous step
     $options_array = $question['options'];
 
-    // Find the correct answer index
+    // Find the correct answer order(s)
     $question['correct_answer'] = null;
-    foreach ($question['options'] as $idx => $option) {
+    $question['correct_answers'] = [];
+    foreach ($question['options'] as $option) {
         if ($option['is_correct']) {
-            $question['correct_answer'] = $idx;
-            break;
+            $question['correct_answers'][] = (int)$option['order'];
+            if ($question['correct_answer'] === null) {
+                $question['correct_answer'] = (int)$option['order'];
+            }
         }
     }
 
@@ -212,8 +215,17 @@ foreach ($questions as &$question) {
                     }
                     $question['is_correct'] = strtoupper(trim($question['student_id_answer'] ?? '')) === strtoupper(trim($correct_text ?? ''));
                 } else {
-                    // Multiple choice
-                    $question['is_correct'] = $question['student_answer'] === $question['correct_answer'];
+                    // Multiple choice - handle both single and multiple answers
+                    if (!empty($question['student_answer'])) {
+                        $student_answers = strpos($question['student_answer'], ',') !== false ? 
+                            explode(',', $question['student_answer']) : [$question['student_answer']];
+                        $student_answers = array_map('intval', $student_answers);
+                        sort($student_answers);
+                        sort($question['correct_answers']);
+                        $question['is_correct'] = $student_answers === $question['correct_answers'];
+                    } else {
+                        $question['is_correct'] = false;
+                    }
                 }
             } else {
                 // Question was visited but not answered (empty answer)
@@ -959,7 +971,17 @@ $is_view_only = !$assessment_status['is_active'];
                                         $optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                                         foreach ($question['options'] as $idx => $option): 
                                             $letter = $optionLetters[$idx] ?? chr(65 + $idx);
-                                            $is_selected = ($idx == $question['student_answer']);
+                                            $order = (int)$option['order'];
+                                            
+                                            // Check if this option is selected (handle both single and multiple answers)
+                                            $is_selected = false;
+                                            if (!empty($question['student_answer'])) {
+                                                $student_answers = strpos($question['student_answer'], ',') !== false ? 
+                                                    explode(',', $question['student_answer']) : [$question['student_answer']];
+                                                $student_answers = array_map('intval', $student_answers);
+                                                $is_selected = in_array($order, $student_answers);
+                                            }
+                                            
                                             $is_correct = $option['is_correct'];
                                         ?>
                                             <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?> <?php echo $is_correct ? 'option-correct' : ''; ?>">

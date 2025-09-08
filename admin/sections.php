@@ -1,7 +1,8 @@
 <?php
 $page_title = 'Manage Sections';
-require_once '../includes/header.php';
+require_once '../config/config.php';
 requireRole('admin');
+require_once '../includes/header.php';
 
 // Helper function to format year with proper ordinal suffix
 function formatYear($year) {

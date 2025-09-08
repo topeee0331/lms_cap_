@@ -251,36 +251,6 @@ $monthly_progress = $stmt->fetchAll();
         .activity-item.assessment {
             border-left-color: #ffc107;
         }
-        .progress-circle {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: #e9ecef; /* Fallback for older browsers */
-            background: conic-gradient(#007bff 0deg, #007bff <?php echo $module_progress * 3.6; ?>deg, #e9ecef <?php echo $module_progress * 3.6; ?>deg, #e9ecef 360deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-            position: relative;
-        }
-        .progress-circle::before {
-            content: '';
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: white;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        .progress-text {
-            position: relative;
-            z-index: 1;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #007bff;
-        }
     </style>
 </head>
 <body>
@@ -308,11 +278,11 @@ $monthly_progress = $stmt->fetchAll();
                     <div class="col-md-3">
                         <div class="card progress-card text-center">
                             <div class="card-body">
-                                <div class="position-relative">
-                                    <div class="progress-circle"></div>
-                                    <div class="progress-text"><?php echo $module_progress; ?>%</div>
+                                <i class="fas fa-layer-group fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Module Progress</h5>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-primary" style="width: <?php echo $module_progress; ?>%"></div>
                                 </div>
-                                <h5 class="card-title mt-3">Module Progress</h5>
                                 <p class="card-text"><?php echo $overall_stats['completed_modules']; ?> of <?php echo $overall_stats['total_modules']; ?> modules</p>
                             </div>
                         </div>

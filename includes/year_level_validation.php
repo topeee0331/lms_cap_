@@ -4,8 +4,8 @@
  */
 
 function validateStudentYearLevel($student_id, $target_section_id, $pdo) {
-    // Get student's current year level
-    $stmt = $pdo->prepare("SELECT year_level, first_name, last_name FROM users WHERE id = ? AND role = 'student'");
+    // Get student's basic info
+    $stmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ? AND role = 'student'");
     $stmt->execute([$student_id]);
     $student = $stmt->fetch();
     
@@ -22,23 +22,25 @@ function validateStudentYearLevel($student_id, $target_section_id, $pdo) {
         return ["valid" => false, "message" => "Section not found"];
     }
     
-    $student_year = $student["year_level"];
+    // Get student's current year level from their existing section assignments
+    $stmt = $pdo->prepare("
+        SELECT s.year_level, s.section_name
+        FROM sections s 
+        WHERE JSON_SEARCH(s.students, 'one', ?) IS NOT NULL 
+        ORDER BY s.year_level DESC 
+        LIMIT 1
+    ");
+    $stmt->execute([$student_id]);
+    $current_section = $stmt->fetch();
+    
+    $student_year = $current_section ? $current_section["year_level"] : 1; // Default to 1st year if no current assignment
     $section_year = $section["year_level"];
     
     // Validation rules
-    if ($student_year > $section_year) {
+    if ($current_section && $student_year != $section_year) {
         return [
             "valid" => false, 
-            "message" => "Cannot assign {$student["first_name"]} {$student["last_name"]} (Year {$student_year}) to {$section["section_name"]} (Year {$section_year}). Student is in a higher year level.",
-            "student_year" => $student_year,
-            "section_year" => $section_year
-        ];
-    }
-    
-    if ($student_year < $section_year - 1) {
-        return [
-            "valid" => false, 
-            "message" => "Cannot assign {$student["first_name"]} {$student["last_name"]} (Year {$student_year}) to {$section["section_name"]} (Year {$section_year}). Student is too far behind.",
+            "message" => "Cannot assign {$student["first_name"]} {$student["last_name"]} (Year {$student_year}) to {$section["section_name"]} (Year {$section_year}). Student is already assigned to a different year level section ({$current_section["section_name"]}).",
             "student_year" => $student_year,
             "section_year" => $section_year
         ];

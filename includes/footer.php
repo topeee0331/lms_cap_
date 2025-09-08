@@ -11,8 +11,8 @@
                     <small>BSIT Capstone Project 2025</small>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p class="mb-0">&copy; <?php echo date('Y'); ?> Nueva Ecija University of Science and Technology</p>
-                    <small>All rights reserved</small>
+                    <p class="mb-0">&copy; 2025 BSIT 4E 2025-2026 Group 4</p>
+                    <small>Raymond V. Salvador, Lawrence J. Puesca, John Lloyd N. Eusebio, John Joseph Espiritu • All rights reserved</small>
                 </div>
             </div>
         </div>

@@ -53,11 +53,11 @@ try {
     
     // Get all students that are not already in this section
     $stmt = $db->prepare("
-        SELECT id, first_name, last_name, is_irregular, identifier, year_level
+        SELECT id, first_name, last_name, is_irregular, identifier
         FROM users 
         WHERE role = 'student' 
         AND status = 'active'
-        ORDER BY year_level, last_name, first_name
+        ORDER BY last_name, first_name
     ");
     $stmt->execute();
     $all_students = $stmt->fetchAll();
@@ -75,8 +75,8 @@ try {
                 'id' => $student['id'],
                 'name' => $student['last_name'] . ', ' . $student['first_name'] . ' (' . ($student['identifier'] ?: 'No ID') . ')',
                 'is_irregular' => $student['is_irregular'],
-                'year_level' => $student['year_level'],
-                'year_level_text' => getYearLevelOptions($student['year_level'])
+                'year_level' => $target_year,
+                'year_level_text' => getYearLevelOptions($target_year)
             ];
             
             if ($validation['valid']) {

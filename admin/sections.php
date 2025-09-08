@@ -218,12 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all sections with academic period info and detailed statistics
 $sections = [];
-$section_sql = "SELECT s.*, ap.academic_year, ap.semester_name, ap.is_active as period_active,
-                (SELECT COUNT(*) FROM course_enrollments ce 
-                 WHERE ce.course_id IN (
-                     SELECT c.id FROM courses c 
-                     WHERE JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
-                 ) AND ce.status = 'active') as enrolled_students_count
+$section_sql = "SELECT s.*, ap.academic_year, ap.semester_name, ap.is_active as period_active
                 FROM sections s 
                 LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id 
                 ORDER BY s.academic_period_id DESC, s.year_level, s.section_name";
@@ -268,7 +263,6 @@ $stats_stmt = $db->prepare("
         COUNT(CASE WHEN ap.is_active = 1 THEN 1 END) as current_period_sections,
         COUNT(DISTINCT s.year_level) as year_levels_covered,
         COUNT(DISTINCT s.academic_period_id) as academic_periods_covered,
-        (SELECT COUNT(*) FROM course_enrollments WHERE status = 'active') as total_enrolled_students,
         (SELECT COUNT(*) FROM courses WHERE is_archived = 0) as total_courses
     FROM sections s
     LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id
@@ -376,6 +370,29 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
 .section-row {
     transition: all 0.3s ease;
     border-left: 4px solid transparent;
+}
+
+/* Fix modal scrolling and footer visibility */
+.modal-dialog {
+    max-height: 90vh;
+}
+
+.modal-content {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    overflow-y: auto;
+    flex: 1;
+    max-height: calc(90vh - 120px); /* Account for header and footer */
+}
+
+.modal-footer {
+    flex-shrink: 0;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
 }
 
 .section-row:hover {
@@ -977,8 +994,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                         $teacher_count_stmt->execute([$section['id']]);
                                         $teacher_count = $teacher_count_stmt->fetchColumn();
                                         
-                                        // Get actual enrolled students count
-                                        $enrolled_count = $section['enrolled_students_count'] ?? 0;
                                         
                                         // Create display name with academic period info
                                         $display_name = "BSIT-{$section['year_level']}{$section['section_name']}";
@@ -1046,11 +1061,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                         <span class="badge bg-info text-white px-3 py-2 rounded-pill shadow-sm">
                                                             <i class="bi bi-people-fill me-1"></i><?= $student_count ?> assigned
                                                         </span>
-                                                        <?php if ($enrolled_count > 0): ?>
-                                                            <span class="badge bg-success text-white px-3 py-2 rounded-pill shadow-sm">
-                                                                <i class="bi bi-mortarboard-fill me-1"></i><?= $enrolled_count ?> enrolled
-                                                            </span>
-                                                        <?php endif; ?>
                                                     </div>
                                                     <div class="d-flex justify-content-center gap-2 flex-wrap">
                                                         <?php if ($student_count > 0): ?>
@@ -1111,22 +1121,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                             data-bs-target="#editSectionModal<?= $section['id'] ?>"
                                                             title="Edit Section">
                                                         <i class="bi bi-pencil me-1"></i>Edit
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-2" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#assignUsersModal<?= $section['id'] ?>"
-                                                            title="Assign Users">
-                                                        <i class="bi bi-people me-1"></i>Users
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-success rounded-pill px-3 py-2" 
-                                                            onclick="openAddStudentsModal(<?= $section['id'] ?>)"
-                                                            title="Add Students">
-                                                        <i class="bi bi-person-plus me-1"></i>Add
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 py-2" 
-                                                            onclick="viewSectionStudents(<?= $section['id'] ?>, '<?= htmlspecialchars($display_name) ?>')"
-                                                            title="View Students">
-                                                        <i class="bi bi-eye me-1"></i>View
                                                     </button>
                                                     <form method="post" action="sections.php" 
                                                           style="display:inline;" 
@@ -1271,7 +1265,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                         <label class="form-label fw-semibold">
                                                                             <i class="bi bi-funnel me-2"></i>Filter Students
                                                                         </label>
-                                                                        <select class="form-select" id="studentStatusFilter<?= $section['id'] ?>" onchange="filterStudents<?= $section['id'] ?>()">
+                                                                        <select class="form-select" id="studentStatusFilter<?= $section['id'] ?>" onchange="filterStudents(<?= $section['id'] ?>)">
                                                                             <option value="all">All Students</option>
                                                                             <option value="regular">Regular Students</option>
                                                                             <option value="irregular">Irregular Students</option>
@@ -1281,7 +1275,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                         <label class="form-label fw-semibold">
                                                                             <i class="bi bi-search me-2"></i>Search Students
                                                                         </label>
-                                                                        <input type="text" class="form-control mb-2" id="studentSearch<?= $section['id'] ?>" placeholder="Type to search..." onkeyup="searchStudents<?= $section['id'] ?>()">
+                                                                        <input type="text" class="form-control mb-2" id="studentSearch<?= $section['id'] ?>" placeholder="Type to search..." onkeyup="searchStudents(<?= $section['id'] ?>)">
                                                                         <label class="form-label fw-semibold d-flex align-items-center">
     <i class="bi bi-people me-2"></i>Assign Students
     <span class="badge bg-primary ms-2 selectedStudentsCountBadge">0</span>
@@ -1305,7 +1299,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                         $status = ($stu['is_irregular'] ? 'irregular' : 'regular');
                                                                         $badge = $stu['is_irregular'] ? '<span class=\'badge bg-danger ms-2\'>Irregular</span>' : '<span class=\'badge bg-success ms-2\'>Regular</span>';
                                                                                 echo "<div class='form-check student-option-{$status}' data-status='{$status}' style='margin-bottom: 4px;'>";
-                                                                                echo "<input class='form-check-input' type='checkbox' name='students[]' value='{$stu['id']}' id='stu{$section['id']}_{$stu['id']}' $checked onchange='updateSelectedStudentsCount()'>";
+                                                                                echo "<input class='form-check-input' type='checkbox' name='students[]' value='{$stu['id']}' id='stu{$section['id']}_{$stu['id']}' $checked onchange='updateSelectedStudentsCount(this.closest(\".modal\"))'>";
                                                                                 echo "<label class='form-check-label' for='stu{$section['id']}_{$stu['id']}'>" . htmlspecialchars($stu['name']) . " $badge</label>";
                                                                                 echo "</div>";
                                                                     }
@@ -1319,7 +1313,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                         <label class="form-label fw-semibold">
                                                                             <i class="bi bi-search me-2"></i>Search Teachers
                                                                         </label>
-                                                                        <input type="text" class="form-control mb-2" id="teacherSearch<?= $section['id'] ?>" placeholder="Type to search..." onkeyup="searchTeachers<?= $section['id'] ?>()">
+                                                                        <input type="text" class="form-control mb-2" id="teacherSearch<?= $section['id'] ?>" placeholder="Type to search..." onkeyup="searchTeachers(<?= $section['id'] ?>)">
                                                                         <label class="form-label fw-semibold">
                                                                             <i class="bi bi-person-workspace me-2"></i>Assign Teachers
                                                                         </label>
@@ -1567,9 +1561,12 @@ function updateSectionCodeDropdown() {
         codeSelect.value = '';
     }
 }
-function filterStudents<?= $section['id'] ?>() {
-    var filter = document.getElementById('studentStatusFilter<?= $section['id'] ?>').value;
-    var options = document.querySelectorAll('#assignUsersModal<?= $section['id'] ?> .form-check.student-option-regular, #assignUsersModal<?= $section['id'] ?> .form-check.student-option-irregular');
+// Generic functions for all sections
+function filterStudents(sectionId) {
+    try {
+        var filter = document.getElementById('studentStatusFilter' + sectionId).value;
+        var modal = document.getElementById('assignUsersModal' + sectionId);
+        var options = modal.querySelectorAll('.form-check.student-option-regular, .form-check.student-option-irregular');
     options.forEach(function(opt) {
         if (filter === 'all' || opt.getAttribute('data-status') === filter) {
             opt.style.display = '';
@@ -1577,17 +1574,44 @@ function filterStudents<?= $section['id'] ?>() {
             opt.style.display = 'none';
         }
     });
-    updateSelectedStudentsCount();
+        updateSelectedStudentsCount(modal);
+    } catch (error) {
+        console.error('Error in filterStudents:', error);
+    }
 }
-function searchStudents<?= $section['id'] ?>() {
-    var input = document.getElementById('studentSearch<?= $section['id'] ?>').value.toLowerCase();
-    var options = document.querySelectorAll('#assignUsersModal<?= $section['id'] ?> .form-check.student-option-regular, #assignUsersModal<?= $section['id'] ?> .form-check.student-option-irregular');
+
+function searchStudents(sectionId) {
+    try {
+        var input = document.getElementById('studentSearch' + sectionId).value.toLowerCase();
+        var modal = document.getElementById('assignUsersModal' + sectionId);
+        var options = modal.querySelectorAll('.form-check.student-option-regular, .form-check.student-option-irregular');
     options.forEach(function(opt) {
         var label = opt.querySelector('label');
         var text = label ? label.textContent.toLowerCase() : '';
         opt.style.display = text.includes(input) ? '' : 'none';
     });
-    updateSelectedStudentsCount();
+        updateSelectedStudentsCount(modal);
+    } catch (error) {
+        console.error('Error in searchStudents:', error);
+    }
+}
+
+function searchTeachers(sectionId) {
+    try {
+        var input = document.getElementById('teacherSearch' + sectionId).value.toLowerCase();
+        var modal = document.getElementById('assignUsersModal' + sectionId);
+        var options = modal.querySelectorAll('.form-check');
+        options.forEach(function(opt) {
+            var label = opt.querySelector('label');
+            var text = label ? label.textContent.toLowerCase() : '';
+            // Only show teacher options (not student options)
+            if (opt.querySelector('input[name="teachers[]"]')) {
+                opt.style.display = text.includes(input) ? '' : 'none';
+            }
+        });
+    } catch (error) {
+        console.error('Error in searchTeachers:', error);
+    }
 }
 function updateSelectedStudentsCount(modal) {
     if (!modal) return;
@@ -1673,6 +1697,10 @@ function openAddStudentsModal(sectionId) {
     if (!modal) {
         // Clone the template modal
         const template = document.getElementById('addStudentsModalTemplate');
+        if (!template) {
+            console.error('Template modal not found!');
+            return;
+        }
         modal = template.cloneNode(true);
         modal.id = modalId;
         modal.setAttribute('aria-labelledby', 'addStudentsLabel' + sectionId);

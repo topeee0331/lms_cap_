@@ -577,6 +577,12 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                         </td>
                                             <td>
                                                 <div class="d-flex justify-content-center gap-1">
+                                                    <button class="btn btn-sm btn-outline-info" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#viewUserModal<?= $user['id'] ?>"
+                                                            title="View User Details">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
                                                     <button class="btn btn-sm btn-outline-primary" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#editUserModal<?= $user['id'] ?>"
@@ -714,6 +720,140 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                                             </button>
                                                     </div>
                                                 </form>
+                                                    </div>
+                                                </div>
+                                                </div>
+                                        
+                                        <!-- View User Modal -->
+                                    <div class="modal fade" id="viewUserModal<?= $user['id'] ?>" tabindex="-1" aria-labelledby="viewUserLabel<?= $user['id'] ?>" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                        <div class="modal-header bg-info text-white">
+                                                            <h5 class="modal-title" id="viewUserLabel<?= $user['id'] ?>">
+                                                                <i class="bi bi-eye me-2"></i>View User Details
+                                                            </h5>
+                                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-card-text me-2"></i>Identifier
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($user['identifier'] ?? 'Not assigned') ?></p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-person-badge me-2"></i>Role
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                            <span class="badge bg-<?= $user['role'] === 'admin' ? 'danger' : ($user['role'] === 'teacher' ? 'primary' : 'success') ?>">
+                                                                                <?= ucfirst($user['role']) ?>
+                                                                            </span>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-person me-2"></i>First Name
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($user['first_name']) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-person me-2"></i>Last Name
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($user['last_name']) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-person-circle me-2"></i>Username
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($user['username']) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-envelope me-2"></i>Email
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($user['email']) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <?php if ($user['role'] === 'teacher'): ?>
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-check-circle me-2"></i>Status
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                            <span class="badge bg-<?= $user['status'] === 'active' ? 'success' : 'warning' ?>">
+                                                                                <?= ucfirst($user['status'] ?? 'active') ?>
+                                                                            </span>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($user['role'] === 'student'): ?>
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-book me-2"></i>Student Type
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                            <span class="badge bg-<?= $user['is_irregular'] ? 'warning' : 'info' ?>">
+                                                                                <?= $user['is_irregular'] ? 'Irregular' : 'Regular' ?>
+                                                                            </span>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-calendar3 me-2"></i>Created Date
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= date('M j, Y g:i A', strtotime($user['created_at'])) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-clock me-2"></i>Last Updated
+                                                                        </label>
+                                                                        <p class="form-control-plaintext bg-light p-2 rounded"><?= date('M j, Y g:i A', strtotime($user['updated_at'] ?? $user['created_at'])) ?></p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            <i class="bi bi-x-circle me-2"></i>Close
+                                                        </button>
+                                                    </div>
                                                     </div>
                                                 </div>
                                                 </div>

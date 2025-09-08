@@ -250,6 +250,7 @@ foreach ($students as $stu) {
                                     <td><?= htmlspecialchars($student['email']) ?></td>
                                     <td><?= date('M j, Y g:i A', strtotime($student['created_at'])) ?></td>
                                     <td>
+                                        <a href="#" class="btn btn-outline-info btn-sm me-1" data-bs-toggle="modal" data-bs-target="#viewStudentModal<?= $student['id'] ?>"><i class="bi bi-eye"></i> View</a>
                                         <a href="#" class="btn btn-outline-secondary btn-sm me-1" data-bs-toggle="modal" data-bs-target="#editStudentModal<?= $student['id'] ?>"><i class="bi bi-pencil"></i> Edit</a>
                                         <?php if (isset($student['status']) && $student['status'] === 'inactive'): ?>
                                             <form method="post" action="students.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to unarchive this student?');">
@@ -315,6 +316,133 @@ foreach ($students as $stu) {
                                                     <button type="submit" class="btn btn-primary">Save Changes</button>
                                                 </div>
                                             </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- View Student Modal -->
+                                <div class="modal fade" id="viewStudentModal<?= $student['id'] ?>" tabindex="-1" aria-labelledby="viewStudentLabel<?= $student['id'] ?>" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-info text-white">
+                                                <h5 class="modal-title" id="viewStudentLabel<?= $student['id'] ?>">
+                                                    <i class="bi bi-eye me-2"></i>View Student Details
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-card-text me-2"></i>Student ID
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                <?php if (!empty($student['identifier'])): ?>
+                                                                    <span class="badge bg-primary fs-6"><?= htmlspecialchars($student['identifier']) ?></span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-warning fs-6">No ID Assigned</span>
+                                                                <?php endif; ?>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-person-badge me-2"></i>Student Type
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                <?php if ($student['is_irregular']): ?>
+                                                                    <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-triangle me-1"></i>Irregular</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Regular</span>
+                                                                <?php endif; ?>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-person me-2"></i>First Name
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($student['first_name']) ?></p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-person me-2"></i>Last Name
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($student['last_name']) ?></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-person-circle me-2"></i>Username
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($student['username']) ?></p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-envelope me-2"></i>Email
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($student['email']) ?></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-calendar3 me-2"></i>Created Date
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= date('M j, Y g:i A', strtotime($student['created_at'])) ?></p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-clock me-2"></i>Last Updated
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded"><?= date('M j, Y g:i A', strtotime($student['updated_at'] ?? $student['created_at'])) ?></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <?php if (isset($student['status'])): ?>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-check-circle me-2"></i>Account Status
+                                                            </label>
+                                                            <p class="form-control-plaintext bg-light p-2 rounded">
+                                                                <?php if ($student['status'] === 'inactive'): ?>
+                                                                    <span class="badge bg-warning fs-6"><i class="bi bi-pause-circle me-1"></i>Inactive (Archived)</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Active</span>
+                                                                <?php endif; ?>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                    <i class="bi bi-x-circle me-2"></i>Close
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

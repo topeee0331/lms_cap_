@@ -1222,9 +1222,9 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                     </div>
                                                 <?php endif; ?>
                                             </div>
-                        </div>
-                    </div>
-                </div>
+                                        </div>
+                                    </div>
+                                </div>
                             <?php endforeach; ?>
                         </div>
                     </div>

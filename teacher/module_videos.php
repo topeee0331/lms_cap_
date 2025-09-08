@@ -2,9 +2,16 @@
 // Start output buffering to prevent header issues
 ob_start();
 
+require_once '../config/config.php';
+requireRole('teacher');
+
 $page_title = 'Module Videos';
 require_once '../includes/header.php';
-requireRole('teacher');
+
+// Ensure database connection is available
+if (!isset($db) || !$db) {
+    $db = new Database();
+}
 
 
 // Helper function to get next available video order (simplified)
@@ -111,55 +118,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
                 } else {
-                    // Find and add the video to the JSON structure (same as videos.php)
-                    $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
-                    $stmt->execute([$_SESSION['user_id']]);
-                    $courses_data = $stmt->fetchAll();
-                    
-                    $video_added = false;
-                    foreach ($courses_data as $course) {
-                        $modules_data = json_decode($course['modules'], true);
-                        if (is_array($modules_data)) {
-                            foreach ($modules_data as &$module) {
-                                if ($module['id'] === $module_id) {
-                    // Create new video object
-                    $new_video = [
-                        'id' => uniqid('vid_'),
-                        'video_title' => $video_title,
-                        'video_description' => $description,
-                        'video_order' => $video_order,
-                        'video_url' => $video_url,
-                        'min_watch_time' => $min_watch_time,
-                        'created_at' => date('Y-m-d H:i:s')
-                    ];
-                    
-                    // Add video to module's videos array
-                    if (!isset($module['videos'])) {
-                        $module['videos'] = [];
-                    }
-                    $module['videos'][] = $new_video;
-                                    $video_added = true;
-                                    break 2;
+                    // Add video to module's JSON (working approach)
+                    $modules_data = json_decode($course['modules'], true);
+                    if (is_array($modules_data)) {
+                        foreach ($modules_data as &$module) {
+                            if ($module['id'] === $module_id) {
+                                if (!isset($module['videos'])) {
+                                    $module['videos'] = [];
                                 }
-                            }
-                            
-                            if ($video_added) {
+                                
+                                $module['videos'][] = [
+                                    'id' => uniqid('vid_'),
+                                    'video_title' => $video_title,
+                                    'video_description' => $description,
+                                    'video_order' => $video_order,
+                                    'video_url' => $video_url,
+                                    'min_watch_time' => $min_watch_time,
+                                    'created_at' => date('Y-m-d H:i:s')
+                                ];
+                                
                                 // Update course with updated modules JSON
-                     $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
-                     $stmt->execute([json_encode($modules_data), $course['id']]);
+                                $update_stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                                $result = $update_stmt->execute([json_encode($modules_data), $course['id']]);
+                                
+                                if ($result) {
+                                    // Use proper PHP header redirect
+                                    header('Location: module_videos.php?module_id=' . urlencode($module_id) . '&success=1');
+                                    exit();
+                                } else {
+                                    $message = 'Failed to update course with new video.';
+                                    $message_type = 'danger';
+                                }
                                 break;
                             }
                         }
-                    }
-                     
-                    if ($video_added) {
-                     $message = 'Video link added successfully.';
-                     $message_type = 'success';
-                        // Use JavaScript redirect instead of header redirect
-                        echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&success=1";</script>';
-                        exit();
                     } else {
-                        $message = 'Failed to add video.';
+                        $message = 'Failed to decode course modules.';
                         $message_type = 'danger';
                     }
                 }
@@ -180,51 +174,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
                 } else {
-                    // Find and update the video in the JSON structure (same as videos.php)
-                    $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
-                    $stmt->execute([$_SESSION['user_id']]);
-                    $courses_data = $stmt->fetchAll();
-                    
-                    $video_updated = false;
-                    foreach ($courses_data as $course) {
-                        $modules_data = json_decode($course['modules'], true);
-                        if (is_array($modules_data)) {
-                            foreach ($modules_data as &$module) {
-                                if ($module['id'] === $module_id) {
-                    if (isset($module['videos']) && is_array($module['videos'])) {
-                        foreach ($module['videos'] as &$video) {
-                            if ($video['id'] === $video_id) {
-                                $video['video_title'] = $video_title;
-                                $video['video_description'] = $description;
-                                $video['video_order'] = $video_order;
-                                                $video['video_url'] = $video_url;
-                                $video['min_watch_time'] = $min_watch_time;
-                                $video['updated_at'] = date('Y-m-d H:i:s');
-                                                $video_updated = true;
-                                                break 2;
-                                            }
+                    // Update video in module's JSON
+                    $modules_data = json_decode($course['modules'], true);
+                    if (is_array($modules_data)) {
+                        $video_updated = false;
+                        foreach ($modules_data as &$module) {
+                            if ($module['id'] === $module_id) {
+                                if (isset($module['videos']) && is_array($module['videos'])) {
+                                    foreach ($module['videos'] as &$video) {
+                                        if ($video['id'] === $video_id) {
+                                            $video['video_title'] = $video_title;
+                                            $video['video_description'] = $description;
+                                            $video['video_order'] = $video_order;
+                                            $video['video_url'] = $video_url;
+                                            $video['min_watch_time'] = $min_watch_time;
+                                            $video['updated_at'] = date('Y-m-d H:i:s');
+                                            $video_updated = true;
+                                            break;
                                         }
                                     }
                                 }
+                                break;
                             }
+                        }
+                        
+                        if ($video_updated) {
+                            // Update course with updated modules JSON
+                            $update_stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                            $result = $update_stmt->execute([json_encode($modules_data), $course['id']]);
                             
-                            if ($video_updated) {
-                                                 // Update course with updated modules JSON
-                         $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
-                         $stmt->execute([json_encode($modules_data), $course['id']]);
-                                 break;
+                            if ($result) {
+                                // Use proper PHP header redirect
+                                header('Location: module_videos.php?module_id=' . urlencode($module_id) . '&updated=1');
+                                exit();
+                            } else {
+                                $message = 'Failed to update course with video changes.';
+                                $message_type = 'danger';
                             }
-                             }
-                         }
-                         
-                    if ($video_updated) {
-                         $message = 'Video updated successfully.';
-                         $message_type = 'success';
-                        // Use JavaScript redirect instead of header redirect
-                        echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&updated=1";</script>';
-                        exit();
+                        } else {
+                            $message = 'Video not found.';
+                            $message_type = 'danger';
+                        }
                     } else {
-                        $message = 'Video not found.';
+                        $message = 'Failed to decode course modules.';
                         $message_type = 'danger';
                     }
                 }
@@ -236,18 +228,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (empty($video_id)) {
                     $message = 'Video ID is required.';
                     $message_type = 'danger';
-                            break;
-                }
-                
-                // Find and remove the video from the JSON structure (same as videos.php)
-                $stmt = $db->prepare('SELECT c.id, c.modules FROM courses c WHERE c.teacher_id = ?');
-                $stmt->execute([$_SESSION['user_id']]);
-                $courses_data = $stmt->fetchAll();
-                
-                $video_deleted = false;
-                foreach ($courses_data as $course) {
+                } else {
+                    // Delete video from module's JSON
                     $modules_data = json_decode($course['modules'], true);
                     if (is_array($modules_data)) {
+                        $video_deleted = false;
                         foreach ($modules_data as &$module) {
                             if ($module['id'] === $module_id) {
                                 if (isset($module['videos']) && is_array($module['videos'])) {
@@ -257,59 +242,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             // Remove video from array
                                             array_splice($module['videos'], $index, 1);
                                             $video_deleted = true;
-                                            break 2;
+                                            break;
                                         }
                                     }
                                 }
+                                break;
                             }
                         }
                         
                         if ($video_deleted) {
-                                         // Update course with updated modules JSON
-                     $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
-                     $stmt->execute([json_encode($modules_data), $course['id']]);
-                            break;
+                            // Update course with updated modules JSON
+                            $update_stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                            $result = $update_stmt->execute([json_encode($modules_data), $course['id']]);
+                            
+                            if ($result) {
+                                // Use proper PHP header redirect
+                                header('Location: module_videos.php?module_id=' . urlencode($module_id) . '&deleted=1');
+                                exit();
+                            } else {
+                                $message = 'Failed to update course after video deletion.';
+                                $message_type = 'danger';
+                            }
+                        } else {
+                            $message = 'Video not found or could not be deleted.';
+                            $message_type = 'danger';
                         }
+                    } else {
+                        $message = 'Failed to decode course modules.';
+                        $message_type = 'danger';
                     }
-                }
-                
-                if ($video_deleted) {
-                     $message = 'Video deleted successfully.';
-                     $message_type = 'success';
-                    // Use JavaScript redirect instead of header redirect
-                    echo '<script>window.location.href = "module_videos.php?module_id=' . urlencode($module_id) . '&deleted=1";</script>';
-                    exit();
-                } else {
-                    $message = 'Video not found or could not be deleted.';
-                    $message_type = 'danger';
                 }
                 break;
         }
     }
 }
 
-// Get videos from the current module (simplified approach)
+// Get videos from the current module (JSON-based approach)
 $videos = [];
+$processed_video_ids = []; // Track processed video IDs to prevent duplicates
 
 // Check if the current module has videos
 if (isset($module['videos']) && is_array($module['videos'])) {
-    error_log("Found " . count($module['videos']) . " videos in module");
-    
     foreach ($module['videos'] as $index => $video) {
-        error_log("Processing video $index: " . json_encode($video));
-        
-        // Skip videos that don't have an ID (but be more lenient with title)
+        // Skip videos that don't have an ID
         if (!isset($video['id'])) {
-            error_log("Skipping video $index - no ID");
             continue;
         }
+        
+        // Skip if we've already processed this video ID
+        if (in_array($video['id'], $processed_video_ids)) {
+            continue;
+        }
+        
+        // Add to processed list
+        $processed_video_ids[] = $video['id'];
         
         // If no title, use a default
         if (!isset($video['video_title']) || empty($video['video_title'])) {
             $video['video_title'] = 'Untitled Video ' . ($index + 1);
-            error_log("Video $index has no title, using default: " . $video['video_title']);
         }
         
+        // Add additional fields for display
         $video['course_name'] = $course['course_name'];
         $video['course_code'] = $course['course_code'];
         $video['module_title'] = $module['module_title'] ?? 'Unknown Module';
@@ -317,28 +310,17 @@ if (isset($module['videos']) && is_array($module['videos'])) {
         $video['module_id'] = $module['id'];
         $video['view_count'] = 0; // Placeholder - would need to calculate from video_progress
         $video['avg_completion'] = 0; // Placeholder - would need to calculate from video_progress
+        $video['unique_viewers'] = 0; // Placeholder
+        $video['total_watch_time'] = 0; // Placeholder
         
-        error_log("Adding video to display list: " . $video['video_title']);
         $videos[] = $video;
     }
-} else {
-    error_log("No videos found in module or videos is not an array");
 }
 
-// Sort videos by order (same as videos.php)
+// Sort videos by order
 usort($videos, function($a, $b) {
     return ($a['video_order'] ?? 0) - ($b['video_order'] ?? 0);
 });
-
-// Debug logging for video count and module structure
-error_log("Total videos found: " . count($videos));
-error_log("Module ID: " . $module_id);
-error_log("Module data: " . json_encode($module));
-error_log("Module videos key exists: " . (isset($module['videos']) ? 'YES' : 'NO'));
-if (isset($module['videos'])) {
-    error_log("Module videos count: " . count($module['videos']));
-    error_log("Module videos data: " . json_encode($module['videos']));
-}
 
 // Get students in sections for this course
 $student_names = [];
@@ -633,42 +615,18 @@ if (isset($_GET['debug'])) {
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- Debug info -->
-                    <div class="alert alert-info">
-                        <strong>Debug Info:</strong><br>
-                        Videos count: <?php echo count($videos); ?><br>
-                        Module ID: <?php echo htmlspecialchars($module_id); ?><br>
-                        Module has videos key: <?php echo isset($module['videos']) ? 'YES' : 'NO'; ?><br>
-                        <?php if (isset($module['videos'])): ?>
-                            Module videos count: <?php echo count($module['videos']); ?><br>
-                        <?php endif; ?>
-                        <strong>Module Structure:</strong><br>
-                        <pre><?php echo htmlspecialchars(json_encode($module, JSON_PRETTY_PRINT)); ?></pre>
-                        <strong>Raw Module Videos (from JSON):</strong><br>
-                        <?php if (isset($module['videos']) && is_array($module['videos'])): ?>
-                            <?php foreach ($module['videos'] as $index => $raw_video): ?>
-                                <div class="mt-1 p-2 border rounded bg-light">
-                                    <strong>Raw Video <?php echo $index; ?>:</strong><br>
-                                    <pre><?php echo htmlspecialchars(json_encode($raw_video, JSON_PRETTY_PRINT)); ?></pre>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="text-danger">No videos key in module or not an array</div>
-                        <?php endif; ?>
-                        
-                        <strong>Processed Videos List:</strong><br>
-                        <?php if (empty($videos)): ?>
-                            <div class="text-danger">No videos found in the processed videos array</div>
-                        <?php else: ?>
-                            <?php foreach ($videos as $index => $video): ?>
-                                <div class="mt-1 p-2 border rounded">
-                                    <strong>Processed Video <?php echo $index; ?>:</strong> 
-                                    ID=<?php echo htmlspecialchars($video['id'] ?? 'NO_ID'); ?> | 
-                                    Title=<?php echo htmlspecialchars($video['video_title'] ?? 'NO_TITLE'); ?>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                    <?php if (isset($_GET['debug']) && $_GET['debug'] == '1'): ?>
+                        <!-- Debug info - only show when debug=1 is in URL -->
+                        <div class="alert alert-info">
+                            <strong>Debug Info:</strong><br>
+                            Videos count: <?php echo count($videos); ?><br>
+                            Module ID: <?php echo htmlspecialchars($module_id); ?><br>
+                            Module has videos key: <?php echo isset($module['videos']) ? 'YES' : 'NO'; ?><br>
+                            <?php if (isset($module['videos'])): ?>
+                                Module videos count: <?php echo count($module['videos']); ?><br>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                     
 
                     

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
+require_once '../config/pusher.php';
 
 // Check if user is logged in and is a student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
@@ -91,7 +92,17 @@ if (!empty($selected_year)) {
     $filter_params[] = $selected_year;
 }
 
-// Get leaderboard data with section information and filters
+// Get total count of students for accurate ranking
+$count_stmt = $pdo->prepare("
+    SELECT COUNT(*) as total_students
+    FROM users u
+    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+    WHERE u.role = 'student' $filter_where
+");
+$count_stmt->execute($filter_params);
+$total_students = $count_stmt->fetch()['total_students'];
+
+// Get leaderboard data with section information and filters (removed LIMIT to show all students)
 $stmt = $pdo->prepare("
     SELECT 
         u.id, u.first_name, u.last_name, u.email, u.profile_picture,
@@ -110,7 +121,6 @@ $stmt = $pdo->prepare("
     LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
     WHERE u.role = 'student' $filter_where
     ORDER BY calculated_score DESC
-    LIMIT 50
 ");
 $stmt->execute($filter_params);
 $leaderboard = $stmt->fetchAll();
@@ -720,13 +730,23 @@ $top_videos = $stmt->fetchAll();
             justify-content: center;
             align-items: flex-end;
             margin: 30px 0;
-            height: 300px;
+            height: 320px;
             position: relative;
-            background: linear-gradient(135deg, rgba(46, 94, 78, 0.08), rgba(125, 203, 128, 0.08));
-            border-radius: 25px;
-            padding: 25px;
-            border: 2px solid rgba(46, 94, 78, 0.1);
-            box-shadow: 0 15px 40px rgba(46, 94, 78, 0.1);
+            background: linear-gradient(135deg, 
+                rgba(255, 215, 0, 0.15) 0%, 
+                rgba(255, 193, 7, 0.12) 25%, 
+                rgba(46, 94, 78, 0.08) 50%, 
+                rgba(125, 203, 128, 0.12) 75%, 
+                rgba(255, 215, 0, 0.15) 100%);
+            border-radius: 30px;
+            padding: 30px;
+            border: 3px solid transparent;
+            background-clip: padding-box;
+            box-shadow: 
+                0 20px 60px rgba(255, 215, 0, 0.2),
+                0 10px 30px rgba(46, 94, 78, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            overflow: hidden;
         }
         
         .podium-container::before {
@@ -736,9 +756,80 @@ $top_videos = $stmt->fetchAll();
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.05) 0%, transparent 70%);
-            border-radius: 25px;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255, 215, 0, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 193, 7, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(46, 94, 78, 0.1) 0%, transparent 70%),
+                linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            border-radius: 30px;
             pointer-events: none;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        .podium-container::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                rgba(255, 215, 0, 0.6), 
+                rgba(255, 193, 7, 0.4), 
+                rgba(46, 94, 78, 0.6), 
+                rgba(125, 203, 128, 0.4), 
+                rgba(255, 215, 0, 0.6));
+            border-radius: 32px;
+            z-index: -1;
+            animation: gradientShift 4s ease-in-out infinite;
+        }
+        
+        /* Floating decorative elements */
+        .podium-container .floating-star {
+            position: absolute;
+            color: rgba(255, 215, 0, 0.6);
+            font-size: 1.5rem;
+            animation: float 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        .podium-container .floating-star:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .podium-container .floating-star:nth-child(2) {
+            top: 30%;
+            right: 15%;
+            animation-delay: 1s;
+        }
+        
+        .podium-container .floating-star:nth-child(3) {
+            top: 60%;
+            left: 5%;
+            animation-delay: 2s;
+        }
+        
+        .podium-container .floating-star:nth-child(4) {
+            top: 70%;
+            right: 10%;
+            animation-delay: 0.5s;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+            50% { transform: translateY(-10px) rotate(180deg); opacity: 1; }
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
         
         .podium-row {
@@ -755,13 +846,15 @@ $top_videos = $stmt->fetchAll();
             flex-direction: column;
             align-items: center;
             position: relative;
-            transition: all 0.4s ease;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             min-width: 140px;
             flex: 1;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
         }
         
         .podium-item:hover {
-            transform: translateY(-15px);
+            transform: translateY(-15px) scale(1.02);
+            filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15));
         }
         
         /* 1st Place - Center with Gold */
@@ -769,6 +862,7 @@ $top_videos = $stmt->fetchAll();
             order: 2;
             z-index: 3;
             transform: scale(1.15);
+            animation: championGlow 2s ease-in-out infinite alternate;
         }
         
         /* 2nd Place - Left with Silver */
@@ -776,6 +870,7 @@ $top_videos = $stmt->fetchAll();
             order: 1;
             z-index: 2;
             transform: scale(0.95);
+            animation: silverGlow 2.5s ease-in-out infinite alternate;
         }
         
         /* 3rd Place - Right with Bronze */
@@ -783,6 +878,40 @@ $top_videos = $stmt->fetchAll();
             order: 3;
             z-index: 1;
             transform: scale(0.85);
+            animation: bronzeGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes championGlow {
+            0% { 
+                filter: drop-shadow(0 8px 16px rgba(255, 215, 0, 0.3)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.2));
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            }
+            100% { 
+                filter: drop-shadow(0 12px 24px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.4));
+                box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+            }
+        }
+        
+        @keyframes silverGlow {
+            0% { 
+                filter: drop-shadow(0 8px 16px rgba(192, 192, 192, 0.3)) drop-shadow(0 0 15px rgba(192, 192, 192, 0.2));
+                box-shadow: 0 0 25px rgba(192, 192, 192, 0.3);
+            }
+            100% { 
+                filter: drop-shadow(0 12px 24px rgba(192, 192, 192, 0.5)) drop-shadow(0 0 25px rgba(192, 192, 192, 0.4));
+                box-shadow: 0 0 35px rgba(192, 192, 192, 0.5);
+            }
+        }
+        
+        @keyframes bronzeGlow {
+            0% { 
+                filter: drop-shadow(0 8px 16px rgba(205, 127, 50, 0.3)) drop-shadow(0 0 15px rgba(205, 127, 50, 0.2));
+                box-shadow: 0 0 25px rgba(205, 127, 50, 0.3);
+            }
+            100% { 
+                filter: drop-shadow(0 12px 24px rgba(205, 127, 50, 0.5)) drop-shadow(0 0 25px rgba(205, 127, 50, 0.4));
+                box-shadow: 0 0 35px rgba(205, 127, 50, 0.5);
+            }
         }
         
         .podium-rank {
@@ -1412,7 +1541,7 @@ $top_videos = $stmt->fetchAll();
                                         <?php if ($current_user): ?>
                                             <h6 class="mb-0"><?php echo htmlspecialchars($current_user['first_name'] . ' ' . $current_user['last_name']); ?></h6>
                                             <small class="text-muted">
-                                                Rank #<?php echo $user_rank; ?> out of <?php echo count($leaderboard); ?> students
+                                                Rank #<?php echo $user_rank; ?> out of <?php echo $total_students; ?> students
                                                 <?php if ($current_user['section_name'] && $current_user['section_year']): ?>
                                                     • <?php echo formatSectionName(['section_year' => $current_user['section_year'], 'section_name' => $current_user['section_name']]); ?>
                                                 <?php endif; ?>
@@ -1420,7 +1549,7 @@ $top_videos = $stmt->fetchAll();
                                         <?php else: ?>
                                             <h6 class="mb-0"><?php echo htmlspecialchars($current_user_basic['first_name'] . ' ' . $current_user_basic['last_name']); ?></h6>
                                             <small class="text-muted">
-                                                Not in filtered results • <?php echo count($leaderboard); ?> students found
+                                                Not in filtered results • <?php echo $total_students; ?> students found
                                             </small>
                                         <?php endif; ?>
                                             
@@ -1494,20 +1623,38 @@ $top_videos = $stmt->fetchAll();
                     <!-- Main Leaderboard -->
                     <div class="col-lg-8">
                         <div class="card leaderboard-card">
-                            <div class="card-header">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-medal me-2"></i>Top Students by Points
+                            <div class="card-header" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(46, 94, 78, 0.1)); border-bottom: 2px solid rgba(255, 215, 0, 0.2);">
+                                    <h5 class="mb-0" style="background: linear-gradient(45deg, #FFD700, #2E5E4E, #FFD700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="fas fa-medal me-2" style="color: #FFD700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);"></i>Top Students by Points
                                     </h5>
                             </div>
                             <div class="card-body">
                                     <!-- Podium for Top 3 -->
                                     <div class="podium-container mb-4">
+                                        <!-- Floating decorative stars -->
+                                        <div class="floating-star">⭐</div>
+                                        <div class="floating-star">✨</div>
+                                        <div class="floating-star">🌟</div>
+                                        <div class="floating-star">💫</div>
+                                        
                                         <div class="podium-row">
                                             <!-- 2nd Place -->
                                             <?php $student_2nd = $leaderboard[1] ?? null; ?>
                                             <div class="podium-item podium-2nd">
                                                 <div class="podium-rank">2</div>
-                                                <a href="profile.php?id=<?php echo $student_2nd ? $student_2nd['id'] : ''; ?>" class="podium-profile-link">
+                                                <a href="#" class="podium-profile-link" data-bs-toggle="modal" data-bs-target="#studentModal" 
+                                                   <?php if ($student_2nd): ?>
+                                                   data-student-id="<?php echo $student_2nd['id']; ?>"
+                                                   data-student-name="<?php echo htmlspecialchars($student_2nd['first_name'] . ' ' . $student_2nd['last_name']); ?>"
+                                                   data-student-email="<?php echo htmlspecialchars($student_2nd['email']); ?>"
+                                                   data-student-section="<?php echo $student_2nd['section_name'] && $student_2nd['section_year'] ? formatSectionName(['section_year' => $student_2nd['section_year'], 'section_name' => $student_2nd['section_name']]) : 'No Section'; ?>"
+                                                   data-student-score="<?php echo round($student_2nd['calculated_score'] ?? 0); ?>"
+                                                   data-student-badges="<?php echo $student_2nd['badge_count']; ?>"
+                                                   data-student-modules="<?php echo $student_2nd['completed_modules']; ?>"
+                                                   data-student-videos="<?php echo $student_2nd['watched_videos']; ?>"
+                                                   data-student-avg-score="<?php echo round($student_2nd['average_score'] ?? 0, 1); ?>"
+                                                   data-student-rank="2"
+                                                   <?php endif; ?>>
                                                     <div class="podium-profile">
                                                         <?php if ($student_2nd): ?>
                                                             <img src="<?php echo getProfilePictureUrl($student_2nd['profile_picture'] ?? null, 'large'); ?>" 
@@ -1527,7 +1674,19 @@ $top_videos = $stmt->fetchAll();
                                             <?php $student_1st = $leaderboard[0] ?? null; ?>
                                             <div class="podium-item podium-1st">
                                                 <div class="podium-rank">1</div>
-                                                <a href="profile.php?id=<?php echo $student_1st ? $student_1st['id'] : ''; ?>" class="podium-profile-link">
+                                                <a href="#" class="podium-profile-link" data-bs-toggle="modal" data-bs-target="#studentModal" 
+                                                   <?php if ($student_1st): ?>
+                                                   data-student-id="<?php echo $student_1st['id']; ?>"
+                                                   data-student-name="<?php echo htmlspecialchars($student_1st['first_name'] . ' ' . $student_1st['last_name']); ?>"
+                                                   data-student-email="<?php echo htmlspecialchars($student_1st['email']); ?>"
+                                                   data-student-section="<?php echo $student_1st['section_name'] && $student_1st['section_year'] ? formatSectionName(['section_year' => $student_1st['section_year'], 'section_name' => $student_1st['section_name']]) : 'No Section'; ?>"
+                                                   data-student-score="<?php echo round($student_1st['calculated_score'] ?? 0); ?>"
+                                                   data-student-badges="<?php echo $student_1st['badge_count']; ?>"
+                                                   data-student-modules="<?php echo $student_1st['completed_modules']; ?>"
+                                                   data-student-videos="<?php echo $student_1st['watched_videos']; ?>"
+                                                   data-student-avg-score="<?php echo round($student_1st['average_score'] ?? 0, 1); ?>"
+                                                   data-student-rank="1"
+                                                   <?php endif; ?>>
                                                     <div class="podium-profile">
                                                         <?php if ($student_1st): ?>
                                                             <img src="<?php echo getProfilePictureUrl($student_1st['profile_picture'] ?? null, 'large'); ?>" 
@@ -1547,7 +1706,19 @@ $top_videos = $stmt->fetchAll();
                                             <?php $student_3rd = $leaderboard[2] ?? null; ?>
                                             <div class="podium-item podium-3rd">
                                                 <div class="podium-rank">3</div>
-                                                <a href="profile.php?id=<?php echo $student_3rd ? $student_3rd['id'] : ''; ?>" class="podium-profile-link">
+                                                <a href="#" class="podium-profile-link" data-bs-toggle="modal" data-bs-target="#studentModal" 
+                                                   <?php if ($student_3rd): ?>
+                                                   data-student-id="<?php echo $student_3rd['id']; ?>"
+                                                   data-student-name="<?php echo htmlspecialchars($student_3rd['first_name'] . ' ' . $student_3rd['last_name']); ?>"
+                                                   data-student-email="<?php echo htmlspecialchars($student_3rd['email']); ?>"
+                                                   data-student-section="<?php echo $student_3rd['section_name'] && $student_3rd['section_year'] ? formatSectionName(['section_year' => $student_3rd['section_year'], 'section_name' => $student_3rd['section_name']]) : 'No Section'; ?>"
+                                                   data-student-score="<?php echo round($student_3rd['calculated_score'] ?? 0); ?>"
+                                                   data-student-badges="<?php echo $student_3rd['badge_count']; ?>"
+                                                   data-student-modules="<?php echo $student_3rd['completed_modules']; ?>"
+                                                   data-student-videos="<?php echo $student_3rd['watched_videos']; ?>"
+                                                   data-student-avg-score="<?php echo round($student_3rd['average_score'] ?? 0, 1); ?>"
+                                                   data-student-rank="3"
+                                                   <?php endif; ?>>
                                                     <div class="podium-profile">
                                                         <?php if ($student_3rd): ?>
                                                             <img src="<?php echo getProfilePictureUrl($student_3rd['profile_picture'] ?? null, 'large'); ?>" 
@@ -1567,17 +1738,28 @@ $top_videos = $stmt->fetchAll();
                                     
                                     <!-- Rest of Leaderboard (4th onwards) -->
                                     <div class="row">
-                                        <?php foreach (array_slice($leaderboard, 3, 17) as $index => $student): ?>
+                                        <?php foreach (array_slice($leaderboard, 3) as $index => $student): ?>
                                         <?php 
                                         $rank_class = '';
                                         if ($student['id'] == $user_id) $rank_class = 'current-user';
                                         ?>
                                         <div class="col-md-6 mb-3">
                                             <div class="leaderboard-item d-flex align-items-center p-3 rounded <?php echo $rank_class; ?>" 
+                                                 data-student-id="<?php echo $student['id']; ?>"
                                                  style="animation-delay: <?php echo ($index + 3) * 0.1; ?>s;">
                                                 <div class="rank-badge me-3"><?php echo $index + 4; ?></div>
                                                 <div class="me-3">
-                                                    <a href="profile.php?id=<?php echo $student['id']; ?>" class="student-profile-link">
+                                                    <a href="#" class="student-profile-link" data-bs-toggle="modal" data-bs-target="#studentModal" 
+                                                       data-student-id="<?php echo $student['id']; ?>"
+                                                       data-student-name="<?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>"
+                                                       data-student-email="<?php echo htmlspecialchars($student['email']); ?>"
+                                                       data-student-section="<?php echo $student['section_name'] && $student['section_year'] ? formatSectionName(['section_year' => $student['section_year'], 'section_name' => $student['section_name']]) : 'No Section'; ?>"
+                                                       data-student-score="<?php echo round($student['calculated_score'] ?? 0); ?>"
+                                                       data-student-badges="<?php echo $student['badge_count']; ?>"
+                                                       data-student-modules="<?php echo $student['completed_modules']; ?>"
+                                                       data-student-videos="<?php echo $student['watched_videos']; ?>"
+                                                       data-student-avg-score="<?php echo round($student['average_score'] ?? 0, 1); ?>"
+                                                       data-student-rank="<?php echo $index + 4; ?>">
                                                         <img src="<?php echo getProfilePictureUrl($student['profile_picture'] ?? null, 'medium'); ?>" 
                                                              alt="<?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>"
                                                              class="student-profile-pic">
@@ -1681,7 +1863,107 @@ $top_videos = $stmt->fetchAll();
         </div>
     </div>
 
+    <!-- Student Information Modal -->
+    <div class="modal fade" id="studentModal" tabindex="-1" aria-labelledby="studentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="studentModalLabel">
+                        <i class="fas fa-user me-2"></i>Student Information
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Profile Picture and Basic Info -->
+                        <div class="col-md-4 text-center">
+                            <img id="modalStudentAvatar" src="" alt="Student Avatar" class="img-fluid rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;">
+                            <h4 id="modalStudentName" class="mb-2"></h4>
+                            <p id="modalStudentEmail" class="text-muted mb-2"></p>
+                            <span id="modalStudentSection" class="badge bg-success mb-3"></span>
+                        </div>
+                        
+                        <!-- Statistics -->
+                        <div class="col-md-8">
+                            <h5 class="mb-3">
+                                <i class="fas fa-chart-bar me-2"></i>Academic Statistics
+                            </h5>
+                            
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h3 id="modalStudentRank" class="text-primary mb-1"></h3>
+                                            <small class="text-muted">Current Rank</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h3 id="modalStudentScore" class="text-success mb-1"></h3>
+                                            <small class="text-muted">Total Score</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h4 id="modalStudentBadges" class="text-warning mb-1"></h4>
+                                            <small class="text-muted">Badges Earned</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h4 id="modalStudentModules" class="text-info mb-1"></h4>
+                                            <small class="text-muted">Modules Completed</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h4 id="modalStudentVideos" class="text-secondary mb-1"></h4>
+                                            <small class="text-muted">Videos Watched</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card text-center h-100">
+                                        <div class="card-body">
+                                            <h4 id="modalStudentAvgScore" class="text-danger mb-1"></h4>
+                                            <small class="text-muted">Average Score</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="../assets/js/pusher-client.js"></script>
+    <script>
+        // Pusher configuration for leaderboard
+        window.pusherConfig = <?php echo json_encode(PusherConfig::getConfig()); ?>;
+        window.currentUserId = <?php echo json_encode($user_id); ?>;
+        window.currentUserRole = '<?php echo $_SESSION['role']; ?>';
+    </script>
     <script>
         // Create floating particles
         function createParticles() {
@@ -1733,7 +2015,46 @@ $top_videos = $stmt->fetchAll();
             createParticles();
             animateLeaderboard();
             animatePodium();
+            initializeStudentModal();
         });
+        
+        // Initialize student modal functionality
+        function initializeStudentModal() {
+            const studentModal = document.getElementById('studentModal');
+            if (studentModal) {
+                studentModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    
+                    // Get student data from data attributes
+                    const studentId = button.getAttribute('data-student-id');
+                    const studentName = button.getAttribute('data-student-name');
+                    const studentEmail = button.getAttribute('data-student-email');
+                    const studentSection = button.getAttribute('data-student-section');
+                    const studentScore = button.getAttribute('data-student-score');
+                    const studentBadges = button.getAttribute('data-student-badges');
+                    const studentModules = button.getAttribute('data-student-modules');
+                    const studentVideos = button.getAttribute('data-student-videos');
+                    const studentAvgScore = button.getAttribute('data-student-avg-score');
+                    const studentRank = button.getAttribute('data-student-rank');
+                    
+                    // Get the profile picture from the clicked image
+                    const profileImg = button.querySelector('img');
+                    const profileSrc = profileImg ? profileImg.src : '';
+                    
+                    // Update modal content
+                    document.getElementById('modalStudentAvatar').src = profileSrc;
+                    document.getElementById('modalStudentName').textContent = studentName || 'Unknown Student';
+                    document.getElementById('modalStudentEmail').textContent = studentEmail || 'No email available';
+                    document.getElementById('modalStudentSection').textContent = studentSection || 'No Section';
+                    document.getElementById('modalStudentRank').textContent = '#' + (studentRank || 'N/A');
+                    document.getElementById('modalStudentScore').textContent = (studentScore || '0') + ' pts';
+                    document.getElementById('modalStudentBadges').textContent = studentBadges || '0';
+                    document.getElementById('modalStudentModules').textContent = studentModules || '0';
+                    document.getElementById('modalStudentVideos').textContent = studentVideos || '0';
+                    document.getElementById('modalStudentAvgScore').textContent = (studentAvgScore || '0') + '%';
+                });
+            }
+        }
     </script>
 </body>
 </html> 

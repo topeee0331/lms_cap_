@@ -16,19 +16,21 @@ $pdo = $db->getConnection();
 // Get earned badges from JSON awarded_to field
 $stmt = $pdo->prepare("
     SELECT b.*, 
-           JSON_EXTRACT(b.awarded_to, CONCAT('$[', JSON_SEARCH(b.awarded_to, 'one', ?), '].awarded_at')) as earned_at
+           JSON_UNQUOTE(JSON_EXTRACT(b.awarded_to, '$[0].awarded_at')) as earned_at
     FROM badges b
-    WHERE JSON_SEARCH(b.awarded_to, 'one', ?) IS NOT NULL
+    WHERE JSON_SEARCH(b.awarded_to, 'one', ?, NULL, '$[*].student_id') IS NOT NULL
     ORDER BY earned_at DESC
 ");
-$stmt->execute([$user_id, $user_id]);
+$stmt->execute([$user_id]);
 $earned_badges = $stmt->fetchAll();
 
 // Get all available badges with earned status from JSON
 $stmt = $pdo->prepare("
     SELECT b.*, 
-           CASE WHEN JSON_SEARCH(b.awarded_to, 'one', ?) IS NOT NULL THEN 1 ELSE 0 END as is_earned,
-           JSON_EXTRACT(b.awarded_to, CONCAT('$[', JSON_SEARCH(b.awarded_to, 'one', ?), '].awarded_at')) as earned_at
+           CASE WHEN JSON_SEARCH(b.awarded_to, 'one', ?, NULL, '$[*].student_id') IS NOT NULL THEN 1 ELSE 0 END as is_earned,
+           CASE WHEN JSON_SEARCH(b.awarded_to, 'one', ?, NULL, '$[*].student_id') IS NOT NULL 
+                THEN JSON_UNQUOTE(JSON_EXTRACT(b.awarded_to, '$[0].awarded_at')) 
+                ELSE NULL END as earned_at
     FROM badges b
     ORDER BY b.created_at ASC
 ");

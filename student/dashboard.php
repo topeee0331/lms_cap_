@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/badge_date_helper.php';
 
 // Check if user is logged in and is a student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
@@ -104,23 +105,13 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id, $selected_year_id]);
 $recent_activities = $stmt->fetchAll();
 
-// Get badges earned from JSON awarded_to field
-$stmt = $pdo->prepare("
-    SELECT b.*, 
-           JSON_EXTRACT(b.awarded_to, CONCAT('$[', JSON_SEARCH(b.awarded_to, 'one', ?), '].awarded_at')) as earned_at
-    FROM badges b
-    WHERE JSON_SEARCH(b.awarded_to, 'one', ?) IS NOT NULL
-    ORDER BY earned_at DESC
-    LIMIT 5
-");
-$stmt->execute([$user_id, $user_id]);
-$badges = $stmt->fetchAll();
+// Get badges earned using the helper function
+$badges = BadgeDateHelper::getStudentBadgesWithDates($pdo, $user_id, 5);
 
 // Get overall progress statistics for selected academic year
 $stmt = $pdo->prepare("
     SELECT 
         COUNT(DISTINCT e.course_id) as total_courses,
-        0 as completed_modules, -- TODO: Calculate from course_enrollments.module_progress JSON
         (SELECT COUNT(*) FROM course_enrollments e2 
          JOIN courses c ON e2.course_id = c.id
          WHERE e2.student_id = ? AND e2.status = 'active' AND c.academic_period_id = ? AND c.modules IS NOT NULL) as total_modules,
@@ -129,13 +120,43 @@ $stmt = $pdo->prepare("
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active' AND id NOT IN (SELECT course_id FROM course_enrollments WHERE student_id = ? AND status = 'active')) as other_sections
     FROM course_enrollments e
     JOIN courses c ON e.course_id = c.id
-    -- Note: module_progress is now stored as JSON in course_enrollments.module_progress
     WHERE e.student_id = ? AND e.status = 'active' AND c.academic_period_id = ?
 ");
 $stmt->execute([$user_id, $selected_year_id, $selected_year_id, $selected_year_id, $selected_year_id, $user_id, $user_id, $selected_year_id]);
 $stats = $stmt->fetch();
 
-$overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modules'] / $stats['total_modules']) * 100) : 0;
+// Calculate completed modules based on assessment attempts
+$stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT a.id) as completed_modules
+    FROM assessment_attempts aa
+    JOIN assessments a ON aa.assessment_id = a.id
+    JOIN courses c ON a.course_id = c.id
+    WHERE aa.student_id = ? AND aa.status = 'completed' AND c.academic_period_id = ?
+");
+$stmt->execute([$user_id, $selected_year_id]);
+$completed_modules = $stmt->fetchColumn();
+
+// Get additional progress statistics
+$stmt = $pdo->prepare("
+    SELECT 
+        COUNT(DISTINCT aa.assessment_id) as total_attempts,
+        AVG(aa.score) as average_score,
+        COUNT(CASE WHEN aa.score >= 70 THEN 1 END) as passed_assessments,
+        COUNT(CASE WHEN aa.score < 70 THEN 1 END) as failed_assessments
+    FROM assessment_attempts aa
+    JOIN assessments a ON aa.assessment_id = a.id
+    JOIN courses c ON a.course_id = c.id
+    WHERE aa.student_id = ? AND aa.status = 'completed' AND c.academic_period_id = ?
+");
+$stmt->execute([$user_id, $selected_year_id]);
+$progress_stats = $stmt->fetch();
+
+// Calculate overall progress
+$total_modules = $stats['total_modules'] ?? 0;
+$overall_progress = $total_modules > 0 ? round(($completed_modules / $total_modules) * 100) : 0;
+
+// Update stats array
+$stats['completed_modules'] = $completed_modules;
 ?>
 
 <!DOCTYPE html>
@@ -551,9 +572,9 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                     <div class="col-md-3 mb-3">
                         <div class="card text-center" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-users fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
-                                <h4 class="card-title mb-1"><?php echo $stats['available_in_section'] ?? 0; ?></h4>
-                                <p class="card-text small">Available in Section</p>
+                                <i class="fas fa-tasks fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $completed_modules; ?></h4>
+                                <p class="card-text small">Completed Modules</p>
                             </div>
                         </div>
                     </div>
@@ -561,17 +582,17 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                         <div class="card text-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
                                 <i class="fas fa-layer-group fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
-                                <h4 class="card-title mb-1"><?php echo $stats['other_sections'] ?? 0; ?></h4>
-                                <p class="card-text small">Other Sections</p>
+                                <h4 class="card-title mb-1"><?php echo $total_modules; ?></h4>
+                                <p class="card-text small">Total Modules</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
                         <div class="card text-center" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-clock fa-2x mb-2" style="color: rgba(33,37,41,0.8);"></i>
-                                <h4 class="card-title mb-1"><?php echo $stats['inactive_periods'] ?? 0; ?></h4>
-                                <p class="card-text small">Inactive Periods</p>
+                                <i class="fas fa-percentage fa-2x mb-2" style="color: rgba(33,37,41,0.8);"></i>
+                                <h4 class="card-title mb-1"><?php echo $overall_progress; ?>%</h4>
+                                <p class="card-text small">Overall Progress</p>
                             </div>
                         </div>
                     </div>
@@ -587,16 +608,33 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                                     <div class="progress-text"><?php echo $overall_progress; ?>%</div>
                                 </div>
                                 <h5 class="card-title mt-3">Overall Progress</h5>
-                                <p class="card-text"><?php echo $stats['completed_modules']; ?> of <?php echo $stats['total_modules']; ?> modules completed</p>
+                                <p class="card-text"><?php echo $completed_modules; ?> of <?php echo $total_modules; ?> modules completed</p>
+                                <?php if ($progress_stats['average_score']): ?>
+                                    <p class="card-text small text-muted">
+                                        Average Score: <?php echo round($progress_stats['average_score'], 1); ?>%
+                                    </p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="card text-center">
                             <div class="card-body">
-                                <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
-                                <h5 class="card-title">Badges Earned</h5>
-                                <p class="card-text display-6"><?php echo count($badges); ?></p>
+                                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Assessment Performance</h5>
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4 class="text-success"><?php echo $progress_stats['passed_assessments'] ?? 0; ?></h4>
+                                        <small>Passed</small>
+                            </div>
+                                    <div class="col-6">
+                                        <h4 class="text-danger"><?php echo $progress_stats['failed_assessments'] ?? 0; ?></h4>
+                                        <small>Failed</small>
+                                    </div>
+                                </div>
+                                <p class="card-text small text-muted mt-2">
+                                    <?php echo $progress_stats['total_attempts'] ?? 0; ?> total attempts
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -724,15 +762,28 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                                                 <p class="card-text text-muted">by <?php echo htmlspecialchars($course['first_name'] . ' ' . $course['last_name']); ?></p>
                                                 <div class="progress mb-3">
                                                     <?php 
-                                                    // TODO: Calculate progress from course_enrollments.module_progress JSON
-                                                    $course_progress = 0; // Placeholder until JSON progress is implemented
+                                                    // Calculate course progress based on completed assessments
+                                                    $course_progress_stmt = $pdo->prepare("
+                                                        SELECT 
+                                                            COUNT(DISTINCT a.id) as total_assessments,
+                                                            COUNT(DISTINCT aa.assessment_id) as completed_assessments
+                                                        FROM assessments a
+                                                        LEFT JOIN assessment_attempts aa ON a.id = aa.assessment_id AND aa.student_id = ? AND aa.status = 'completed'
+                                                        WHERE a.course_id = ?
+                                                    ");
+                                                    $course_progress_stmt->execute([$user_id, $course['id']]);
+                                                    $course_progress_data = $course_progress_stmt->fetch();
+                                                    
+                                                    $total_assessments = $course_progress_data['total_assessments'] ?? 0;
+                                                    $completed_assessments = $course_progress_data['completed_assessments'] ?? 0;
+                                                    $course_progress = $total_assessments > 0 ? round(($completed_assessments / $total_assessments) * 100) : 0;
                                                     ?>
                                                     <div class="progress-bar" style="width: <?php echo $course_progress; ?>%">
                                                         <?php echo $course_progress; ?>%
                                                     </div>
                                                 </div>
                                                 <p class="card-text small">
-                                                    Progress tracking coming soon
+                                                    <?php echo $completed_assessments; ?> of <?php echo $total_assessments; ?> assessments completed
                                                 </p>
                                                 <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-primary btn-sm">
                                                     Continue Learning
@@ -784,8 +835,9 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                     <!-- Badges -->
                     <div class="col-md-6">
                         <div class="card">
-                            <div class="card-header">
+                            <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-trophy"></i> Recent Badges</h5>
+                                <span class="badge bg-warning"><?php echo count($badges); ?></span>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($badges)): ?>
@@ -805,7 +857,7 @@ $overall_progress = $stats['total_modules'] > 0 ? round(($stats['completed_modul
                                             <br>
                                             <small><?php echo htmlspecialchars($badge['badge_name']); ?></small>
                                             <br>
-                                            <small class="text-muted"><?php echo !empty($badge['earned_at']) ? date('M j, Y', strtotime($badge['earned_at'])) : 'Date not available'; ?></small>
+                                            <small class="text-muted"><?php echo $badge['formatted_date']; ?></small>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

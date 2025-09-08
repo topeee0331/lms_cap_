@@ -111,6 +111,18 @@ class PusherClient {
                 this.handleModuleUpdate(data);
                 break;
                 
+            case 'leaderboard_update':
+                this.handleLeaderboardUpdate(data);
+                break;
+                
+            case 'score_update':
+                this.handleScoreUpdate(data);
+                break;
+                
+            case 'badge_awarded':
+                this.handleBadgeAwarded(data);
+                break;
+                
             default:
                 console.log('⚠️ Unknown notification type:', data.type);
                 this.showNotificationToast(data);
@@ -368,6 +380,226 @@ class PusherClient {
         }
     }
     
+    // ===== LEADERBOARD HANDLERS =====
+    
+    handleLeaderboardUpdate(data) {
+        console.log('🏆 Leaderboard update received:', data);
+        
+        // Update the leaderboard display in real-time
+        this.updateLeaderboardDisplay(data);
+        
+        // Show notification toast
+        this.showNotificationToast(data);
+    }
+    
+    handleScoreUpdate(data) {
+        console.log('📊 Score update received:', data);
+        
+        // Update individual student scores
+        this.updateStudentScore(data);
+        
+        // Show notification toast
+        this.showNotificationToast(data);
+    }
+    
+    handleBadgeAwarded(data) {
+        console.log('🏅 Badge awarded:', data);
+        
+        // Update badge count in leaderboard
+        this.updateStudentBadges(data);
+        
+        // Show notification toast
+        this.showNotificationToast(data);
+    }
+    
+    updateLeaderboardDisplay(data) {
+        console.log('🔄 Updating leaderboard display...');
+        
+        // Check if we're on the leaderboard page
+        if (!window.location.pathname.includes('leaderboard.php')) {
+            return;
+        }
+        
+        // Update the entire leaderboard with new data
+        if (data.leaderboard) {
+            this.renderLeaderboard(data.leaderboard);
+        }
+        
+        // Update current user's rank
+        if (data.current_user_rank !== undefined) {
+            this.updateCurrentUserRank(data.current_user_rank, data.total_students);
+        }
+    }
+    
+    updateStudentScore(data) {
+        console.log('🔄 Updating student score...');
+        
+        // Find the student in the leaderboard
+        const studentElements = document.querySelectorAll('.leaderboard-item');
+        let targetStudent = null;
+        
+        studentElements.forEach(element => {
+            const studentId = element.querySelector('[data-student-id]')?.getAttribute('data-student-id');
+            if (studentId === data.student_id.toString()) {
+                targetStudent = element;
+            }
+        });
+        
+        if (targetStudent) {
+            // Update score display
+            const scoreElement = targetStudent.querySelector('.text-end h6');
+            if (scoreElement) {
+                scoreElement.textContent = `${Math.round(data.new_score)} pts`;
+                
+                // Add animation
+                scoreElement.style.transition = 'all 0.3s ease';
+                scoreElement.style.color = '#28a745';
+                scoreElement.style.transform = 'scale(1.1)';
+                
+                setTimeout(() => {
+                    scoreElement.style.color = '';
+                    scoreElement.style.transform = '';
+                }, 1000);
+            }
+            
+            // Update average score if provided
+            if (data.average_score !== undefined) {
+                const avgScoreElement = targetStudent.querySelector('.text-end small');
+                if (avgScoreElement) {
+                    avgScoreElement.textContent = `${Math.round(data.average_score, 1)}% avg`;
+                }
+            }
+            
+            // Add highlight effect
+            targetStudent.style.transition = 'all 0.3s ease';
+            targetStudent.style.backgroundColor = '#f0fff4';
+            targetStudent.style.boxShadow = '0 0 10px rgba(40, 167, 69, 0.3)';
+            
+            setTimeout(() => {
+                targetStudent.style.backgroundColor = '';
+                targetStudent.style.boxShadow = '';
+            }, 2000);
+            
+            console.log('✅ Student score updated');
+        }
+    }
+    
+    updateStudentBadges(data) {
+        console.log('🔄 Updating student badges...');
+        
+        // Find the student in the leaderboard
+        const studentElements = document.querySelectorAll('.leaderboard-item');
+        let targetStudent = null;
+        
+        studentElements.forEach(element => {
+            const studentId = element.querySelector('[data-student-id]')?.getAttribute('data-student-id');
+            if (studentId === data.student_id.toString()) {
+                targetStudent = element;
+            }
+        });
+        
+        if (targetStudent) {
+            // Update badge count in the stats
+            const badgeElements = targetStudent.querySelectorAll('.badge-badges');
+            badgeElements.forEach(badge => {
+                badge.textContent = data.badge_count;
+                
+                // Add celebration animation
+                badge.style.animation = 'bounce 0.6s ease-in-out';
+                setTimeout(() => {
+                    badge.style.animation = '';
+                }, 600);
+            });
+            
+            // Add new badge to achievement badges section
+            this.addNewBadgeToDisplay(data);
+            
+            console.log('✅ Student badges updated');
+        }
+    }
+    
+    addNewBadgeToDisplay(data) {
+        // Find the achievement badges container
+        const badgesContainer = document.querySelector('.achievement-badges');
+        if (badgesContainer) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'achievement-badge badge-badges';
+            newBadge.title = data.badge_name || 'New Badge';
+            newBadge.innerHTML = '<i class="fas fa-trophy"></i>';
+            
+            // Add celebration effect
+            newBadge.style.animation = 'badgeGlow 2s ease-in-out infinite alternate, bounce 0.6s ease-in-out';
+            setTimeout(() => {
+                newBadge.style.animation = 'badgeGlow 2s ease-in-out infinite alternate';
+            }, 600);
+            
+            badgesContainer.appendChild(newBadge);
+        }
+    }
+    
+    updateCurrentUserRank(newRank, totalStudents) {
+        console.log(`🔄 Updating current user rank: ${newRank}/${totalStudents}`);
+        
+        // Update rank display
+        const rankElement = document.querySelector('.rank-badge');
+        if (rankElement) {
+            rankElement.textContent = newRank;
+            
+            // Add animation for rank change
+            rankElement.style.animation = 'bounce 0.6s ease-in-out';
+            setTimeout(() => {
+                rankElement.style.animation = '';
+            }, 600);
+        }
+        
+        // Update rank text
+        const rankTextElement = document.querySelector('small.text-muted');
+        if (rankTextElement && totalStudents) {
+            rankTextElement.textContent = `Rank #${newRank} out of ${totalStudents} students`;
+        }
+        
+        // Update level indicator
+        this.updateLevelIndicator(newRank);
+    }
+    
+    updateLevelIndicator(rank) {
+        const levelElement = document.querySelector('.level-indicator');
+        if (levelElement) {
+            let levelClass = '';
+            let levelText = '';
+            
+            if (rank <= 3) {
+                levelClass = 'level-expert';
+                levelText = 'EXPERT';
+            } else if (rank <= 10) {
+                levelClass = 'level-advanced';
+                levelText = 'ADVANCED';
+            } else if (rank <= 20) {
+                levelClass = 'level-intermediate';
+                levelText = 'INTERMEDIATE';
+            } else {
+                levelClass = 'level-beginner';
+                levelText = 'BEGINNER';
+            }
+            
+            levelElement.className = `level-indicator ${levelClass}`;
+            levelElement.textContent = levelText;
+            
+            // Add animation
+            levelElement.style.animation = 'levelPulse 2s infinite';
+        }
+    }
+    
+    renderLeaderboard(leaderboardData) {
+        console.log('🔄 Rendering updated leaderboard...');
+        
+        // This would re-render the entire leaderboard with new data
+        // For now, we'll just log that we received the data
+        // In a full implementation, you'd update the DOM with the new leaderboard data
+        
+        console.log('✅ Leaderboard data received:', leaderboardData.length, 'students');
+    }
+    
     // ===== NAVBAR UPDATE METHODS =====
     
     showTeacherNavbarRedDot() {
@@ -492,6 +724,24 @@ class PusherClient {
                 title = 'Module Updated';
                 message = `Module "${data.module_title}" has been updated`;
                 type = 'info';
+                break;
+                
+            case 'leaderboard_update':
+                title = 'Leaderboard Updated';
+                message = 'The leaderboard has been updated with new rankings';
+                type = 'info';
+                break;
+                
+            case 'score_update':
+                title = 'Score Updated';
+                message = `Your score has been updated to ${Math.round(data.new_score)} points`;
+                type = 'success';
+                break;
+                
+            case 'badge_awarded':
+                title = 'Badge Earned!';
+                message = `Congratulations! You earned the "${data.badge_name}" badge`;
+                type = 'success';
                 break;
                 
             default:

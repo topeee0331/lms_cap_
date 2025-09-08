@@ -340,6 +340,55 @@ $course_themes = [
             z-index: 1;
         }
         
+        /* Course Status Badge Styling */
+        .course-status-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .course-status-badge.bg-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+            color: white;
+        }
+        
+        .course-status-badge.bg-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+            color: white;
+        }
+        
+        .course-status-badge.bg-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
+            color: #212529;
+        }
+        
+        .course-status-badge.bg-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+            color: white;
+        }
+        
+        .course-status-badge.bg-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+            color: white;
+        }
+        
+        /* Ensure badges don't interfere with course content */
+        .course-card {
+            overflow: visible;
+        }
+        
+        .course-card .card-img-top {
+            overflow: visible;
+        }
+        
         /* Creative Course Code Styling */
         .course-code-text {
             font-family: 'Poppins', 'Arial', sans-serif;
@@ -673,7 +722,12 @@ $course_themes = [
                                     $theme = $course_themes[$course['id'] % count($course_themes)];
                                 ?>
                                 <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card course-card">
+                                    <div class="card course-card position-relative">
+                                        <!-- Course Status Badge - Top Right -->
+                                        <div class="course-status-badge bg-primary">
+                                            <i class="fas fa-user-check"></i> Enrolled
+                                        </div>
+                                        
                                         <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
                                             <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
                                             <h2 class="course-code-text">
@@ -762,15 +816,29 @@ $course_themes = [
                                 <div class="col-md-6 col-lg-4 mb-3">
                                     <div class="card course-card position-relative">
                                         <!-- Course Status Badge - Top Right -->
-                                        <div class="position-absolute top-0 end-0 m-2">
-                                            <?php if (!$course['semester_active'] || !$course['academic_year_active']): ?>
-                                                <span class="badge bg-warning fs-6">
-                                                    <i class="fas fa-exclamation-triangle"></i> Inactive Period
-                                                </span>
+                                        <div class="course-status-badge <?php 
+                                            if ($course['is_enrolled']): 
+                                                echo 'bg-primary';
+                                            elseif ($course['has_pending_request']): 
+                                                echo 'bg-warning';
+                                            elseif ($course['has_rejected_request']): 
+                                                echo 'bg-danger';
+                                            elseif (!$course['semester_active'] || !$course['academic_year_active']): 
+                                                echo 'bg-warning';
+                                            else: 
+                                                echo 'bg-info';
+                                            endif; 
+                                        ?>">
+                                            <?php if ($course['is_enrolled']): ?>
+                                                <i class="fas fa-user-check"></i> Enrolled
+                                            <?php elseif ($course['has_pending_request']): ?>
+                                                <i class="fas fa-clock"></i> Pending
+                                            <?php elseif ($course['has_rejected_request']): ?>
+                                                <i class="fas fa-times-circle"></i> Rejected
+                                            <?php elseif (!$course['semester_active'] || !$course['academic_year_active']): ?>
+                                                <i class="fas fa-exclamation-triangle"></i> Inactive Semester
                                             <?php else: ?>
-                                                <span class="badge bg-success fs-6">
-                                                    <i class="fas fa-check-circle"></i> Active Period
-                                                </span>
+                                                <i class="fas fa-plus-circle"></i> Available
                                             <?php endif; ?>
                                         </div>
                                         
@@ -974,7 +1042,34 @@ $course_themes = [
                                     $theme = $course_themes[$course['id'] % count($course_themes)];
                                 ?>
                                 <div class="col-md-6 col-lg-4 mb-3 modal-course-item">
-                                    <div class="card h-100">
+                                    <div class="card h-100 position-relative">
+                                        <!-- Course Status Badge - Top Right -->
+                                        <div class="course-status-badge <?php 
+                                            if ($course['is_enrolled']): 
+                                                echo 'bg-primary';
+                                            elseif ($course['has_pending_request']): 
+                                                echo 'bg-warning';
+                                            elseif ($course['has_rejected_request']): 
+                                                echo 'bg-danger';
+                                            elseif (!$course['semester_active'] || !$course['academic_year_active']): 
+                                                echo 'bg-warning';
+                                            else: 
+                                                echo 'bg-info';
+                                            endif; 
+                                        ?>">
+                                            <?php if ($course['is_enrolled']): ?>
+                                                <i class="fas fa-user-check"></i> Enrolled
+                                            <?php elseif ($course['has_pending_request']): ?>
+                                                <i class="fas fa-clock"></i> Pending
+                                            <?php elseif ($course['has_rejected_request']): ?>
+                                                <i class="fas fa-times-circle"></i> Rejected
+                                            <?php elseif (!$course['semester_active'] || !$course['academic_year_active']): ?>
+                                                <i class="fas fa-exclamation-triangle"></i> Inactive Semester
+                                            <?php else: ?>
+                                                <i class="fas fa-plus-circle"></i> Available
+                                            <?php endif; ?>
+                                        </div>
+                                        
                                         <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 120px; position: relative; overflow: hidden;">
                                                                                          <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 8rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
                                             <h2 class="course-code-text">

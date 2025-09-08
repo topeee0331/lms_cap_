@@ -4,6 +4,87 @@ require_once '../config/database.php';
 require_once '../includes/semester_security.php';
 require_once '../includes/assessment_pass_tracker.php';
 
+/**
+ * Normalize text for comparison by removing extra spaces, converting to lowercase,
+ * removing punctuation, and handling common variations
+ */
+function normalizeText($text) {
+    if (empty($text)) return '';
+    
+    // Convert to lowercase
+    $text = strtolower(trim($text));
+    
+    // Remove extra whitespace
+    $text = preg_replace('/\s+/', ' ', $text);
+    
+    // Remove common punctuation that might vary
+    $text = preg_replace('/[.,;:!?\'"()-]/', '', $text);
+    
+    // Handle common abbreviations and variations
+    $replacements = [
+        '&' => 'and',
+        '+' => 'plus',
+        '=' => 'equals',
+        '%' => 'percent',
+        '#' => 'number',
+        '@' => 'at',
+        'vs' => 'versus',
+        'vs.' => 'versus',
+        'etc' => 'etcetera',
+        'etc.' => 'etcetera',
+        'dr' => 'doctor',
+        'dr.' => 'doctor',
+        'mr' => 'mister',
+        'mr.' => 'mister',
+        'ms' => 'miss',
+        'ms.' => 'miss',
+        'mrs' => 'missus',
+        'mrs.' => 'missus',
+        'prof' => 'professor',
+        'prof.' => 'professor',
+    ];
+    
+    foreach ($replacements as $search => $replace) {
+        $text = str_replace($search, $replace, $text);
+    }
+    
+    return trim($text);
+}
+
+/**
+ * Check if two normalized texts are a fuzzy match (allowing for minor variations)
+ */
+function fuzzyMatch($text1, $text2) {
+    if (empty($text1) || empty($text2)) return false;
+    
+    // Exact match after normalization
+    if ($text1 === $text2) return true;
+    
+    // Check if one contains the other (for partial matches)
+    if (strpos($text1, $text2) !== false || strpos($text2, $text1) !== false) {
+        return true;
+    }
+    
+    // Calculate similarity using Levenshtein distance
+    $distance = levenshtein($text1, $text2);
+    $maxLength = max(strlen($text1), strlen($text2));
+    
+    // If strings are similar enough (80% similarity), consider it a match
+    if ($maxLength > 0) {
+        $similarity = 1 - ($distance / $maxLength);
+        return $similarity >= 0.8;
+    }
+    
+    return false;
+}
+
+/**
+ * Convert numeric option index to letter (0=A, 1=B, 2=C, 3=D, etc.)
+ */
+function getOptionLetter($index) {
+    return chr(65 + $index); // 65 is ASCII for 'A'
+}
+
 // Initialize database connection
 $db = new Database();
 $pdo = $db->getConnection();
@@ -258,6 +339,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
     $time_taken = $_POST['time_taken'] ?? 0;
     $is_auto_submit = isset($_POST['auto_submit']) && $_POST['auto_submit'] == '1';
     
+    // Debug: Log received answers
+    error_log("Received answers: " . print_r($answers, true));
+    
     // Get questions from the questions table
     $stmt = $pdo->prepare("
         SELECT id, question_text, question_type, question_order, points, options
@@ -303,21 +387,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
         if ($question['question_type'] === 'identification') {
             // For identification questions, we need to get the correct answer from the options
             $options = json_decode($question['options'], true);
-            $correct_answer = '';
+            $correct_answers_list = [];
             
             if ($options && is_array($options)) {
                 foreach ($options as $option) {
                     if (isset($option['is_correct']) && $option['is_correct']) {
-                        $correct_answer = $option['text'] ?? '';
-                        break;
+                        $correct_answers_list[] = $option['text'] ?? '';
                     }
                 }
             }
             
-            // Compare student answer with correct answer (case-insensitive)
-            if (strtoupper(trim($student_answer)) == strtoupper(trim($correct_answer))) {
-                $correct_answers++;
-                $is_correct = true;
+            // Normalize student answer
+            $normalized_student_answer = normalizeText($student_answer);
+            
+            // Debug: Log identification validation
+            error_log("Question {$question_id} - Identification validation:");
+            error_log("  Student answer: '{$student_answer}'");
+            error_log("  Normalized student answer: '{$normalized_student_answer}'");
+            error_log("  Correct answers: " . print_r($correct_answers_list, true));
+            
+            // Check against all correct answers
+            foreach ($correct_answers_list as $correct_answer) {
+                $normalized_correct_answer = normalizeText($correct_answer);
+                error_log("  Checking against: '{$correct_answer}' → '{$normalized_correct_answer}'");
+                
+                // Exact match
+                if ($normalized_student_answer === $normalized_correct_answer) {
+                    error_log("  ✓ Exact match found!");
+                    $correct_answers++;
+                    $is_correct = true;
+                    break;
+                }
+                
+                // Fuzzy match for minor variations
+                if (fuzzyMatch($normalized_student_answer, $normalized_correct_answer)) {
+                    error_log("  ✓ Fuzzy match found!");
+                    $correct_answers++;
+                    $is_correct = true;
+                    break;
+                }
+            }
+            
+            if (!$is_correct) {
+                error_log("  ✗ No match found");
             }
         } elseif ($question['question_type'] === 'true_false') {
             // For true/false questions, compare with the correct option text
@@ -333,10 +445,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
                 }
             }
             
-            // Compare student answer with correct answer (case-insensitive)
-            if (strtoupper(trim($student_answer)) == strtoupper(trim($correct_answer))) {
+            // Normalize both answers for comparison
+            $normalized_student_answer = normalizeText($student_answer);
+            $normalized_correct_answer = normalizeText($correct_answer);
+            
+            // Debug: Log true/false validation
+            error_log("Question {$question_id} - True/False validation:");
+            error_log("  Student answer: '{$student_answer}' → '{$normalized_student_answer}'");
+            error_log("  Correct answer: '{$correct_answer}' → '{$normalized_correct_answer}'");
+            
+            // Compare normalized answers
+            if ($normalized_student_answer === $normalized_correct_answer) {
+                error_log("  ✓ Match found!");
                 $correct_answers++;
                 $is_correct = true;
+            } else {
+                error_log("  ✗ No match found");
             }
         } else {
             // For multiple choice questions
@@ -351,6 +475,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
                 }
             }
             
+            // Debug: Log the options and correct answers
+            error_log("Question {$question_id} - Options: " . print_r($options, true));
+            error_log("Question {$question_id} - Correct option orders: " . print_r($correct_option_orders, true));
+            
             // Check if student answer matches any of the correct answers
             if (!empty($student_answer)) {
                 // Handle both single and multiple answers
@@ -360,9 +488,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
                 // Convert to integers for comparison
                 $student_answers = array_map('intval', $student_answers);
                 
+                // Debug: Log the comparison
+                error_log("Question {$question_id} - Student answers (received): " . print_r($student_answers, true));
+                error_log("Question {$question_id} - Correct answers: " . print_r($correct_option_orders, true));
+                
                 // Check if all student answers are correct and all correct answers are selected
                 sort($student_answers);
                 sort($correct_option_orders);
+                
+                error_log("Question {$question_id} - Sorted student answers: " . print_r($student_answers, true));
+                error_log("Question {$question_id} - Sorted correct answers: " . print_r($correct_option_orders, true));
+                error_log("Question {$question_id} - Arrays equal: " . ($student_answers === $correct_option_orders ? 'YES' : 'NO'));
                 
                 if ($student_answers === $correct_option_orders) {
                     $correct_answers++;
@@ -674,21 +810,25 @@ $previous_attempts = $stmt->fetchAll();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .question-card {
-            margin-bottom: 2rem;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 30px;
-            min-height: 400px;
-        }
+         .question-card {
+             margin-bottom: 2rem;
+             border: 1px solid #dee2e6;
+             border-radius: 16px;
+             padding: 40px;
+             min-height: 400px;
+             background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+         }
         
-        .question-number {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
+         .question-number {
+             background: linear-gradient(135deg, #007bff, #0056b3);
+             color: white;
+             border-radius: 12px;
+             padding: 20px;
+             margin-bottom: 25px;
+             text-align: center;
+             box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+         }
         
         .question-text {
             font-size: 1.2rem;
@@ -711,18 +851,21 @@ $previous_attempts = $stmt->fetchAll();
             border-radius: 0 0 10px 10px;
         }
         
-        .identification-input {
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            font-size: 1.1rem;
-            transition: border-color 0.3s ease;
-        }
-        
-        .identification-input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
+         .identification-input {
+             border: 2px solid #e9ecef;
+             border-radius: 12px;
+             padding: 20px;
+             font-size: 1.2rem;
+             transition: all 0.3s ease;
+             background: #ffffff;
+             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+         }
+         
+         .identification-input:focus {
+             border-color: #007bff;
+             box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+             transform: translateY(-2px);
+         }
         .timer {
             position: fixed;
             top: 20px;
@@ -822,42 +965,60 @@ $previous_attempts = $stmt->fetchAll();
             transition: width 1s linear;
             border-radius: 0 0 15px 15px;
         }
-        .option-item {
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-        }
-        .option-item:hover {
-            background-color: #f8f9fa;
-        }
-        .option-item.selected {
-            background-color: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
+         .option-item {
+             border: 2px solid #e9ecef;
+             border-radius: 12px;
+             padding: 15px 20px;
+             margin-bottom: 12px;
+             cursor: pointer;
+             transition: all 0.3s ease;
+             display: flex;
+             align-items: center;
+             background: #ffffff;
+             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+         }
+         .option-item:hover {
+             background-color: #f8f9fa;
+             border-color: #007bff;
+             transform: translateY(-2px);
+             box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+         }
+         .option-item.selected {
+             background: linear-gradient(135deg, #007bff, #0056b3);
+             color: white;
+             border-color: #007bff;
+             transform: translateY(-2px);
+             box-shadow: 0 6px 20px rgba(0,123,255,0.3);
+         }
         
         .checkbox-option {
             position: relative;
         }
         
         .checkbox-icon {
-            font-size: 1.2rem;
-            margin-right: 10px;
+            font-size: 1.4rem;
+            margin-right: 15px;
             color: #6c757d;
             transition: all 0.3s ease;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            background: #ffffff;
         }
         
         .checkbox-option.selected .checkbox-icon {
-            color: #007bff;
+            color: #ffffff;
+            background: #007bff;
+            border-color: #007bff;
         }
         
         .checkbox-option.selected .checkbox-icon::before {
-            content: "☑";
+            content: "✓";
+            font-weight: bold;
         }
         .progress-bar {
             height: 5px;
@@ -937,6 +1098,7 @@ $previous_attempts = $stmt->fetchAll();
                             </div>
                         </div>
 
+                        
                         <!-- Question Form -->
                         <form method="POST" action="assessment.php?id=<?php echo $assessment_id; ?>&q=<?php echo $current_question; ?>" id="assessment-form">
                             <input type="hidden" name="time_taken" id="time-taken" value="0">
@@ -955,7 +1117,7 @@ $previous_attempts = $stmt->fetchAll();
                                 </div>
                                 
                                 <!-- Answer Input -->
-                                <?php if ($current_question_data['question_type'] === 'identification'): ?>
+                                <?php if (strtolower(trim($current_question_data['question_type'])) === 'identification'): ?>
                                     <div class="mb-4">
                                         <input type="text" 
                                                class="form-control identification-input" 
@@ -964,7 +1126,7 @@ $previous_attempts = $stmt->fetchAll();
                                                autocomplete="off"
                                                id="identification-answer">
                                     </div>
-                                <?php elseif ($current_question_data['question_type'] === 'true_false'): ?>
+                                <?php elseif (strtolower(trim($current_question_data['question_type'])) === 'true_false'): ?>
                                     <div class="options">
                                         <?php 
                                         $options_array = [];
@@ -977,18 +1139,18 @@ $previous_attempts = $stmt->fetchAll();
                                             }
                                         }
                                         
-                                        foreach ($options_array as $key => $option): 
-                                        ?>
-                                            <div class="option-item" onclick="selectOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $option; ?>')">
-                                                <input type="radio" 
-                                                       name="answers[<?php echo $current_question_data['id']; ?>]" 
-                                                       value="<?php echo $option; ?>" 
-                                                       style="display: none;">
-                                                <strong><?php echo $key; ?>.</strong> <?php echo htmlspecialchars($option); ?>
-                                            </div>
-                                        <?php endforeach; ?>
+                                         foreach ($options_array as $key => $option): 
+                                         ?>
+                                             <div class="option-item" onclick="selectOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $option; ?>')">
+                                                 <input type="radio" 
+                                                        name="answers[<?php echo $current_question_data['id']; ?>]" 
+                                                        value="<?php echo $option; ?>" 
+                                                        style="display: none;">
+                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                             </div>
+                                         <?php endforeach; ?>
                                     </div>
-                                <?php else: ?>
+                                <?php elseif (strtolower(trim($current_question_data['question_type'])) === 'multiple_choice'): ?>
                                     <div class="options">
                                         <div class="mb-2">
                                             <small class="text-muted">
@@ -1014,8 +1176,40 @@ $previous_attempts = $stmt->fetchAll();
                                                        name="answers[<?php echo $current_question_data['id']; ?>][]" 
                                                        value="<?php echo $key; ?>" 
                                                        style="display: none;">
-                                                <span class="checkbox-icon">☐</span>
-                                                <strong><?php echo $key; ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                                 <span class="checkbox-icon"></span>
+                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Default to multiple choice with checkboxes -->
+                                    <div class="options">
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Select all correct answers. You can choose multiple options.
+                                            </small>
+                                        </div>
+                                        <?php 
+                                        $options_array = [];
+                                        if ($current_question_data['options']) {
+                                            $json_options = json_decode($current_question_data['options'], true);
+                                            if ($json_options && is_array($json_options)) {
+                                                foreach ($json_options as $idx => $option) {
+                                                    $options_array[$idx] = $option['text'] ?? '';
+                                                }
+                                            }
+                                        }
+                                        
+                                        foreach ($options_array as $key => $option): 
+                                        ?>
+                                            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
+                                                <input type="checkbox" 
+                                                       name="answers[<?php echo $current_question_data['id']; ?>][]" 
+                                                       value="<?php echo $key; ?>" 
+                                                       style="display: none;">
+                                                 <span class="checkbox-icon"></span>
+                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
@@ -1307,7 +1501,22 @@ $previous_attempts = $stmt->fetchAll();
             questionIds.forEach(questionId => {
                 const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId);
                 // Always include the answer, even if it's empty (to track unanswered questions)
-                allAnswers[questionId] = savedAnswer || '';
+                let finalAnswer = savedAnswer || '';
+                
+                // Convert 0-based answers to 1-based for multiple choice questions
+                if (finalAnswer && finalAnswer.includes(',')) {
+                    // This is a multiple choice question with multiple answers
+                    const answers = finalAnswer.split(',').map(val => parseInt(val) + 1).join(',');
+                    finalAnswer = answers;
+                    console.log(`Converted multiple choice answer for question ${questionId}: "${savedAnswer}" → "${finalAnswer}"`);
+                } else if (finalAnswer && !isNaN(finalAnswer)) {
+                    // This is a single answer (could be multiple choice or other)
+                    finalAnswer = (parseInt(finalAnswer) + 1).toString();
+                    console.log(`Converted single answer for question ${questionId}: "${savedAnswer}" → "${finalAnswer}"`);
+                }
+                
+                allAnswers[questionId] = finalAnswer;
+                console.log(`Retrieved from localStorage for question ${questionId}: "${savedAnswer}" → Final: "${finalAnswer}"`);
             });
             
             // Add hidden inputs for all saved answers
@@ -1317,7 +1526,23 @@ $previous_attempts = $stmt->fetchAll();
                 hiddenInput.name = `answers[${questionId}]`;
                 hiddenInput.value = allAnswers[questionId];
                 this.appendChild(hiddenInput);
+                console.log(`Adding answer for question ${questionId}: "${allAnswers[questionId]}"`);
             });
+            
+            // Debug: Check what's actually in the form before submission
+            console.log('Form data before submission:');
+            const formData = new FormData(this);
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+            
+            // Debug: Check if there are any actual checkbox inputs that might conflict
+            const actualCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+            console.log('Actual checkboxes found:', actualCheckboxes.length);
+            actualCheckboxes.forEach((cb, index) => {
+                console.log(`Actual checkbox ${index}: name="${cb.name}", value="${cb.value}", checked=${cb.checked}`);
+            });
+            
             
             console.log('Time taken:', timeTaken, 'seconds');
             const timeExpiredElement = document.getElementById('time-expired');
@@ -1376,20 +1601,29 @@ $previous_attempts = $stmt->fetchAll();
         
         // Function for multiple choice checkboxes
         function selectMultipleOption(element, questionId, optionValue) {
+            console.log('🔧 selectMultipleOption called:', {element, questionId, optionValue});
+            
             // Toggle the selected class
             element.classList.toggle('selected');
             
             // Toggle the checkbox
             const checkbox = element.querySelector('input[type="checkbox"]');
-            checkbox.checked = !checkbox.checked;
-            
-            // Update the checkbox icon
-            const icon = element.querySelector('.checkbox-icon');
-            if (checkbox.checked) {
-                icon.textContent = '☑';
-            } else {
-                icon.textContent = '☐';
+            console.log('🔧 Checkbox found:', checkbox);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                console.log('🔧 Checkbox checked:', checkbox.checked);
             }
+            
+             // Update the checkbox icon
+             const icon = element.querySelector('.checkbox-icon');
+             if (icon) {
+                 if (checkbox && checkbox.checked) {
+                     icon.innerHTML = '✓';
+                 } else {
+                     icon.innerHTML = '';
+                 }
+                 console.log('🔧 Icon updated to:', icon.innerHTML);
+             }
             
             // Save answer immediately when checkbox is toggled
             saveCurrentAnswer(questionId);
@@ -1399,22 +1633,30 @@ $previous_attempts = $stmt->fetchAll();
         function saveCurrentAnswer(questionId) {
             let answer = '';
             
+            console.log('💾 saveCurrentAnswer called for question:', questionId);
+            
             // For identification questions (text input)
             const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
             if (textInput) {
                 answer = textInput.value.trim();
+                console.log('💾 Text input found, answer:', answer);
             } else {
                 // Check if this is a multiple choice question with checkboxes
                 const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                console.log('💾 Checkboxes found:', checkboxes.length);
                 if (checkboxes.length > 0) {
                     // Multiple choice with checkboxes - collect all selected values
                     const selectedValues = Array.from(checkboxes).map(cb => cb.value);
                     answer = selectedValues.join(',');
+                    console.log('💾 Multiple choice answer:', answer, 'from values:', selectedValues);
                 } else {
                     // For true/false questions (radio button)
                     const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
                     if (radioButton) {
                         answer = radioButton.value;
+                        console.log('💾 Radio button answer:', answer);
+                    } else {
+                        console.log('💾 No input found for question:', questionId);
                     }
                 }
             }
@@ -1422,6 +1664,16 @@ $previous_attempts = $stmt->fetchAll();
             // Save answer to localStorage
             localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
             console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
+            console.log('Question type detected:', document.querySelector(`input[name="answers[${questionId}][]"]`) ? 'multiple_choice' : 'other');
+            
+            // Debug: Check all checkboxes for this question
+            const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
+            console.log('All checkboxes for question ' + questionId + ':', allCheckboxes.length);
+            allCheckboxes.forEach((cb, index) => {
+                console.log(`Checkbox ${index}: value="${cb.value}", checked=${cb.checked}`);
+            });
+            
+            
         }
 
         // Save answer and navigate to next question
@@ -1496,10 +1748,10 @@ $previous_attempts = $stmt->fetchAll();
                                 checkbox.checked = true;
                                 const optionItem = checkbox.closest('.option-item');
                                 optionItem.classList.add('selected');
-                                const icon = optionItem.querySelector('.checkbox-icon');
-                                if (icon) {
-                                    icon.textContent = '☑';
-                                }
+                                 const icon = optionItem.querySelector('.checkbox-icon');
+                                 if (icon) {
+                                     icon.innerHTML = '✓';
+                                 }
                             }
                         });
                     } else {
@@ -1555,4 +1807,5 @@ $previous_attempts = $stmt->fetchAll();
         }, 5000); // Auto-save every 5 seconds
     </script>
 </body>
+</html> 
 </html> 

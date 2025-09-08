@@ -95,6 +95,9 @@ $stmt = $db->prepare("
             $stmt->execute([$assessment_id]);
             $questions = $stmt->fetchAll();
             
+            // Debug logging
+            error_log("Found " . count($questions) . " questions for assessment_id: " . $assessment_id);
+            
             // Decode options JSON for each question
             foreach ($questions as &$question) {
                 $question['options'] = json_decode($question['options'] ?? '[]', true) ?: [];
@@ -103,7 +106,11 @@ $stmt = $db->prepare("
             // Return JSON response
             echo json_encode([
                 'success' => true,
-                'questions' => $questions
+                'questions' => $questions,
+                'debug' => [
+                    'assessment_id' => $assessment_id,
+                    'question_count' => count($questions)
+                ]
             ]);
             exit;
             
@@ -205,13 +212,16 @@ $stmt = $db->prepare("
             
             if ($question_type === 'multiple_choice') {
                 $options_input = $_POST['options'] ?? [];
-                $correct_option = (int)($_POST['correct_option'] ?? 0);
+                $correct_options = $_POST['correct_options'] ?? [];
+                
+                // Convert correct_options to array of integers
+                $correct_indices = array_map('intval', $correct_options);
                 
                 foreach ($options_input as $index => $option_text) {
                     if (!empty($option_text)) {
                         $options[] = [
                             'text' => $option_text,
-                            'is_correct' => ($index == $correct_option),
+                            'is_correct' => in_array($index, $correct_indices),
                             'order' => $index + 1
                         ];
                     }
@@ -406,27 +416,13 @@ $stmt = $db->prepare("
                 exit;
             }
             
-            // Get assessment details to check question limit
-            $stmt = $db->prepare("SELECT num_questions FROM assessments WHERE id = ?");
+            // Get assessment details
+            $stmt = $db->prepare("SELECT id FROM assessments WHERE id = ?");
             $stmt->execute([$assessment_id]);
             $assessment = $stmt->fetch();
             
             if (!$assessment) {
                 echo json_encode(['success' => false, 'message' => 'Assessment not found.']);
-                exit;
-            }
-            
-            // Count existing questions
-            $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
-            $stmt->execute([$assessment_id]);
-            $existing_count = $stmt->fetchColumn();
-            
-            // Check if adding a question would exceed the limit
-            if ($existing_count >= $assessment['num_questions']) {
-                echo json_encode([
-                    'success' => false, 
-                    'message' => "Cannot add more questions. Assessment limit is {$assessment['num_questions']} questions. Currently has {$existing_count} questions."
-                ]);
                 exit;
             }
             
@@ -527,36 +523,13 @@ $stmt = $db->prepare("
                 exit;
             }
             
-            // Get assessment details to check question limit
-            $stmt = $db->prepare("SELECT num_questions FROM assessments WHERE id = ?");
+            // Get assessment details
+            $stmt = $db->prepare("SELECT id FROM assessments WHERE id = ?");
             $stmt->execute([$assessment_id]);
             $assessment = $stmt->fetch();
             
             if (!$assessment) {
                 echo json_encode(['success' => false, 'message' => 'Assessment not found.']);
-                exit;
-            }
-            
-            // Count existing questions
-            $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
-            $stmt->execute([$assessment_id]);
-            $existing_count = $stmt->fetchColumn();
-            
-            // Count new questions to be added
-            $new_questions_count = 0;
-            foreach ($questions_data as $question_data) {
-                $question_text = sanitizeInput($question_data['question_text'] ?? '');
-                if (!empty($question_text)) {
-                    $new_questions_count++;
-                }
-            }
-            
-            // Check if adding new questions would exceed the limit
-            if (($existing_count + $new_questions_count) > $assessment['num_questions']) {
-                echo json_encode([
-                    'success' => false, 
-                    'message' => "Cannot add {$new_questions_count} questions. Assessment limit is {$assessment['num_questions']} questions. Currently has {$existing_count} questions."
-                ]);
                 exit;
             }
             
@@ -799,7 +772,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 $description = sanitizeInput($_POST['description'] ?? '');
                 $time_limit = !empty($_POST['time_limit']) ? (int)$_POST['time_limit'] : null;
                 $difficulty = sanitizeInput($_POST['difficulty'] ?? 'medium');
-                $num_questions = (int)($_POST['num_questions'] ?? 10);
                 $passing_rate = (float)($_POST['passing_rate'] ?? 70.0);
                 $attempt_limit = (int)($_POST['attempt_limit'] ?? 3);
                 $assessment_order = (int)($_POST['assessment_order'] ?? 1);
@@ -818,7 +790,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         'description' => $description,
                         'time_limit' => $time_limit,
                         'difficulty' => $difficulty,
-                        'num_questions' => $num_questions,
                         'passing_rate' => $passing_rate,
                         'attempt_limit' => $attempt_limit,
                         'assessment_order' => $assessment_order,
@@ -831,9 +802,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $stmt = $db->prepare("
                         INSERT INTO assessments (
                             id, course_id, assessment_title, description, time_limit, difficulty, 
-                            status, num_questions, passing_rate, attempt_limit, assessment_order, is_locked, lock_type,
+                            status, passing_rate, attempt_limit, assessment_order, is_locked, lock_type,
                             questions, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $new_assessment['id'],
@@ -843,7 +814,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         $time_limit,
                         $difficulty,
                         'active',
-                        $num_questions,
                         $passing_rate,
                         $attempt_limit,
                         $assessment_order,
@@ -885,7 +855,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 $description = sanitizeInput($_POST['edit_description'] ?? '');
                 $time_limit = !empty($_POST['edit_time_limit']) ? (int)$_POST['edit_time_limit'] : null;
                 $difficulty = sanitizeInput($_POST['edit_difficulty'] ?? 'medium');
-                $num_questions = (int)($_POST['edit_num_questions'] ?? 10);
                 $passing_rate = (float)($_POST['edit_passing_rate'] ?? 70.0);
                 $attempt_limit = (int)($_POST['edit_attempt_limit'] ?? 3);
                 $assessment_order = (int)($_POST['edit_assessment_order'] ?? 0);
@@ -909,12 +878,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $stmt = $db->prepare("
                         UPDATE assessments SET 
                             assessment_title = ?, description = ?, time_limit = ?, difficulty = ?, 
-                            num_questions = ?, passing_rate = ?, attempt_limit = ?, assessment_order = ?
+                            passing_rate = ?, attempt_limit = ?, assessment_order = ?
                         WHERE id = ? AND course_id = ?
                     ");
                     $result = $stmt->execute([
                         $assessment_title, $description, $time_limit, $difficulty,
-                        $num_questions, $passing_rate, $attempt_limit, $assessment_order,
+                        $passing_rate, $attempt_limit, $assessment_order,
                         $assessment_id, $course['id']
                     ]);
                     
@@ -929,7 +898,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 $assessment['description'] = $description;
                                 $assessment['time_limit'] = $time_limit;
                                 $assessment['difficulty'] = $difficulty;
-                                $assessment['num_questions'] = $num_questions;
                                 $assessment['passing_rate'] = $passing_rate;
                                 $assessment['attempt_limit'] = $attempt_limit;
                                 $assessment['assessment_order'] = $assessment_order;
@@ -957,7 +925,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 $assess['description'] = $description;
                                 $assess['time_limit'] = $time_limit;
                                 $assess['difficulty'] = $difficulty;
-                                $assess['num_questions'] = $num_questions;
                                 $assess['passing_rate'] = $passing_rate;
                                 $assess['attempt_limit'] = $attempt_limit;
                                 $assess['assessment_order'] = $assessment_order;
@@ -1064,8 +1031,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 if (empty($question_text)) {
                     $message = 'Question text is required.';
                     $message_type = 'danger';
-                } elseif ($question_type === 'multiple_choice' && empty(trim($_POST['correct_option'] ?? ''))) {
-                    $message = 'Correct option is required for Multiple Choice questions.';
+                } elseif ($question_type === 'multiple_choice' && empty($_POST['correct_options'] ?? [])) {
+                    $message = 'At least one correct option is required for Multiple Choice questions.';
                     $message_type = 'danger';
                 } elseif ($question_type === 'true_false' && empty(trim($_POST['correct_tf'] ?? ''))) {
                     $message = 'Correct answer is required for True/False questions.';
@@ -1264,54 +1231,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 }
                 break;
                 
-            case 'get_questions':
-                $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
-                
-                // Debug logging
-                error_log("Getting questions for assessment_id (form handler): " . $assessment_id);
-                
-                // Verify that this assessment exists in the system
-                $assessment_exists = false;
-                foreach ($modules_data as $module) {
-                    if (isset($module['assessments']) && is_array($module['assessments'])) {
-                        foreach ($module['assessments'] as $assessment) {
-                            if ($assessment['id'] === $assessment_id) {
-                                $assessment_exists = true;
-                                break 2;
-                            }
-                        }
-                    }
-                }
-                
-                if (!$assessment_exists) {
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Assessment not found or access denied.'
-                    ]);
-                    exit;
-                }
-                
-                // Get questions from the questions table
-                $stmt = $db->prepare("
-                    SELECT id, question_text, question_type, question_order, points, options, created_at
-                    FROM questions 
-                    WHERE assessment_id = ? 
-                    ORDER BY question_order ASC
-                ");
-                $stmt->execute([$assessment_id]);
-                $questions = $stmt->fetchAll();
-                
-                // Decode options JSON for each question
-                foreach ($questions as &$question) {
-                    $question['options'] = json_decode($question['options'] ?? '[]', true) ?: [];
-                }
-                
-                // Return JSON response
-                echo json_encode([
-                    'success' => true,
-                    'questions' => $questions
-                ]);
-                exit;
                 
             case 'get_question':
                 $question_id = sanitizeInput($_POST['question_id'] ?? '');
@@ -1495,7 +1414,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     <?php else: ?>
 
                         <div class="row">
-                                    <?php foreach ($assessments as $assessment): ?>
+                                    <?php foreach ($assessments as $assessment): 
+                                        // Count actual questions for this assessment
+                                        $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
+                                        $stmt->execute([$assessment['id']]);
+                                        $actual_question_count = $stmt->fetchColumn();
+                                    ?>
                                 <div class="col-md-6 col-lg-4 mb-4">
                                     <div class="card h-100 border-0 shadow-sm hover-shadow">
                                         <div class="card-header bg-<?php echo $assessment['status'] === 'active' ? 'success' : 'secondary'; ?> text-white">
@@ -1530,7 +1454,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                                     <div class="d-flex align-items-center">
                                                         <i class="bi bi-question-circle text-warning me-2"></i>
                                                         <small class="text-muted">
-                                                            <?php echo $assessment['num_questions']; ?> questions
+                                                            <?php echo $actual_question_count; ?> questions
                                                         </small>
                                                     </div>
                                                 </div>
@@ -1653,15 +1577,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="num_questions" class="form-label fw-bold">
-                                <i class="bi bi-question-circle me-1 text-success"></i>Number of Questions
-                            </label>
-                            <input type="number" class="form-control" id="num_questions" name="num_questions" 
-                                   value="10" min="1" max="100" required 
-                                   placeholder="Enter number of questions (1-100)">
-                            <div class="form-text">You can create between 1 and 100 questions for this assessment.</div>
-                        </div>
-                        <div class="col-md-6">
                             <label for="passing_rate" class="form-label fw-bold">
                                 <i class="bi bi-trophy me-1 text-primary"></i>Passing Rate (%)
                             </label>
@@ -1749,15 +1664,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 <option value="medium">Medium</option>
                                 <option value="hard">Hard</option>
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_num_questions" class="form-label fw-bold">
-                                <i class="bi bi-question-circle me-1 text-success"></i>Number of Questions
-                            </label>
-                            <input type="number" class="form-control" id="edit_num_questions" name="edit_num_questions" 
-                                   value="10" min="1" max="100" required 
-                                   placeholder="Enter number of questions (1-100)">
-                            <div class="form-text">You can create between 1 and 100 questions for this assessment.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="edit_passing_rate" class="form-label fw-bold">
@@ -2201,8 +2107,6 @@ function editAssessment(assessment) {
         document.getElementById('edit_description').value = assessmentData.description || '';
         document.getElementById('edit_time_limit').value = assessmentData.time_limit || '';
         document.getElementById('edit_difficulty').value = assessmentData.difficulty || 'medium';
-        // Set the number of questions input
-        document.getElementById('edit_num_questions').value = assessmentData.num_questions || 10;
         document.getElementById('edit_passing_rate').value = assessmentData.passing_rate || 70;
         document.getElementById('edit_attempt_limit').value = assessmentData.attempt_limit || 3;
         document.getElementById('edit_assessment_order').value = assessmentData.assessment_order || 1;
@@ -2231,7 +2135,26 @@ function viewAssessmentStats(assessmentId) {
     document.getElementById('stats_assessment_title').textContent = assessment.assessment_title;
     document.getElementById('stats_difficulty').textContent = assessment.difficulty.charAt(0).toUpperCase() + assessment.difficulty.slice(1);
     document.getElementById('stats_time_limit').textContent = assessment.time_limit ? assessment.time_limit + ' minutes' : 'No limit';
-    document.getElementById('stats_questions').textContent = assessment.num_questions;
+    // Get actual question count
+    fetch('ajax_get_question_count.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'assessment_id=' + encodeURIComponent(assessment.id)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('stats_questions').textContent = data.count;
+        } else {
+            document.getElementById('stats_questions').textContent = '0';
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching question count:', error);
+        document.getElementById('stats_questions').textContent = '0';
+    });
     document.getElementById('stats_passing_rate').textContent = assessment.passing_rate + '%';
     document.getElementById('stats_attempt_limit').textContent = assessment.attempt_limit;
     document.getElementById('stats_status').textContent = assessment.is_active ? 'Active' : 'Inactive';
@@ -2421,10 +2344,12 @@ function loadQuestions(assessmentId) {
         });
     })
     .then(data => {
+        console.log('📥 Response data:', data);
         if (data.success) {
+            console.log('✅ Success! Questions:', data.questions);
             displayQuestions(data.questions);
         } else {
-            console.error('Error loading questions:', data.message);
+            console.error('❌ Error loading questions:', data.message);
             if (data.debug) {
                 console.log('Debug info:', data.debug);
             }
@@ -3414,27 +3339,33 @@ function toggleEditQuestionOptions() {
             <label class="form-label">Options</label>
             <div class="input-group mb-2">
                 <div class="input-group-text">
-                    <input class="form-check-input mt-0" type="radio" name="edit_correct_option" value="0">
+                    <input class="form-check-input mt-0" type="checkbox" name="edit_correct_options[]" value="0">
                 </div>
                 <input type="text" class="form-control" name="edit_options[]" placeholder="Option 1">
             </div>
             <div class="input-group mb-2">
                 <div class="input-group-text">
-                    <input class="form-check-input mt-0" type="radio" name="edit_correct_option" value="1">
+                    <input class="form-check-input mt-0" type="checkbox" name="edit_correct_options[]" value="1">
                 </div>
                 <input type="text" class="form-control" name="edit_options[]" placeholder="Option 2">
             </div>
             <div class="input-group mb-2">
                 <div class="input-group-text">
-                    <input class="form-check-input mt-0" type="radio" name="edit_correct_option" value="2">
+                    <input class="form-check-input mt-0" type="checkbox" name="edit_correct_options[]" value="2">
                 </div>
                 <input type="text" class="form-control" name="edit_options[]" placeholder="Option 3">
             </div>
             <div class="input-group mb-2">
                 <div class="input-group-text">
-                    <input class="form-check-input mt-0" type="radio" name="edit_correct_option" value="3">
+                    <input class="form-check-input mt-0" type="checkbox" name="edit_correct_options[]" value="3">
                 </div>
                 <input type="text" class="form-control" name="edit_options[]" placeholder="Option 4">
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Check the boxes for all correct answers. You can select multiple correct options.
+                </small>
             </div>
         `;
     } else if (questionType === 'true_false') {
@@ -3524,7 +3455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     showNotification(data.message, 'success');
                     hideSingleQuestionForm();
-                    loadQuestions(); // Reload questions list
+                    loadQuestions(currentAssessmentId); // Reload questions list
                 } else {
                     showNotification(data.message, 'error');
                 }
@@ -3563,7 +3494,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     showNotification(data.message, 'success');
                     hideBulkQuestionForm();
-                    loadQuestions(); // Reload questions list
+                    loadQuestions(currentAssessmentId); // Reload questions list
                 } else {
                     showNotification(data.message, 'error');
                 }
@@ -3621,7 +3552,7 @@ document.getElementById('bulkQuestionForm').addEventListener('submit', function(
             if (questionType === 'multiple_choice') {
                 const options = [];
                 const optionInputs = content.querySelectorAll(`input[name="questions[${questionNum}][options][]"]`);
-                const correctOption = content.querySelector(`input[name="questions[${questionNum}][correct_option]"]:checked`);
+                const correctOptions = content.querySelectorAll(`input[name="questions[${questionNum}][correct_options][]"]:checked`);
                 
                 optionInputs.forEach((input, index) => {
                     if (input.value.trim()) {
@@ -3629,8 +3560,10 @@ document.getElementById('bulkQuestionForm').addEventListener('submit', function(
                     }
                 });
                 
+                const correctIndices = Array.from(correctOptions).map(cb => parseInt(cb.value));
+                
                 questionsData[questionNum].options = options;
-                questionsData[questionNum].correct_option = correctOption ? parseInt(correctOption.value) : 0;
+                questionsData[questionNum].correct_options = correctIndices;
                 
             } else if (questionType === 'true_false') {
                 const correctTf = content.querySelector(`input[name="questions[${questionNum}][correct_tf]"]:checked`);

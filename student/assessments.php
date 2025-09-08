@@ -4,6 +4,7 @@ require_once '../config/config.php';
 require_once '../config/database.php';
 require_once '../includes/score_calculator.php';
 require_once '../includes/assessment_pass_tracker.php';
+require_once '../includes/semester_security.php';
 
 $db = new Database();
 $pdo = $db->getConnection();

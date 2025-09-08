@@ -290,6 +290,14 @@ if ($assessment_order > 1) {
     }
 }
 
+// Check academic period status
+$academic_status = checkAssessmentAcademicStatus($pdo, $assessment_id);
+if (!$academic_status['is_active']) {
+    $assessment['is_accessible'] = false;
+    $assessment['lock_reason'] = 'Academic period inactive';
+    $assessment['lock_details'] = getInactiveStatusMessage($academic_status);
+}
+
 // Check if assessment is active
 if ($assessment['status'] !== 'active') {
     $assessment['is_accessible'] = false;

@@ -218,6 +218,82 @@ function autoAssignAssessmentOrder($pdo, $course_id) {
 }
 
 /**
+ * Get available assessment orders for a course
+ * 
+ * @param PDO $pdo Database connection
+ * @param int $course_id Course ID
+ * @param int $max_orders Maximum number of orders to suggest
+ * @return array Array of available order numbers
+ */
+function getAvailableAssessmentOrders($pdo, $course_id, $max_orders = 10) {
+    $stmt = $pdo->prepare('
+        SELECT assessment_order 
+        FROM assessments 
+        WHERE course_id = ? 
+        ORDER BY assessment_order ASC
+    ');
+    $stmt->execute([$course_id]);
+    $used_orders = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    $available_orders = [];
+    $next_order = 1;
+    
+    // Find gaps in the sequence and suggest next available orders
+    for ($i = 0; $i < $max_orders; $i++) {
+        while (in_array($next_order, $used_orders)) {
+            $next_order++;
+        }
+        $available_orders[] = $next_order;
+        $next_order++;
+    }
+    
+    return $available_orders;
+}
+
+/**
+ * Validate and assign assessment order with conflict resolution
+ * 
+ * @param PDO $pdo Database connection
+ * @param int $course_id Course ID
+ * @param int $requested_order Requested order number
+ * @param string $exclude_id Assessment ID to exclude (for updates)
+ * @return array Result with success status, assigned order, and message
+ */
+function validateAndAssignOrder($pdo, $course_id, $requested_order, $exclude_id = null) {
+    // If no order specified, auto-assign
+    if ($requested_order <= 0) {
+        $assigned_order = autoAssignAssessmentOrder($pdo, $course_id);
+        return [
+            'success' => true,
+            'assigned_order' => $assigned_order,
+            'message' => "Order automatically assigned: $assigned_order",
+            'auto_assigned' => true
+        ];
+    }
+    
+    // Check if order is already taken
+    if (!validateAssessmentOrder($pdo, $course_id, $requested_order, $exclude_id)) {
+        // Order is taken, suggest alternatives
+        $available_orders = getAvailableAssessmentOrders($pdo, $course_id, 5);
+        $next_available = autoAssignAssessmentOrder($pdo, $course_id);
+        
+        return [
+            'success' => false,
+            'message' => "Order $requested_order is already taken. Available orders: " . implode(', ', $available_orders),
+            'suggested_orders' => $available_orders,
+            'next_available' => $next_available
+        ];
+    }
+    
+    return [
+        'success' => true,
+        'assigned_order' => $requested_order,
+        'message' => "Order $requested_order is available",
+        'auto_assigned' => false
+    ];
+}
+
+/**
  * Move assessment to a specific position and rebalance others
  * 
  * @param PDO $pdo Database connection

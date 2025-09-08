@@ -288,41 +288,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get videos from JSON modules (same method as videos.php)
+// Get videos from the current module (simplified approach)
 $videos = [];
-$stmt = $db->prepare("
-    SELECT c.id, c.course_name, c.course_code, c.modules
-    FROM courses c
-    WHERE c.teacher_id = ? AND JSON_SEARCH(c.modules, 'one', ?) IS NOT NULL
-");
-$stmt->execute([$_SESSION['user_id'], $module_id]);
-$courses_data = $stmt->fetchAll();
 
-foreach ($courses_data as $course) {
-    $modules_data = json_decode($course['modules'], true);
-    if (is_array($modules_data)) {
-        foreach ($modules_data as $module) {
-            if ($module['id'] === $module_id) {
-                if (isset($module['videos']) && is_array($module['videos'])) {
-                    foreach ($module['videos'] as $video) {
-                        // Skip videos that don't have required fields
-                        if (!isset($video['id']) || !isset($video['video_title'])) {
-                            continue;
-                        }
-                        
-                        $video['course_name'] = $course['course_name'];
-                        $video['course_code'] = $course['course_code'];
-                        $video['module_title'] = $module['module_title'] ?? 'Unknown Module';
-                        $video['course_id'] = $course['id'];
-                        $video['module_id'] = $module['id'];
-                        $video['view_count'] = 0; // Placeholder - would need to calculate from video_progress
-                        $video['avg_completion'] = 0; // Placeholder - would need to calculate from video_progress
-                        $videos[] = $video;
-                    }
-                }
-            }
+// Check if the current module has videos
+if (isset($module['videos']) && is_array($module['videos'])) {
+    error_log("Found " . count($module['videos']) . " videos in module");
+    
+    foreach ($module['videos'] as $index => $video) {
+        error_log("Processing video $index: " . json_encode($video));
+        
+        // Skip videos that don't have an ID (but be more lenient with title)
+        if (!isset($video['id'])) {
+            error_log("Skipping video $index - no ID");
+            continue;
         }
+        
+        // If no title, use a default
+        if (!isset($video['video_title']) || empty($video['video_title'])) {
+            $video['video_title'] = 'Untitled Video ' . ($index + 1);
+            error_log("Video $index has no title, using default: " . $video['video_title']);
+        }
+        
+        $video['course_name'] = $course['course_name'];
+        $video['course_code'] = $course['course_code'];
+        $video['module_title'] = $module['module_title'] ?? 'Unknown Module';
+        $video['course_id'] = $course['id'];
+        $video['module_id'] = $module['id'];
+        $video['view_count'] = 0; // Placeholder - would need to calculate from video_progress
+        $video['avg_completion'] = 0; // Placeholder - would need to calculate from video_progress
+        
+        error_log("Adding video to display list: " . $video['video_title']);
+        $videos[] = $video;
     }
+} else {
+    error_log("No videos found in module or videos is not an array");
 }
 
 // Sort videos by order (same as videos.php)
@@ -330,8 +330,15 @@ usort($videos, function($a, $b) {
     return ($a['video_order'] ?? 0) - ($b['video_order'] ?? 0);
 });
 
-// Debug logging for video count (same as videos.php)
+// Debug logging for video count and module structure
 error_log("Total videos found: " . count($videos));
+error_log("Module ID: " . $module_id);
+error_log("Module data: " . json_encode($module));
+error_log("Module videos key exists: " . (isset($module['videos']) ? 'YES' : 'NO'));
+if (isset($module['videos'])) {
+    error_log("Module videos count: " . count($module['videos']));
+    error_log("Module videos data: " . json_encode($module['videos']));
+}
 
 // Get students in sections for this course
 $student_names = [];
@@ -353,49 +360,79 @@ foreach ($stmt->fetchAll() as $stu) {
     $student_ids[] = $stu['id'];
 }
         
-        // Get video statistics from video_views table
+        // Get video statistics from video_views table (if it exists)
 if ($videos && $student_ids) {
-    foreach ($videos as $video) {
-                $video_id = $video['id'];
-                $video_viewers[$video_id] = [];
-                $video_stats[$video_id] = [
-                    'total_views' => 0,
-                    'unique_viewers' => 0,
-                    'avg_completion' => 0,
-                    'total_watch_time' => 0
-                ];
-                
-                // Get video view statistics
-                $stmt = $db->prepare("
-                    SELECT 
-                        COUNT(*) as total_views,
-                        COUNT(DISTINCT student_id) as unique_viewers,
-                        AVG(completion_percentage) as avg_completion,
-                        SUM(watch_duration) as total_watch_time,
-                        GROUP_CONCAT(DISTINCT student_id) as viewer_ids
-                    FROM video_views 
-                    WHERE video_id = ? AND student_id IN (" . str_repeat('?,', count($student_ids) - 1) . "?)
-                ");
-                $params = array_merge([$video_id], $student_ids);
-                $stmt->execute($params);
-                $stats = $stmt->fetch();
-                
-                if ($stats) {
+    // Check if video_views table exists
+    $table_exists = false;
+    try {
+        $stmt = $db->prepare("SHOW TABLES LIKE 'video_views'");
+        $stmt->execute();
+        $table_exists = $stmt->rowCount() > 0;
+    } catch (Exception $e) {
+        error_log("Error checking video_views table: " . $e->getMessage());
+        $table_exists = false;
+    }
+    
+    if ($table_exists) {
+        foreach ($videos as $video) {
+                    $video_id = $video['id'];
+                    $video_viewers[$video_id] = [];
                     $video_stats[$video_id] = [
-                        'total_views' => (int)$stats['total_views'],
-                        'unique_viewers' => (int)$stats['unique_viewers'],
-                        'avg_completion' => round((float)$stats['avg_completion'], 1),
-                        'total_watch_time' => (int)$stats['total_watch_time']
+                        'total_views' => 0,
+                        'unique_viewers' => 0,
+                        'avg_completion' => 0,
+                        'total_watch_time' => 0
                     ];
                     
-                    // Get individual viewers
-                    if ($stats['viewer_ids']) {
-                        $viewer_ids = explode(',', $stats['viewer_ids']);
-                        $video_viewers[$video_id] = array_map('intval', $viewer_ids);
+                    try {
+                        // Get video view statistics
+                        $stmt = $db->prepare("
+                            SELECT 
+                                COUNT(*) as total_views,
+                                COUNT(DISTINCT student_id) as unique_viewers,
+                                AVG(completion_percentage) as avg_completion,
+                                SUM(watch_duration) as total_watch_time,
+                                GROUP_CONCAT(DISTINCT student_id) as viewer_ids
+                            FROM video_views 
+                            WHERE video_id = ? AND student_id IN (" . str_repeat('?,', count($student_ids) - 1) . "?)
+                        ");
+                        $params = array_merge([$video_id], $student_ids);
+                        $stmt->execute($params);
+                        $stats = $stmt->fetch();
+                        
+                        if ($stats) {
+                            $video_stats[$video_id] = [
+                                'total_views' => (int)$stats['total_views'],
+                                'unique_viewers' => (int)$stats['unique_viewers'],
+                                'avg_completion' => round((float)$stats['avg_completion'], 1),
+                                'total_watch_time' => (int)$stats['total_watch_time']
+                            ];
+                            
+                            // Get individual viewers
+                            if ($stats['viewer_ids']) {
+                                $viewer_ids = explode(',', $stats['viewer_ids']);
+                                $video_viewers[$video_id] = array_map('intval', $viewer_ids);
+                            }
+                        }
+                    } catch (Exception $e) {
+                        error_log("Error fetching video stats for video $video_id: " . $e->getMessage());
+                        // Continue with default stats
                     }
                 }
-            }
+    } else {
+        // Table doesn't exist, use default stats
+        foreach ($videos as $video) {
+            $video_id = $video['id'];
+            $video_viewers[$video_id] = [];
+            $video_stats[$video_id] = [
+                'total_views' => 0,
+                'unique_viewers' => 0,
+                'avg_completion' => 0,
+                'total_watch_time' => 0
+            ];
         }
+    }
+}
     }
 }
 
@@ -412,9 +449,21 @@ foreach ($videos as &$video) {
 
 // Debug function to check video tracking
 function checkVideoTracking($video_id, $db) {
-    $stmt = $db->prepare("SELECT COUNT(*) as count FROM video_views WHERE video_id = ?");
-    $stmt->execute([$video_id]);
-    return $stmt->fetch()['count'];
+    try {
+        // Check if video_views table exists first
+        $stmt = $db->prepare("SHOW TABLES LIKE 'video_views'");
+        $stmt->execute();
+        if ($stmt->rowCount() == 0) {
+            return 0; // Table doesn't exist
+        }
+        
+        $stmt = $db->prepare("SELECT COUNT(*) as count FROM video_views WHERE video_id = ?");
+        $stmt->execute([$video_id]);
+        return $stmt->fetch()['count'];
+    } catch (Exception $e) {
+        error_log("Error checking video tracking: " . $e->getMessage());
+        return 0;
+    }
 }
 
 // Add debug information if requested
@@ -585,21 +634,41 @@ if (isset($_GET['debug'])) {
                 </div>
                 <div class="card-body">
                     <!-- Debug info -->
-                    <?php if (isset($_GET['debug'])): ?>
-                        <div class="alert alert-info">
-                            <strong>Debug Info:</strong><br>
-                            Videos count: <?php echo count($videos); ?><br>
-                            Module ID: <?php echo htmlspecialchars($module_id); ?><br>
-                            <strong>Videos List:</strong><br>
+                    <div class="alert alert-info">
+                        <strong>Debug Info:</strong><br>
+                        Videos count: <?php echo count($videos); ?><br>
+                        Module ID: <?php echo htmlspecialchars($module_id); ?><br>
+                        Module has videos key: <?php echo isset($module['videos']) ? 'YES' : 'NO'; ?><br>
+                        <?php if (isset($module['videos'])): ?>
+                            Module videos count: <?php echo count($module['videos']); ?><br>
+                        <?php endif; ?>
+                        <strong>Module Structure:</strong><br>
+                        <pre><?php echo htmlspecialchars(json_encode($module, JSON_PRETTY_PRINT)); ?></pre>
+                        <strong>Raw Module Videos (from JSON):</strong><br>
+                        <?php if (isset($module['videos']) && is_array($module['videos'])): ?>
+                            <?php foreach ($module['videos'] as $index => $raw_video): ?>
+                                <div class="mt-1 p-2 border rounded bg-light">
+                                    <strong>Raw Video <?php echo $index; ?>:</strong><br>
+                                    <pre><?php echo htmlspecialchars(json_encode($raw_video, JSON_PRETTY_PRINT)); ?></pre>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-danger">No videos key in module or not an array</div>
+                        <?php endif; ?>
+                        
+                        <strong>Processed Videos List:</strong><br>
+                        <?php if (empty($videos)): ?>
+                            <div class="text-danger">No videos found in the processed videos array</div>
+                        <?php else: ?>
                             <?php foreach ($videos as $index => $video): ?>
                                 <div class="mt-1 p-2 border rounded">
-                                    <strong>Video <?php echo $index; ?>:</strong> 
+                                    <strong>Processed Video <?php echo $index; ?>:</strong> 
                                     ID=<?php echo htmlspecialchars($video['id'] ?? 'NO_ID'); ?> | 
                                     Title=<?php echo htmlspecialchars($video['video_title'] ?? 'NO_TITLE'); ?>
                                 </div>
                             <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
                     
 
                     

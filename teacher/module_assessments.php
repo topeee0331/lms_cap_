@@ -680,6 +680,9 @@ $stmt = $db->prepare("
 // Regular page load - include header and continue with normal page processing
 $page_title = 'Module Assessments';
 require_once '../config/config.php';
+require_once '../includes/assessment_order_manager.php';
+require_once '../includes/content_migration.php';
+require_once '../includes/semester_security.php';
 requireRole('teacher');
 require_once '../includes/header.php';
 
@@ -698,6 +701,11 @@ if (!$course) {
     header('Location: courses.php?error=Module not found or access denied.');
     exit;
 }
+
+// Check academic period status for this course
+$academic_status = checkCourseAcademicStatus($db, $course['id']);
+$can_modify_content = $academic_status['is_active'];
+$is_view_only = !$can_modify_content;
 
 // Extract module data from JSON
 $modules_data = json_decode($course['modules'], true);
@@ -766,15 +774,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         $message = 'Invalid CSRF token.';
         $message_type = 'danger';
     } else {
-        switch ($action) {
-            case 'create_assessment':
+        // Check if content can be modified
+        if (!$can_modify_content) {
+            $message = 'Cannot modify content. Academic period is inactive.';
+            $message_type = 'warning';
+        } else {
+            switch ($action) {
+                case 'create_assessment':
                 $assessment_title = sanitizeInput($_POST['assessment_title'] ?? '');
                 $description = sanitizeInput($_POST['description'] ?? '');
                 $time_limit = !empty($_POST['time_limit']) ? (int)$_POST['time_limit'] : null;
                 $difficulty = sanitizeInput($_POST['difficulty'] ?? 'medium');
                 $passing_rate = (float)($_POST['passing_rate'] ?? 70.0);
                 $attempt_limit = (int)($_POST['attempt_limit'] ?? 3);
-                $assessment_order = (int)($_POST['assessment_order'] ?? 1);
+                $requested_order = (int)($_POST['assessment_order'] ?? 0);
                 
                 if (empty($assessment_title)) {
                     $message = 'Assessment title is required.';
@@ -783,20 +796,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $message = 'Passing rate must be between 0 and 100.';
                     $message_type = 'danger';
                 } else {
-                    // Create new assessment object
-                    $new_assessment = [
-                        'id' => uniqid('assess_'),
-                        'assessment_title' => $assessment_title,
-                        'description' => $description,
-                        'time_limit' => $time_limit,
-                        'difficulty' => $difficulty,
-                        'passing_rate' => $passing_rate,
-                        'attempt_limit' => $attempt_limit,
-                        'assessment_order' => $assessment_order,
-                        'is_active' => true,
-                        'status' => 'active',
-                        'created_at' => date('Y-m-d H:i:s')
-                    ];
+                    // Validate and assign assessment order
+                    $order_result = validateAndAssignOrder($db, $course['id'], $requested_order);
+                    
+                    if (!$order_result['success']) {
+                        $message = $order_result['message'];
+                        $message_type = 'danger';
+                    } else {
+                        $assessment_order = $order_result['assigned_order'];
+                        
+                        // Create new assessment object
+                        $new_assessment = [
+                            'id' => uniqid('assess_'),
+                            'assessment_title' => $assessment_title,
+                            'description' => $description,
+                            'time_limit' => $time_limit,
+                            'difficulty' => $difficulty,
+                            'passing_rate' => $passing_rate,
+                            'attempt_limit' => $attempt_limit,
+                            'assessment_order' => $assessment_order,
+                            'is_active' => true,
+                            'status' => 'active',
+                            'created_at' => date('Y-m-d H:i:s')
+                        ];
                     
                     // Save assessment to database table
                     $stmt = $db->prepare("
@@ -841,11 +863,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
                     $stmt->execute([json_encode($modules_data), $course['id']]);
                     
-                    // Refresh the assessments array to show the newly added assessment immediately
-                    $assessments[] = $new_assessment;
-                    
-                    $message = 'Assessment created successfully.';
-                    $message_type = 'success';
+                        // Refresh the assessments array to show the newly added assessment immediately
+                        $assessments[] = $new_assessment;
+                        
+                        $message = 'Assessment created successfully.';
+                        if ($order_result['auto_assigned']) {
+                            $message .= ' Order automatically assigned: ' . $assessment_order;
+                        } else {
+                            $message .= ' Order assigned: ' . $assessment_order;
+                        }
+                        $message_type = 'success';
+                    }
                 }
                 break;
                 
@@ -857,15 +885,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 $difficulty = sanitizeInput($_POST['edit_difficulty'] ?? 'medium');
                 $passing_rate = (float)($_POST['edit_passing_rate'] ?? 70.0);
                 $attempt_limit = (int)($_POST['edit_attempt_limit'] ?? 3);
-                $assessment_order = (int)($_POST['edit_assessment_order'] ?? 0);
-                
-                // Use provided order or default to 1
-                if ($assessment_order < 1) {
-                    $assessment_order = 1;
-                }
-                
-                // Debug: Log the assessment order being updated
-                error_log("Updating assessment order for ID: $assessment_id, New order: $assessment_order");
+                $requested_order = (int)($_POST['edit_assessment_order'] ?? 0);
                 
                 if (empty($assessment_title)) {
                     $message = 'Assessment title is required.';
@@ -874,7 +894,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $message = 'Passing rate must be between 0 and 100.';
                     $message_type = 'danger';
                 } else {
-                    // Update assessment in database table
+                    // Validate and assign assessment order
+                    $order_result = validateAndAssignOrder($db, $course['id'], $requested_order, $assessment_id);
+                    
+                    if (!$order_result['success']) {
+                        $message = $order_result['message'];
+                        $message_type = 'danger';
+                    } else {
+                        $assessment_order = $order_result['assigned_order'];
+                        
+                        // Update assessment in database table
                     $stmt = $db->prepare("
                         UPDATE assessments SET 
                             assessment_title = ?, description = ?, time_limit = ?, difficulty = ?, 
@@ -932,13 +961,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             }
                         }
                         
-                        $message = "Assessment updated successfully. Order set to: $assessment_order";
+                        $message = "Assessment updated successfully.";
+                        if ($order_result['auto_assigned']) {
+                            $message .= ' Order automatically assigned: ' . $assessment_order;
+                        } else {
+                            $message .= ' Order set to: ' . $assessment_order;
+                        }
                         $message_type = 'success';
                     }
                 }
+                }
                 break;
                 
-                        case 'toggle_status':
+            case 'toggle_status':
                 $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
                 $is_active = (int)($_POST['is_active'] ?? 0);
                 $status = $is_active ? 'active' : 'inactive';
@@ -1298,6 +1333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 $message = 'Invalid action.';
                 $message_type = 'danger';
                 break;
+            }
         }
     }
 }
@@ -1323,9 +1359,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i>Back to Course
                     </a>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssessmentModal">
-                        <i class="bi bi-plus-circle me-2"></i>Create Assessment
-                    </button>
+                    <?php if ($can_modify_content): ?>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssessmentModal">
+                            <i class="bi bi-plus-circle me-2"></i>Create Assessment
+                        </button>
+                    <?php else: ?>
+                        <button class="btn btn-secondary" disabled title="Cannot create assessments in inactive academic period">
+                            <i class="bi bi-eye me-2"></i>View Only
+                        </button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -1335,6 +1377,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
             <i class="bi bi-<?php echo $message_type === 'success' ? 'check-circle' : 'exclamation-triangle'; ?> me-2"></i>
             <?php echo $message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Academic Period Status Alert -->
+    <?php if ($is_view_only): ?>
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="bi bi-eye me-2"></i>
+            <strong>View-Only Mode:</strong> This content is from an inactive academic period 
+            (<?php echo htmlspecialchars($academic_status['academic_year'] . ' - ' . $academic_status['semester_name']); ?>).
+            You can view assessments and questions but cannot create or modify content.
+            <?php
+            // Get courses available for migration
+            $migration_courses = getCoursesForMigration($db, $_SESSION['user_id']);
+            $current_course_available = false;
+            foreach ($migration_courses as $migration_course) {
+                if ($migration_course['id'] == $course['id']) {
+                    $current_course_available = true;
+                    break;
+                }
+            }
+            if ($current_course_available): ?>
+                <br><br>
+                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#migrationModal">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Migrate Content to Active Period
+                </button>
+            <?php endif; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
@@ -1595,10 +1664,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 <i class="bi bi-sort-numeric-down me-1 text-primary"></i>Assessment Order
                             </label>
                             <input type="number" class="form-control" id="assessment_order" name="assessment_order" 
-                                   placeholder="Enter order number" min="1" max="100">
+                                   placeholder="Leave empty for auto-assignment" min="1" max="100">
                             <div class="form-text text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Specify the order number for this assessment
+                                Leave empty to auto-assign next available order, or specify a custom order
+                            </div>
+                            <div id="available_orders" class="mt-2" style="display: none;">
+                                <small class="text-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Available orders: <span id="available_orders_list"></span>
+                                </small>
+                            </div>
+                            <div id="order_conflict" class="mt-2" style="display: none;">
+                                <small class="text-danger">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <span id="order_conflict_message"></span>
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -1684,10 +1765,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                 <i class="bi bi-sort-numeric-down me-1 text-primary"></i>Assessment Order
                             </label>
                             <input type="number" class="form-control" id="edit_assessment_order" name="edit_assessment_order" 
-                                   min="1" max="100">
+                                   placeholder="Leave empty for auto-assignment" min="1" max="100">
                             <div class="form-text text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Specify the order number for this assessment
+                                Leave empty to auto-assign next available order, or specify a custom order
+                            </div>
+                            <div id="edit_available_orders" class="mt-2" style="display: none;">
+                                <small class="text-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Available orders: <span id="edit_available_orders_list"></span>
+                                </small>
+                            </div>
+                            <div id="edit_order_conflict" class="mt-2" style="display: none;">
+                                <small class="text-danger">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <span id="edit_order_conflict_message"></span>
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -3668,8 +3761,210 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Assessment order is now purely manual - no auto-population
+// Assessment order validation and available orders display
+let availableOrders = [];
+
+// Load available orders when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableOrders();
+    
+    // Add event listeners for order validation
+    const orderInputs = ['assessment_order', 'edit_assessment_order'];
+    orderInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', function() {
+                validateOrderInput(inputId, this.value);
+            });
+            input.addEventListener('focus', function() {
+                showAvailableOrders(inputId);
+            });
+        }
+    });
+});
+
+// Load available orders from server
+function loadAvailableOrders() {
+    fetch('ajax_get_available_orders.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'course_id=<?php echo $course['id']; ?>'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            availableOrders = data.available_orders;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading available orders:', error);
+    });
+}
+
+// Show available orders for the given input
+function showAvailableOrders(inputId) {
+    const isEdit = inputId.includes('edit_');
+    const availableDiv = document.getElementById(isEdit ? 'edit_available_orders' : 'available_orders');
+    const availableList = document.getElementById(isEdit ? 'edit_available_orders_list' : 'available_orders_list');
+    
+    if (availableOrders.length > 0) {
+        availableList.textContent = availableOrders.slice(0, 5).join(', ') + (availableOrders.length > 5 ? '...' : '');
+        availableDiv.style.display = 'block';
+    }
+}
+
+// Validate order input
+function validateOrderInput(inputId, value, excludeId = null) {
+    const isEdit = inputId.includes('edit_');
+    const conflictDiv = document.getElementById(isEdit ? 'edit_order_conflict' : 'order_conflict');
+    const conflictMessage = document.getElementById(isEdit ? 'edit_order_conflict_message' : 'order_conflict_message');
+    const availableDiv = document.getElementById(isEdit ? 'edit_available_orders' : 'available_orders');
+    
+    // Hide both divs initially
+    conflictDiv.style.display = 'none';
+    availableDiv.style.display = 'none';
+    
+    if (!value || value <= 0) {
+        // Empty or invalid input - show available orders
+        showAvailableOrders(inputId);
+        return;
+    }
+    
+    const orderValue = parseInt(value);
+    
+    // Get exclude ID for edit form
+    if (isEdit && !excludeId) {
+        excludeId = document.getElementById('edit_assessment_id').value;
+    }
+    
+    // Check if order is already taken
+    fetch('ajax_validate_order.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `course_id=<?php echo $course['id']; ?>&order=${orderValue}&exclude_id=${excludeId || ''}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            // Order is taken
+            conflictMessage.textContent = data.message;
+            conflictDiv.style.display = 'block';
+            availableDiv.style.display = 'none';
+        } else {
+            // Order is available
+            conflictDiv.style.display = 'none';
+            availableDiv.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error validating order:', error);
+    });
+}
+
+// Update edit assessment function to handle order validation
+const originalEditAssessment = editAssessment;
+editAssessment = function(assessment) {
+    originalEditAssessment(assessment);
+    
+    // Remove existing event listeners to avoid duplicates
+    const editOrderInput = document.getElementById('edit_assessment_order');
+    const newEditOrderInput = editOrderInput.cloneNode(true);
+    editOrderInput.parentNode.replaceChild(newEditOrderInput, editOrderInput);
+    
+    // Add new event listener with proper assessment ID
+    newEditOrderInput.addEventListener('input', function() {
+        const assessmentId = document.getElementById('edit_assessment_id').value;
+        validateOrderInput('edit_assessment_order', this.value, assessmentId);
+    });
+    
+    newEditOrderInput.addEventListener('focus', function() {
+        showAvailableOrders('edit_assessment_order');
+    });
+};
 
 </script>
+
+<!-- Content Migration Modal -->
+<div class="modal fade" id="migrationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-arrow-right-circle me-2"></i>Migrate Content to Active Academic Period
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="migrate_course.php">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will copy all course content (modules, assessments, and questions) to an active academic period.
+                        The original content will remain unchanged.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-muted">Source Course:</h6>
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <strong><?php echo htmlspecialchars($course['course_name']); ?></strong><br>
+                                    <small class="text-muted">
+                                        <?php echo htmlspecialchars($course['course_code']); ?> • 
+                                        <?php echo htmlspecialchars($academic_status['academic_year'] . ' - ' . $academic_status['semester_name']); ?>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="target_academic_period" class="form-label fw-bold">
+                                <i class="bi bi-calendar-check me-1"></i>Target Academic Period:
+                            </label>
+                            <select class="form-select" id="target_academic_period" name="target_academic_period_id" required>
+                                <option value="">Select Active Academic Period</option>
+                                <?php
+                                $active_periods = getActiveAcademicPeriods($db);
+                                foreach ($active_periods as $period): ?>
+                                    <option value="<?php echo $period['id']; ?>">
+                                        <?php echo htmlspecialchars($period['academic_year'] . ' - ' . $period['semester_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6 class="fw-bold">What will be migrated:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check text-success me-2"></i>Course structure and details</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All modules and content</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All assessments (<?php echo count($assessments); ?> assessments)</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All questions and answers</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Assessment locks and student progress will be reset in the new academic period.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <input type="hidden" name="source_course_id" value="<?php echo $course['id']; ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-right-circle me-1"></i>Migrate Content
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <?php require_once '../includes/footer.php'; ?> 

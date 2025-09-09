@@ -2,6 +2,42 @@
 $page_title = 'Announcements';
 require_once '../includes/header.php';
 requireRole('admin');
+?>
+
+<style>
+/* Scrollable Announcements Container */
+.announcements-scrollable {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.announcements-scrollable::-webkit-scrollbar {
+    width: 8px;
+}
+
+.announcements-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.announcements-scrollable::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+}
+
+.announcements-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #7DCB80;
+}
+
+/* Firefox scrollbar styling */
+.announcements-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
+</style>
+
+<?php
 
 $message = '';
 $message_type = '';
@@ -198,40 +234,42 @@ $courses = $stmt->fetchAll();
                     <?php if (empty($announcements)): ?>
                         <p class="text-muted">No announcements found.</p>
                     <?php else: ?>
-                        <?php foreach ($announcements as $announcement): ?>
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="card-title mb-0"><?php echo htmlspecialchars($announcement['title']); ?></h6>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" 
-                                                    onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger delete-confirm" 
-                                                    onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                        <div class="announcements-scrollable">
+                            <?php foreach ($announcements as $announcement): ?>
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" 
+                                                        onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger delete-confirm" 
+                                                        onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <p class="card-text"><?php echo nl2br(htmlspecialchars($announcement['content'])); ?></p>
-                                    
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <small class="text-muted">
-                                                By <?php echo htmlspecialchars($announcement['author_name'] ?? 'Unknown User'); ?>
-                                            </small>
-                                            <br>
-                                            <span class="badge bg-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'secondary' : 'info'; ?>">
-                                                <?php echo htmlspecialchars($announcement['announcement_type']); ?>
-                                            </span>
+                                        
+                                        <p class="card-text"><?php echo nl2br(htmlspecialchars($announcement['content'])); ?></p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted">
+                                                    By <?php echo htmlspecialchars($announcement['author_name'] ?? 'Unknown User'); ?>
+                                                </small>
+                                                <br>
+                                                <span class="badge bg-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'secondary' : 'info'; ?>">
+                                                    <?php echo htmlspecialchars($announcement['announcement_type']); ?>
+                                                </span>
+                                            </div>
+                                            <small class="text-muted"><?php echo formatDate($announcement['created_at']); ?></small>
                                         </div>
-                                        <small class="text-muted"><?php echo formatDate($announcement['created_at']); ?></small>
                                     </div>
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>

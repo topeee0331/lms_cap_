@@ -452,7 +452,7 @@ function getSortClause($sort_by) {
     </div>
 
     <!-- Summary Statistics -->
-    <div class="row mb-4">
+    <div class="row mb-4 students-stats">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
@@ -537,7 +537,7 @@ function getSortClause($sort_by) {
     <!-- Students List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
+            <div class="card students-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Enrolled Students (<?php echo count($course_enrollments); ?>)</h5>
                     <div class="d-flex align-items-center">
@@ -564,7 +564,7 @@ function getSortClause($sort_by) {
                             </button>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-responsive students-table-container">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
@@ -777,6 +777,329 @@ function getSortClause($sort_by) {
         </div>
     </div>
 </div>
+
+<style>
+/* Enhanced Students Table Scrolling */
+.students-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    position: relative;
+}
+
+/* Custom scrollbar for students table */
+.students-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.students-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.students-table-container::-webkit-scrollbar-thumb {
+    background: #28a745;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.students-table-container::-webkit-scrollbar-thumb:hover {
+    background: #218838;
+}
+
+/* Firefox scrollbar styling */
+.students-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #28a745 #f1f1f1;
+}
+
+/* Enhanced table styling */
+.students-table-container .table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.students-table-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+    padding: 16px 12px;
+}
+
+.students-table-container .table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.students-table-container .table tbody tr:hover {
+    background-color: rgba(40, 167, 69, 0.05);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+
+.students-table-container .table tbody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Enhanced button styling */
+.students-table-container .btn-group .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    margin: 0 2px;
+}
+
+.students-table-container .btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Badge enhancements */
+.students-table-container .badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.students-table-container .badge:hover {
+    transform: scale(1.05);
+}
+
+/* Student profile picture styling */
+.students-table-container .table tbody td .profile-picture {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.students-table-container .table tbody tr:hover .profile-picture {
+    transform: scale(1.1);
+    border-color: #28a745;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Student name styling */
+.students-table-container .table tbody td .fw-bold {
+    transition: all 0.3s ease;
+}
+
+.students-table-container .table tbody tr:hover .fw-bold {
+    color: #28a745;
+    transform: translateX(2px);
+}
+
+/* Progress bar enhancements */
+.students-table-container .progress {
+    transition: all 0.3s ease;
+}
+
+.students-table-container .table tbody tr:hover .progress {
+    transform: scale(1.05);
+}
+
+/* Scroll indicators for students table */
+.students-scroll-indicator {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.students-scroll-indicator.show {
+    opacity: 1;
+}
+
+.students-scroll-indicator-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.students-scroll-indicator i {
+    background: rgba(40, 167, 69, 0.8);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.students-scroll-indicator-top.hide,
+.students-scroll-indicator-bottom.hide {
+    opacity: 0.3;
+}
+
+/* Card enhancements */
+.students-card {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.students-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 16px 20px;
+}
+
+.students-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Statistics cards enhancements */
+.students-stats .card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.students-stats .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.students-stats .card .card-body {
+    padding: 20px;
+}
+
+.students-stats .card i {
+    transition: transform 0.3s ease;
+}
+
+.students-stats .card:hover i {
+    transform: scale(1.1);
+}
+
+/* Mobile responsiveness for students table */
+@media (max-width: 991.98px) {
+    .students-table-container {
+        max-height: 450px;
+    }
+    
+    .students-table-container .table thead th,
+    .students-table-container .table tbody td {
+        padding: 12px 8px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .students-table-container {
+        max-height: 350px;
+    }
+    
+    .students-table-container .table thead th,
+    .students-table-container .table tbody td {
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    
+    .students-table-container .btn-group .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .students-table-container .table tbody td .profile-picture {
+        width: 36px !important;
+        height: 36px !important;
+    }
+}
+
+/* Loading and animation states */
+.students-table-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.student-row-enter {
+    animation: studentRowEnter 0.5s ease-out;
+}
+
+@keyframes studentRowEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.student-row-exit {
+    animation: studentRowExit 0.5s ease-in;
+}
+
+@keyframes studentRowExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+/* Enhanced modal styling */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Form enhancements */
+.form-control:focus, .form-select:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+</style>
 
 <!-- Enroll Student Modal -->
 <div class="modal fade" id="enrollStudentModal" tabindex="-1" aria-labelledby="enrollStudentModalLabel" aria-hidden="true">
@@ -1105,6 +1428,66 @@ document.querySelector('.card-header .d-flex').appendChild(testButton);
 
 // Initial update after 5 seconds
 setTimeout(updateProgressData, 5000);
+
+// Enhanced scrolling behavior for students table
+document.addEventListener('DOMContentLoaded', function() {
+    function enhanceStudentsTableScrolling() {
+        const tableContainer = document.querySelector('.students-table-container');
+        
+        if (tableContainer) {
+            // Add smooth scrolling behavior
+            tableContainer.style.scrollBehavior = 'smooth';
+            
+            // Add scroll indicators
+            const cardContainer = tableContainer.closest('.card');
+            if (cardContainer) {
+                addStudentsTableScrollIndicators(tableContainer, cardContainer);
+            }
+        }
+    }
+    
+    // Add scroll indicators to students table
+    function addStudentsTableScrollIndicators(scrollContainer, cardContainer) {
+        const scrollIndicator = document.createElement('div');
+        scrollIndicator.className = 'students-scroll-indicator';
+        scrollIndicator.innerHTML = `
+            <div class="students-scroll-indicator-content">
+                <i class="bi bi-chevron-up students-scroll-indicator-top"></i>
+                <i class="bi bi-chevron-down students-scroll-indicator-bottom"></i>
+            </div>
+        `;
+        
+        cardContainer.style.position = 'relative';
+        cardContainer.appendChild(scrollIndicator);
+        
+        // Update scroll indicators based on scroll position
+        function updateStudentsScrollIndicators() {
+            const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+            const isAtTop = scrollContainer.scrollTop === 0;
+            const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+            
+            if (isScrollable) {
+                scrollIndicator.classList.add('show');
+                scrollIndicator.querySelector('.students-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                scrollIndicator.querySelector('.students-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+            } else {
+                scrollIndicator.classList.remove('show');
+            }
+        }
+        
+        // Initial check
+        updateStudentsScrollIndicators();
+        
+        // Update on scroll
+        scrollContainer.addEventListener('scroll', updateStudentsScrollIndicators);
+        
+        // Update on resize
+        window.addEventListener('resize', updateStudentsScrollIndicators);
+    }
+    
+    // Initialize enhanced students table scrolling
+    enhanceStudentsTableScrolling();
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?> 

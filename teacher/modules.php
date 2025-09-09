@@ -783,7 +783,7 @@ usort($all_modules, function($a, $b) {
                             </div>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-responsive modules-table-container">
                             <table class="table table-hover mb-0">
                                 <thead style="background-color: var(--main-green); color: white;">
                                     <tr>
@@ -1912,6 +1912,64 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
+    // Enhanced scrolling behavior for modules table
+    function enhanceModulesTableScrolling() {
+        const tableContainer = document.querySelector('.modules-table-container');
+        
+        if (tableContainer) {
+            // Add smooth scrolling behavior
+            tableContainer.style.scrollBehavior = 'smooth';
+            
+            // Add scroll indicators
+            const cardContainer = tableContainer.closest('.card');
+            if (cardContainer) {
+                addModulesTableScrollIndicators(tableContainer, cardContainer);
+            }
+        }
+    }
+    
+    // Add scroll indicators to modules table
+    function addModulesTableScrollIndicators(scrollContainer, cardContainer) {
+        const scrollIndicator = document.createElement('div');
+        scrollIndicator.className = 'modules-scroll-indicator';
+        scrollIndicator.innerHTML = `
+            <div class="modules-scroll-indicator-content">
+                <i class="bi bi-chevron-up modules-scroll-indicator-top"></i>
+                <i class="bi bi-chevron-down modules-scroll-indicator-bottom"></i>
+            </div>
+        `;
+        
+        cardContainer.style.position = 'relative';
+        cardContainer.appendChild(scrollIndicator);
+        
+        // Update scroll indicators based on scroll position
+        function updateModulesScrollIndicators() {
+            const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+            const isAtTop = scrollContainer.scrollTop === 0;
+            const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+            
+            if (isScrollable) {
+                scrollIndicator.classList.add('show');
+                scrollIndicator.querySelector('.modules-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                scrollIndicator.querySelector('.modules-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+            } else {
+                scrollIndicator.classList.remove('show');
+            }
+        }
+        
+        // Initial check
+        updateModulesScrollIndicators();
+        
+        // Update on scroll
+        scrollContainer.addEventListener('scroll', updateModulesScrollIndicators);
+        
+        // Update on resize
+        window.addEventListener('resize', updateModulesScrollIndicators);
+    }
+    
+    // Initialize enhanced modules table scrolling
+    enhanceModulesTableScrolling();
+    
     // Add smooth scrolling
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
@@ -2059,6 +2117,155 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
 }
 
+/* Enhanced Modules Table Scrolling */
+.modules-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    position: relative;
+}
+
+/* Custom scrollbar for modules table */
+.modules-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modules-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modules-table-container::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.modules-table-container::-webkit-scrollbar-thumb:hover {
+    background: #1e3d32;
+}
+
+/* Firefox scrollbar styling */
+.modules-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
+
+/* Enhanced table styling */
+.modules-table-container .table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.modules-table-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--main-green);
+    z-index: 10;
+    border-bottom: 2px solid #1e3d32;
+    font-weight: 600;
+    color: white;
+    padding: 16px 12px;
+}
+
+.modules-table-container .table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.modules-table-container .table tbody tr:hover {
+    background-color: rgba(46, 94, 78, 0.05);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(46, 94, 78, 0.1);
+}
+
+.modules-table-container .table tbody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Enhanced button styling */
+.modules-table-container .btn-group .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    margin: 0 2px;
+}
+
+.modules-table-container .btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Badge enhancements */
+.modules-table-container .badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.modules-table-container .badge:hover {
+    transform: scale(1.05);
+}
+
+/* Module icon styling */
+.modules-table-container .table tbody td .module-icon i {
+    transition: all 0.3s ease;
+}
+
+.modules-table-container .table tbody tr:hover .module-icon i {
+    transform: scale(1.1);
+    color: var(--main-green) !important;
+}
+
+/* Scroll indicators for modules table */
+.modules-scroll-indicator {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modules-scroll-indicator.show {
+    opacity: 1;
+}
+
+.modules-scroll-indicator-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modules-scroll-indicator i {
+    background: rgba(46, 94, 78, 0.8);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(46, 94, 78, 0.3);
+}
+
+.modules-scroll-indicator-top.hide,
+.modules-scroll-indicator-bottom.hide {
+    opacity: 0.3;
+}
+
 /* Table Enhancements */
 .table {
     margin-bottom: 0;
@@ -2171,6 +2378,36 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Filter Card */
 .card-header.bg-light {
     background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+}
+
+/* Mobile responsiveness for modules table */
+@media (max-width: 991.98px) {
+    .modules-table-container {
+        max-height: 450px;
+    }
+    
+    .modules-table-container .table thead th,
+    .modules-table-container .table tbody td {
+        padding: 12px 8px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .modules-table-container {
+        max-height: 350px;
+    }
+    
+    .modules-table-container .table thead th,
+    .modules-table-container .table tbody td {
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    
+    .modules-table-container .btn-group .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
 }
 
 /* Responsive Design */

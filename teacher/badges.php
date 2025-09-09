@@ -189,7 +189,7 @@ $badge_stats = $stmt->fetch();
     <?php endif; ?>
 
     <!-- Badge Statistics -->
-    <div class="row mb-4">
+    <div class="row mb-4 badges-stats">
         <div class="col-md-4">
             <div class="card bg-primary text-white">
                 <div class="card-body">
@@ -240,12 +240,12 @@ $badge_stats = $stmt->fetch();
     <!-- Badges List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
+            <div class="card badges-card">
                 <div class="card-header">
                     <h5 class="mb-0">All Badges</h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
+                    <div class="table-responsive badges-table-container">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
@@ -296,10 +296,10 @@ $badge_stats = $stmt->fetch();
                                     <td>
                                         <?php if ($badge['is_teacher_badge']): ?>
                                             <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editBadgeModal<?php echo $badge['id']; ?>">
+                                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editBadgeModal<?php echo $badge['id']; ?>" title="Edit Badge">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBadgeModal<?php echo $badge['id']; ?>">
+                                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBadgeModal<?php echo $badge['id']; ?>" title="Delete Badge">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
@@ -464,5 +464,371 @@ $badge_stats = $stmt->fetch();
     </div>
     <?php endif; ?>
 <?php endforeach; ?>
+
+<style>
+/* Enhanced Badges Table Scrolling */
+.badges-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    position: relative;
+}
+
+/* Custom scrollbar for badges table */
+.badges-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.badges-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.badges-table-container::-webkit-scrollbar-thumb {
+    background: #ffc107;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.badges-table-container::-webkit-scrollbar-thumb:hover {
+    background: #e0a800;
+}
+
+/* Firefox scrollbar styling */
+.badges-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #ffc107 #f1f1f1;
+}
+
+/* Enhanced table styling */
+.badges-table-container .table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.badges-table-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+    padding: 16px 12px;
+}
+
+.badges-table-container .table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.badges-table-container .table tbody tr:hover {
+    background-color: rgba(255, 193, 7, 0.05);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+}
+
+.badges-table-container .table tbody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Enhanced button styling */
+.badges-table-container .btn-group .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    margin: 0 2px;
+}
+
+.badges-table-container .btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Badge enhancements */
+.badges-table-container .badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.badges-table-container .badge:hover {
+    transform: scale(1.05);
+}
+
+/* Badge icon styling */
+.badges-table-container .table tbody td img {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.badges-table-container .table tbody tr:hover td img {
+    transform: scale(1.1);
+    border-color: #ffc107;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* Scroll indicators for badges table */
+.badges-scroll-indicator {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.badges-scroll-indicator.show {
+    opacity: 1;
+}
+
+.badges-scroll-indicator-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.badges-scroll-indicator i {
+    background: rgba(255, 193, 7, 0.8);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.badges-scroll-indicator-top.hide,
+.badges-scroll-indicator-bottom.hide {
+    opacity: 0.3;
+}
+
+/* Card enhancements */
+.badges-card {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.badges-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 16px 20px;
+}
+
+.badges-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Statistics cards enhancements */
+.badges-stats .card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.badges-stats .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.badges-stats .card .card-body {
+    padding: 20px;
+}
+
+.badges-stats .card i {
+    transition: transform 0.3s ease;
+}
+
+.badges-stats .card:hover i {
+    transform: scale(1.1);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 991.98px) {
+    .badges-table-container {
+        max-height: 450px;
+    }
+    
+    .badges-table-container .table thead th,
+    .badges-table-container .table tbody td {
+        padding: 12px 8px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .badges-table-container {
+        max-height: 350px;
+    }
+    
+    .badges-table-container .table thead th,
+    .badges-table-container .table tbody td {
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    
+    .badges-table-container .btn-group .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .badges-table-container .table tbody td img {
+        height: 30px !important;
+    }
+}
+
+/* Loading and animation states */
+.badges-table-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.badge-row-enter {
+    animation: badgeRowEnter 0.5s ease-out;
+}
+
+@keyframes badgeRowEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.badge-row-exit {
+    animation: badgeRowExit 0.5s ease-in;
+}
+
+@keyframes badgeRowExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+/* Enhanced modal styling */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Form enhancements */
+.form-control:focus,
+.form-select:focus {
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+</style>
+
+<script>
+// Enhanced scrolling behavior for badges table
+document.addEventListener('DOMContentLoaded', function() {
+    function enhanceBadgesTableScrolling() {
+        const tableContainer = document.querySelector('.badges-table-container');
+        
+        if (tableContainer) {
+            // Add smooth scrolling behavior
+            tableContainer.style.scrollBehavior = 'smooth';
+            
+            // Add scroll indicators
+            const cardContainer = tableContainer.closest('.card');
+            if (cardContainer) {
+                addBadgesTableScrollIndicators(tableContainer, cardContainer);
+            }
+        }
+    }
+    
+    // Add scroll indicators to badges table
+    function addBadgesTableScrollIndicators(scrollContainer, cardContainer) {
+        const scrollIndicator = document.createElement('div');
+        scrollIndicator.className = 'badges-scroll-indicator';
+        scrollIndicator.innerHTML = `
+            <div class="badges-scroll-indicator-content">
+                <i class="bi bi-chevron-up badges-scroll-indicator-top"></i>
+                <i class="bi bi-chevron-down badges-scroll-indicator-bottom"></i>
+            </div>
+        `;
+        
+        cardContainer.style.position = 'relative';
+        cardContainer.appendChild(scrollIndicator);
+        
+        // Update scroll indicators based on scroll position
+        function updateBadgesScrollIndicators() {
+            const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+            const isAtTop = scrollContainer.scrollTop === 0;
+            const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+            
+            if (isScrollable) {
+                scrollIndicator.classList.add('show');
+                scrollIndicator.querySelector('.badges-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                scrollIndicator.querySelector('.badges-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+            } else {
+                scrollIndicator.classList.remove('show');
+            }
+        }
+        
+        // Initial check
+        updateBadgesScrollIndicators();
+        
+        // Update on scroll
+        scrollContainer.addEventListener('scroll', updateBadgesScrollIndicators);
+        
+        // Update on resize
+        window.addEventListener('resize', updateBadgesScrollIndicators);
+    }
+    
+    // Initialize enhanced badges table scrolling
+    enhanceBadgesTableScrolling();
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

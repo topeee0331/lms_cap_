@@ -1360,6 +1360,568 @@ $top_videos = $stmt->fetchAll();
             font-weight: 600;
         }
 
+        /* Enhanced Leaderboard Scrolling */
+        .main-leaderboard-container {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        /* Custom scrollbar for main leaderboard */
+        .main-leaderboard-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .main-leaderboard-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .main-leaderboard-container::-webkit-scrollbar-thumb {
+            background: #FFD700;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+
+        .main-leaderboard-container::-webkit-scrollbar-thumb:hover {
+            background: #FFA500;
+        }
+
+        /* Firefox scrollbar styling */
+        .main-leaderboard-container {
+            scrollbar-width: thin;
+            scrollbar-color: #FFD700 #f1f1f1;
+        }
+
+        /* Top performers scrolling */
+        .top-performers-container {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        /* Custom scrollbar for top performers */
+        .top-performers-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .top-performers-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .top-performers-container::-webkit-scrollbar-thumb {
+            background: #2E5E4E;
+            border-radius: 3px;
+            transition: background 0.3s ease;
+        }
+
+        .top-performers-container::-webkit-scrollbar-thumb:hover {
+            background: #1a3d32;
+        }
+
+        /* Firefox scrollbar styling for top performers */
+        .top-performers-container {
+            scrollbar-width: thin;
+            scrollbar-color: #2E5E4E #f1f1f1;
+        }
+
+        /* Enhanced leaderboard items */
+        .main-leaderboard-container .leaderboard-item {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            margin-bottom: 12px;
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border: 1px solid rgba(46, 94, 78, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            min-height: 120px;
+        }
+
+        .main-leaderboard-container .leaderboard-item:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 20px 40px rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
+        }
+
+        .main-leaderboard-container .leaderboard-item.current-user:hover {
+            box-shadow: 0 20px 40px rgba(46, 94, 78, 0.3);
+            border-color: #2E5E4E;
+        }
+
+        /* Enhanced top performers items */
+        .top-performers-container .d-flex {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, rgba(46, 94, 78, 0.05), rgba(125, 203, 128, 0.05));
+            border: 1px solid rgba(46, 94, 78, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .top-performers-container .d-flex::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .top-performers-container .d-flex:hover::before {
+            left: 100%;
+        }
+
+        .top-performers-container .d-flex:hover {
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(46, 94, 78, 0.25);
+            background: linear-gradient(135deg, rgba(46, 94, 78, 0.1), rgba(125, 203, 128, 0.1));
+            border-color: #2E5E4E;
+        }
+
+        /* Enhanced top performers badges */
+        .top-performers-container .badge {
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 6px 10px;
+        }
+
+        .top-performers-container .d-flex:hover .badge {
+            transform: scale(1.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Enhanced student names in top performers */
+        .top-performers-container .d-flex span:not(.badge) {
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #2E5E4E;
+        }
+
+        .top-performers-container .d-flex:hover span:not(.badge) {
+            color: #1a3d32;
+            font-weight: 600;
+        }
+
+        /* Specific styling for each top performer category */
+        .top-performers-container .badge.bg-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3) !important;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        .top-performers-container .badge.bg-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+            color: #212529 !important;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+        }
+
+        .top-performers-container .badge.bg-info {
+            background: linear-gradient(135deg, #17a2b8, #138496) !important;
+            box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+        }
+
+        .top-performers-container .badge.bg-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34) !important;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .top-performers-container .badge.bg-secondary {
+            background: linear-gradient(135deg, #6c757d, #545b62) !important;
+            box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+        }
+
+        /* Enhanced hover effects for specific badges */
+        .top-performers-container .d-flex:hover .badge.bg-primary {
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.5);
+        }
+
+        .top-performers-container .d-flex:hover .badge.bg-warning {
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.5);
+        }
+
+        .top-performers-container .d-flex:hover .badge.bg-info {
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.5);
+        }
+
+        .top-performers-container .d-flex:hover .badge.bg-success {
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.5);
+        }
+
+        .top-performers-container .d-flex:hover .badge.bg-secondary {
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.5);
+        }
+
+        /* Enhanced card headers for top performers */
+        .top-performers-container + .card-header {
+            background: linear-gradient(135deg, rgba(46, 94, 78, 0.1), rgba(125, 203, 128, 0.1));
+            border-bottom: 2px solid rgba(46, 94, 78, 0.2);
+        }
+
+        .top-performers-container + .card-header h6 {
+            color: #2E5E4E;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .top-performers-container + .card-header i {
+            color: #2E5E4E;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* Empty state styling for top performers */
+        .top-performers-container:empty::after {
+            content: 'No data available';
+            display: block;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 20px;
+            background: rgba(46, 94, 78, 0.05);
+            border-radius: 8px;
+            border: 2px dashed rgba(46, 94, 78, 0.2);
+        }
+
+        /* Enhanced ranking numbers */
+        .top-performers-container .badge:first-child {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .top-performers-container .badge:first-child::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .top-performers-container .d-flex:hover .badge:first-child::before {
+            left: 100%;
+        }
+
+        /* Staggered animation for top performers */
+        .top-performers-container .d-flex {
+            animation: slideInFromRight 0.5s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .top-performers-container .d-flex:nth-child(1) { animation-delay: 0.1s; }
+        .top-performers-container .d-flex:nth-child(2) { animation-delay: 0.2s; }
+        .top-performers-container .d-flex:nth-child(3) { animation-delay: 0.3s; }
+        .top-performers-container .d-flex:nth-child(4) { animation-delay: 0.4s; }
+        .top-performers-container .d-flex:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes slideInFromRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Enhanced scroll indicators for top performers */
+        .top-performers-scroll-indicator i {
+            background: linear-gradient(135deg, #2E5E4E, #1a3d32);
+            box-shadow: 0 2px 8px rgba(46, 94, 78, 0.4);
+        }
+
+        .top-performers-scroll-indicator i:hover {
+            background: linear-gradient(135deg, #1a3d32, #0f241f);
+            transform: scale(1.1);
+        }
+
+        /* Enhanced badges in top performers */
+        .top-performers-container .badge {
+            transition: all 0.3s ease;
+        }
+
+        .top-performers-container .d-flex:hover .badge {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Enhanced profile pictures */
+        .main-leaderboard-container .student-profile-pic {
+            transition: all 0.3s ease;
+        }
+
+        .main-leaderboard-container .leaderboard-item:hover .student-profile-pic {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .main-leaderboard-container .leaderboard-item.current-user:hover .student-profile-pic {
+            box-shadow: 0 8px 20px rgba(46, 94, 78, 0.3);
+        }
+
+        /* Enhanced rank badges */
+        .main-leaderboard-container .rank-badge {
+            transition: all 0.3s ease;
+        }
+
+        .main-leaderboard-container .leaderboard-item:hover .rank-badge {
+            transform: scale(1.1);
+            box-shadow: 0 6px 18px rgba(255, 215, 0, 0.4);
+        }
+
+        .main-leaderboard-container .leaderboard-item.current-user:hover .rank-badge {
+            box-shadow: 0 6px 18px rgba(46, 94, 78, 0.4);
+        }
+
+        /* Enhanced progress bars */
+        .main-leaderboard-container .progress-container {
+            transition: all 0.3s ease;
+        }
+
+        .main-leaderboard-container .leaderboard-item:hover .progress-container {
+            transform: scaleY(1.2);
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+        }
+
+        .main-leaderboard-container .leaderboard-item:hover .progress-bar {
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Scroll indicators for main leaderboard */
+        .main-leaderboard-scroll-indicator {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .main-leaderboard-scroll-indicator.show {
+            opacity: 1;
+        }
+
+        .main-leaderboard-scroll-indicator-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .main-leaderboard-scroll-indicator i {
+            background: rgba(255, 215, 0, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+        }
+
+        .main-leaderboard-scroll-indicator-top.hide,
+        .main-leaderboard-scroll-indicator-bottom.hide {
+            opacity: 0.3;
+        }
+
+        /* Scroll indicators for top performers */
+        .top-performers-scroll-indicator {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .top-performers-scroll-indicator.show {
+            opacity: 1;
+        }
+
+        .top-performers-scroll-indicator-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .top-performers-scroll-indicator i {
+            background: rgba(46, 94, 78, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(46, 94, 78, 0.3);
+        }
+
+        .top-performers-scroll-indicator-top.hide,
+        .top-performers-scroll-indicator-bottom.hide {
+            opacity: 0.3;
+        }
+
+        /* Enhanced statistics cards */
+        .leaderboard-stats .stat-card {
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-stats .stat-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(46, 94, 78, 0.2);
+        }
+
+        .leaderboard-stats .stat-value {
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-stats .stat-card:hover .stat-value {
+            transform: scale(1.1);
+            color: #FFD700;
+        }
+
+        /* Enhanced podium container */
+        .podium-container {
+            transition: all 0.3s ease;
+        }
+
+        .podium-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 25px 50px rgba(255, 215, 0, 0.2);
+        }
+
+        /* Enhanced podium items */
+        .podium-item {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .podium-item:hover {
+            transform: translateY(-15px) scale(1.05);
+            filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.2));
+        }
+
+        /* Enhanced podium profiles */
+        .podium-profile-pic {
+            transition: all 0.3s ease;
+        }
+
+        .podium-item:hover .podium-profile-pic {
+            transform: scale(1.1);
+            box-shadow: 0 12px 35px rgba(255, 215, 0, 0.6);
+        }
+
+        .podium-2nd:hover .podium-profile-pic {
+            box-shadow: 0 12px 35px rgba(192, 192, 192, 0.6);
+        }
+
+        .podium-3rd:hover .podium-profile-pic {
+            box-shadow: 0 12px 35px rgba(205, 127, 50, 0.6);
+        }
+
+        /* Enhanced achievement badges */
+        .achievement-badge {
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-item:hover .achievement-badge {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px currentColor;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 991.98px) {
+            .main-leaderboard-container {
+                max-height: 450px;
+            }
+            
+            .top-performers-container {
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .main-leaderboard-container {
+                max-height: 350px;
+            }
+            
+            .top-performers-container {
+                max-height: 250px;
+            }
+            
+            .main-leaderboard-container .leaderboard-item {
+                margin-bottom: 10px;
+                min-height: 100px;
+            }
+            
+            .top-performers-container .d-flex {
+                padding: 8px 12px;
+                margin-bottom: 8px;
+                font-size: 0.9rem;
+            }
+            
+            .top-performers-container .badge {
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+            
+            .top-performers-container .d-flex:hover {
+                transform: translateX(5px) scale(1.01);
+            }
+        }
+
+        /* Loading and animation states */
+        .leaderboard-loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .leaderboard-item-enter {
+            animation: leaderboardItemEnter 0.5s ease-out;
+        }
+
+        @keyframes leaderboardItemEnter {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .leaderboard-item-exit {
+            animation: leaderboardItemExit 0.5s ease-in;
+        }
+
+        @keyframes leaderboardItemExit {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .leaderboard-item {
@@ -1575,7 +2137,7 @@ $top_videos = $stmt->fetchAll();
                                 </div>
                                 <div class="col-md-4">
                                     <?php if ($current_user): ?>
-                                    <div class="stats-grid">
+                                    <div class="stats-grid leaderboard-stats">
                                         <div class="stat-card">
                                             <div class="stat-value"><?php echo round($current_user['calculated_score'] ?? 0); ?></div>
                                             <div class="stat-label">Score</div>
@@ -1594,7 +2156,7 @@ $top_videos = $stmt->fetchAll();
                                         </div>
                                     </div>
                                     <?php else: ?>
-                                    <div class="stats-grid">
+                                    <div class="stats-grid leaderboard-stats">
                                         <div class="stat-card">
                                             <div class="stat-value">--</div>
                                             <div class="stat-label">Score</div>
@@ -1737,8 +2299,9 @@ $top_videos = $stmt->fetchAll();
                                     </div>
                                     
                                     <!-- Rest of Leaderboard (4th onwards) -->
-                                    <div class="row">
-                                        <?php foreach (array_slice($leaderboard, 3) as $index => $student): ?>
+                                    <div class="main-leaderboard-container">
+                                        <div class="row">
+                                            <?php foreach (array_slice($leaderboard, 3) as $index => $student): ?>
                                         <?php 
                                         $rank_class = '';
                                         if ($student['id'] == $user_id) $rank_class = 'current-user';
@@ -1789,7 +2352,8 @@ $top_videos = $stmt->fetchAll();
                                                 </div>
                                             </div>
                                         </div>
-                                        <?php endforeach; ?>
+                                            <?php endforeach; ?>
+                                        </div>
                                     </div>
                             </div>
                         </div>
@@ -1805,7 +2369,8 @@ $top_videos = $stmt->fetchAll();
                                     </h6>
                             </div>
                             <div class="card-body">
-                                <?php foreach ($top_modules as $index => $student): ?>
+                                <div class="top-performers-container">
+                                    <?php foreach ($top_modules as $index => $student): ?>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div class="d-flex align-items-center">
                                             <span class="badge bg-primary me-2"><?php echo $index + 1; ?></span>
@@ -1813,7 +2378,8 @@ $top_videos = $stmt->fetchAll();
                                         </div>
                                         <span class="badge bg-success"><?php echo $student['completed_modules']; ?> modules</span>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                         
@@ -1825,7 +2391,8 @@ $top_videos = $stmt->fetchAll();
                                     </h6>
                             </div>
                             <div class="card-body">
-                                <?php foreach ($top_scores as $index => $student): ?>
+                                <div class="top-performers-container">
+                                    <?php foreach ($top_scores as $index => $student): ?>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div class="d-flex align-items-center">
                                             <span class="badge bg-warning me-2"><?php echo $index + 1; ?></span>
@@ -1833,7 +2400,8 @@ $top_videos = $stmt->fetchAll();
                                         </div>
                                         <span class="badge bg-info"><?php echo round($student['average_score'] ?? 0, 1); ?>%</span>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                         
@@ -1845,7 +2413,8 @@ $top_videos = $stmt->fetchAll();
                                     </h6>
                             </div>
                             <div class="card-body">
-                                <?php foreach ($top_videos as $index => $student): ?>
+                                <div class="top-performers-container">
+                                    <?php foreach ($top_videos as $index => $student): ?>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div class="d-flex align-items-center">
                                             <span class="badge bg-info me-2"><?php echo $index + 1; ?></span>
@@ -1853,7 +2422,7 @@ $top_videos = $stmt->fetchAll();
                                         </div>
                                         <span class="badge bg-secondary"><?php echo $student['watched_videos']; ?> videos</span>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
                         </div>
@@ -2016,8 +2585,168 @@ $top_videos = $stmt->fetchAll();
             animateLeaderboard();
             animatePodium();
             initializeStudentModal();
+            enhanceLeaderboardScrolling();
         });
         
+        // Enhanced scrolling behavior for leaderboard
+        function enhanceLeaderboardScrolling() {
+            // Main leaderboard scrolling
+            const mainLeaderboardContainer = document.querySelector('.main-leaderboard-container');
+            if (mainLeaderboardContainer) {
+                mainLeaderboardContainer.style.scrollBehavior = 'smooth';
+                const mainLeaderboardCard = mainLeaderboardContainer.closest('.card');
+                if (mainLeaderboardCard) {
+                    addMainLeaderboardScrollIndicators(mainLeaderboardContainer, mainLeaderboardCard);
+                }
+            }
+            
+            // Top performers scrolling
+            const topPerformersContainers = document.querySelectorAll('.top-performers-container');
+            topPerformersContainers.forEach((container, index) => {
+                container.style.scrollBehavior = 'smooth';
+                const topPerformersCard = container.closest('.card');
+                if (topPerformersCard) {
+                    addTopPerformersScrollIndicators(container, topPerformersCard);
+                    addTopPerformersInteractions(container, index);
+                }
+            });
+        }
+
+        // Add interactive features to top performers
+        function addTopPerformersInteractions(container, sectionIndex) {
+            const items = container.querySelectorAll('.d-flex');
+            
+            items.forEach((item, index) => {
+                // Add click handler for more details
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', function() {
+                    // Add a subtle click animation
+                    this.style.transform = 'translateX(8px) scale(0.98)';
+                    setTimeout(() => {
+                        this.style.transform = 'translateX(8px) scale(1.02)';
+                    }, 150);
+                });
+
+                // Add hover sound effect (visual feedback)
+                item.addEventListener('mouseenter', function() {
+                    this.style.transition = 'all 0.2s ease';
+                });
+
+                // Add ranking highlight effect
+                const rankBadge = item.querySelector('.badge:first-child');
+                if (rankBadge) {
+                    rankBadge.addEventListener('mouseenter', function() {
+                        this.style.transform = 'scale(1.2) rotate(5deg)';
+                        this.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+                    });
+
+                    rankBadge.addEventListener('mouseleave', function() {
+                        this.style.transform = 'scale(1) rotate(0deg)';
+                        this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    });
+                }
+
+                // Add achievement badge hover effects
+                const achievementBadge = item.querySelector('.badge:last-child');
+                if (achievementBadge) {
+                    achievementBadge.addEventListener('mouseenter', function() {
+                        this.style.transform = 'scale(1.1)';
+                        this.style.boxShadow = '0 4px 15px currentColor';
+                    });
+
+                    achievementBadge.addEventListener('mouseleave', function() {
+                        this.style.transform = 'scale(1)';
+                        this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    });
+                }
+            });
+
+            // Add section-specific animations
+            const sectionNames = ['Module Completers', 'Assessment Scorers', 'Video Watchers'];
+            const sectionIcons = ['fas fa-book-open', 'fas fa-star', 'fas fa-play-circle'];
+            
+            if (sectionIndex < sectionNames.length) {
+                const cardHeader = container.closest('.card').querySelector('.card-header h6');
+                if (cardHeader) {
+                    cardHeader.addEventListener('mouseenter', function() {
+                        this.style.transform = 'scale(1.05)';
+                        this.style.color = '#1a3d32';
+                    });
+
+                    cardHeader.addEventListener('mouseleave', function() {
+                        this.style.transform = 'scale(1)';
+                        this.style.color = '#2E5E4E';
+                    });
+                }
+            }
+        }
+        
+        // Add scroll indicators to main leaderboard
+        function addMainLeaderboardScrollIndicators(scrollContainer, cardContainer) {
+            const scrollIndicator = document.createElement('div');
+            scrollIndicator.className = 'main-leaderboard-scroll-indicator';
+            scrollIndicator.innerHTML = `
+                <div class="main-leaderboard-scroll-indicator-content">
+                    <i class="fas fa-chevron-up main-leaderboard-scroll-indicator-top"></i>
+                    <i class="fas fa-chevron-down main-leaderboard-scroll-indicator-bottom"></i>
+                </div>
+            `;
+            
+            cardContainer.style.position = 'relative';
+            cardContainer.appendChild(scrollIndicator);
+            
+            function updateMainLeaderboardScrollIndicators() {
+                const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+                const isAtTop = scrollContainer.scrollTop === 0;
+                const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                
+                if (isScrollable) {
+                    scrollIndicator.classList.add('show');
+                    scrollIndicator.querySelector('.main-leaderboard-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                    scrollIndicator.querySelector('.main-leaderboard-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+                } else {
+                    scrollIndicator.classList.remove('show');
+                }
+            }
+            
+            updateMainLeaderboardScrollIndicators();
+            scrollContainer.addEventListener('scroll', updateMainLeaderboardScrollIndicators);
+            window.addEventListener('resize', updateMainLeaderboardScrollIndicators);
+        }
+        
+        // Add scroll indicators to top performers
+        function addTopPerformersScrollIndicators(scrollContainer, cardContainer) {
+            const scrollIndicator = document.createElement('div');
+            scrollIndicator.className = 'top-performers-scroll-indicator';
+            scrollIndicator.innerHTML = `
+                <div class="top-performers-scroll-indicator-content">
+                    <i class="fas fa-chevron-up top-performers-scroll-indicator-top"></i>
+                    <i class="fas fa-chevron-down top-performers-scroll-indicator-bottom"></i>
+                </div>
+            `;
+            
+            cardContainer.style.position = 'relative';
+            cardContainer.appendChild(scrollIndicator);
+            
+            function updateTopPerformersScrollIndicators() {
+                const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+                const isAtTop = scrollContainer.scrollTop === 0;
+                const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                
+                if (isScrollable) {
+                    scrollIndicator.classList.add('show');
+                    scrollIndicator.querySelector('.top-performers-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                    scrollIndicator.querySelector('.top-performers-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+                } else {
+                    scrollIndicator.classList.remove('show');
+                }
+            }
+            
+            updateTopPerformersScrollIndicators();
+            scrollContainer.addEventListener('scroll', updateTopPerformersScrollIndicators);
+            window.addEventListener('resize', updateTopPerformersScrollIndicators);
+        }
+
         // Initialize student modal functionality
         function initializeStudentModal() {
             const studentModal = document.getElementById('studentModal');

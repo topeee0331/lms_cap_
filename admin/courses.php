@@ -2,6 +2,52 @@
 $page_title = 'Manage Courses';
 require_once '../includes/header.php';
 requireRole('admin');
+?>
+
+<style>
+/* Scrollable Table Container */
+.table-scrollable {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.table-scrollable::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #7DCB80;
+}
+
+/* Firefox scrollbar styling */
+.table-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
+
+/* Ensure table header stays visible */
+.table-scrollable .table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+}
+</style>
+
+<?php
 
 $message = '';
 $message_type = '';
@@ -381,7 +427,7 @@ $total_stats = $total_stats_stmt->fetch();
                             </button>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-scrollable">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>

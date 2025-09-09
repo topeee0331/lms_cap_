@@ -172,6 +172,48 @@ section.py-5.bg-light .card {
 section.py-5.bg-light .card-title {
     color: var(--main-green);
 }
+
+/* Horizontal Scrollable Announcements */
+.announcements-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.announcements-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.announcements-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.announcements-container::-webkit-scrollbar-thumb {
+    background: var(--main-green);
+    border-radius: 4px;
+}
+
+.announcements-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-green);
+}
+
+.announcement-card {
+    flex: 0 0 300px;
+    min-width: 300px;
+    max-width: 300px;
+}
+
+@media (max-width: 768px) {
+    .announcement-card {
+        flex: 0 0 280px;
+        min-width: 280px;
+        max-width: 280px;
+    }
+}
 </style>
 <?php
 // Get recent announcements
@@ -580,9 +622,9 @@ if (isLoggedIn()) {
     <section class="py-5 bg-light">
         <div class="container">
             <h3 class="mb-4">Recent Announcements</h3>
-            <div class="row">
+            <div class="announcements-container">
                 <?php foreach ($announcements as $announcement): ?>
-                    <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="announcement-card">
                         <div class="card h-100">
                             <div class="card-body">
                                 <h6 class="card-title"><?php echo htmlspecialchars($announcement['title']); ?></h6>

@@ -203,6 +203,37 @@ function getRandomBgClass($userId) {
 .quickaction-btn i {
     color: var(--accent-green) !important;
 }
+
+/* Scrollable Container Styles */
+.scrollable-container {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.scrollable-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: #7DCB80;
+}
+
+/* Firefox scrollbar styling */
+.scrollable-container {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -396,6 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h5 class="mb-0">Recent Users</h5>
                 </div>
                 <div class="card-body p-0">
+                    <div class="scrollable-container">
                     <ul class="list-group list-group-flush">
                         <?php foreach ($recent_users as $user): ?>
                         <li class="list-group-item d-flex align-items-center">
@@ -410,6 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </li>
                         <?php endforeach; ?>
                     </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -425,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (empty($recent_courses)): ?>
                         <p class="text-muted">No courses found.</p>
                     <?php else: ?>
+                        <div class="scrollable-container">
                         <?php foreach ($recent_courses as $course): ?>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div>
@@ -441,6 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -459,6 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (empty($recent_announcements)): ?>
                         <p class="text-muted">No announcements found.</p>
                     <?php else: ?>
+                        <div class="scrollable-container">
                         <?php foreach ($recent_announcements as $announcement): ?>
                             <div class="border-bottom pb-3 mb-3">
                                 <h6 class="mb-1"><?php echo htmlspecialchars($announcement['title']); ?></h6>
@@ -471,6 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>

@@ -241,6 +241,37 @@ foreach ($enrollment_requests as $request) {
 .rejection-modal .modal-dialog {
     pointer-events: auto;
 }
+
+/* Scrollable Container Styles */
+.scrollable-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.scrollable-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: #7DCB80;
+}
+
+/* Firefox scrollbar styling */
+.scrollable-container {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
 </style>
 
 <div class="container-fluid">
@@ -294,103 +325,105 @@ foreach ($enrollment_requests as $request) {
                             <a href="courses.php" class="btn btn-primary">Browse Courses</a>
                         </div>
                     <?php else: ?>
-                        <?php foreach ($enrollment_requests as $request): ?>
-                            <div class="card mb-3 request-card <?php echo $request['status']; ?>" data-request-id="<?php echo $request['id']; ?>">
-                                <div class="card-body">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-6">
-                                            <h6 class="card-title mb-1"><?php echo htmlspecialchars($request['course_name']); ?></h6>
-                                            <p class="card-text text-muted mb-1">
-                                                <small>
-                                                    <i class="bi bi-code"></i> <?php echo htmlspecialchars($request['course_code']); ?> • 
-                                                    <i class="bi bi-person"></i> <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['teacher_last_name']); ?>
-                                                </small>
-                                            </p>
-                                            <p class="card-text text-muted mb-0">
-                                                <small>
-                                                    <i class="bi bi-calendar"></i> Requested: <?php echo date('M j, Y g:i A', strtotime($request['requested_at'])); ?>
-                                                </small>
-                                            </p>
-                                        </div>
-                                        <div class="col-md-3 text-center">
-                                            <?php
-                                            $status_class = '';
-                                            $status_text = '';
-                                            switch ($request['status']) {
-                                                case 'pending':
-                                                    $status_class = 'status-pending';
-                                                    $status_text = 'Pending';
-                                                    break;
-                                                case 'approved':
-                                                    $status_class = 'status-approved';
-                                                    $status_text = 'Approved';
-                                                    break;
-                                                case 'rejected':
-                                                    $status_class = 'status-rejected';
-                                                    $status_text = 'Rejected';
-                                                    break;
-                                            }
-                                            ?>
-                                            <span class="badge status-badge <?php echo $status_class; ?>">
-                                                <?php echo $status_text; ?>
-                                            </span>
-                                        </div>
-                                        <div class="col-md-3 text-end">
-                                            <?php if ($request['status'] === 'rejected'): ?>
-                                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectionModal<?php echo $request['id']; ?>">
-                                                    <i class="bi bi-info-circle"></i> View Reason
-                                                </button>
-                                            <?php elseif ($request['status'] === 'approved'): ?>
-                                                <span class="text-success">
-                                                    <i class="bi bi-check-circle"></i> Enrolled
+                        <div class="scrollable-container">
+                            <?php foreach ($enrollment_requests as $request): ?>
+                                <div class="card mb-3 request-card <?php echo $request['status']; ?>" data-request-id="<?php echo $request['id']; ?>">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-6">
+                                                <h6 class="card-title mb-1"><?php echo htmlspecialchars($request['course_name']); ?></h6>
+                                                <p class="card-text text-muted mb-1">
+                                                    <small>
+                                                        <i class="bi bi-code"></i> <?php echo htmlspecialchars($request['course_code']); ?> • 
+                                                        <i class="bi bi-person"></i> <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['teacher_last_name']); ?>
+                                                    </small>
+                                                </p>
+                                                <p class="card-text text-muted mb-0">
+                                                    <small>
+                                                        <i class="bi bi-calendar"></i> Requested: <?php echo date('M j, Y g:i A', strtotime($request['requested_at'])); ?>
+                                                    </small>
+                                                </p>
+                                            </div>
+                                            <div class="col-md-3 text-center">
+                                                <?php
+                                                $status_class = '';
+                                                $status_text = '';
+                                                switch ($request['status']) {
+                                                    case 'pending':
+                                                        $status_class = 'status-pending';
+                                                        $status_text = 'Pending';
+                                                        break;
+                                                    case 'approved':
+                                                        $status_class = 'status-approved';
+                                                        $status_text = 'Approved';
+                                                        break;
+                                                    case 'rejected':
+                                                        $status_class = 'status-rejected';
+                                                        $status_text = 'Rejected';
+                                                        break;
+                                                }
+                                                ?>
+                                                <span class="badge status-badge <?php echo $status_class; ?>">
+                                                    <?php echo $status_text; ?>
                                                 </span>
-                                            <?php else: ?>
-                                                <span class="text-muted">
-                                                    <i class="bi bi-clock"></i> Under Review
-                                                </span>
-                                            <?php endif; ?>
+                                            </div>
+                                            <div class="col-md-3 text-end">
+                                                <?php if ($request['status'] === 'rejected'): ?>
+                                                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectionModal<?php echo $request['id']; ?>">
+                                                        <i class="bi bi-info-circle"></i> View Reason
+                                                    </button>
+                                                <?php elseif ($request['status'] === 'approved'): ?>
+                                                    <span class="text-success">
+                                                        <i class="bi bi-check-circle"></i> Enrolled
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">
+                                                        <i class="bi bi-clock"></i> Under Review
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <?php if ($request['status'] === 'rejected'): ?>
-                                <!-- Rejection Reason Modal -->
-                                <div class="modal fade rejection-modal" id="rejectionModal<?php echo $request['id']; ?>" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-                                    <div class="modal-dialog modal-lg">
-                                        <div class="modal-content">
-                                            <div class="modal-header bg-danger text-white">
-                                                <h5 class="modal-title">
-                                                    <i class="bi bi-exclamation-triangle"></i> Rejection Reason
-                                                </h5>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <h6 class="mb-3"><?php echo htmlspecialchars($request['course_name']); ?></h6>
-                                                <p class="text-muted mb-3">
-                                                    <small>Rejected on <?php echo date('M j, Y g:i A', strtotime($request['approved_at'])); ?></small>
-                                                </p>
-                                                <div class="rejection-reason-text">
-                                                    <strong>Reason for Rejection:</strong><br><br>
-                                                    <?php if (!empty($request['rejection_reason'])): ?>
-                                                        <?php echo htmlspecialchars($request['rejection_reason']); ?>
-                                                    <?php else: ?>
-                                                        <em>No specific reason provided.</em>
-                                                    <?php endif; ?>
+                                <?php if ($request['status'] === 'rejected'): ?>
+                                    <!-- Rejection Reason Modal -->
+                                    <div class="modal fade rejection-modal" id="rejectionModal<?php echo $request['id']; ?>" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-danger text-white">
+                                                    <h5 class="modal-title">
+                                                        <i class="bi bi-exclamation-triangle"></i> Rejection Reason
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
-                                                <p class="text-muted small mt-3">
-                                                    <i class="bi bi-info-circle"></i> You can request enrollment again if you believe the issue has been resolved.
-                                                </p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                <a href="courses.php" class="btn btn-primary">Browse Courses</a>
+                                                <div class="modal-body">
+                                                    <h6 class="mb-3"><?php echo htmlspecialchars($request['course_name']); ?></h6>
+                                                    <p class="text-muted mb-3">
+                                                        <small>Rejected on <?php echo date('M j, Y g:i A', strtotime($request['approved_at'])); ?></small>
+                                                    </p>
+                                                    <div class="rejection-reason-text">
+                                                        <strong>Reason for Rejection:</strong><br><br>
+                                                        <?php if (!empty($request['rejection_reason'])): ?>
+                                                            <?php echo htmlspecialchars($request['rejection_reason']); ?>
+                                                        <?php else: ?>
+                                                            <em>No specific reason provided.</em>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <p class="text-muted small mt-3">
+                                                        <i class="bi bi-info-circle"></i> You can request enrollment again if you believe the issue has been resolved.
+                                                    </p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    <a href="courses.php" class="btn btn-primary">Browse Courses</a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>

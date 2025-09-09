@@ -163,6 +163,322 @@ foreach ($all_badges as $badge) {
             50% { transform: scale(1.2); }
             100% { transform: scale(1); }
         }
+
+        /* Enhanced Student Badges Scrolling */
+        .all-badges-container {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        /* Custom scrollbar for all badges */
+        .all-badges-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .all-badges-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .all-badges-container::-webkit-scrollbar-thumb {
+            background: #ffc107;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+
+        .all-badges-container::-webkit-scrollbar-thumb:hover {
+            background: #e0a800;
+        }
+
+        /* Firefox scrollbar styling */
+        .all-badges-container {
+            scrollbar-width: thin;
+            scrollbar-color: #ffc107 #f1f1f1;
+        }
+
+        /* Recent badges scrolling */
+        .recent-badges-container {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        /* Custom scrollbar for recent badges */
+        .recent-badges-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .recent-badges-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .recent-badges-container::-webkit-scrollbar-thumb {
+            background: #28a745;
+            border-radius: 3px;
+            transition: background 0.3s ease;
+        }
+
+        .recent-badges-container::-webkit-scrollbar-thumb:hover {
+            background: #218838;
+        }
+
+        /* Firefox scrollbar styling for recent badges */
+        .recent-badges-container {
+            scrollbar-width: thin;
+            scrollbar-color: #28a745 #f1f1f1;
+        }
+
+        /* Enhanced badge cards */
+        .all-badges-container .badge-card {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid transparent;
+            margin-bottom: 16px;
+        }
+
+        .all-badges-container .badge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.2);
+            border-color: #ffc107;
+        }
+
+        .all-badges-container .badge-card.earned:hover {
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+            border-color: #28a745;
+        }
+
+        .all-badges-container .badge-card.locked:hover {
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.2);
+            border-color: #6c757d;
+        }
+
+        /* Enhanced recent badge items */
+        .recent-badges-container .recent-badge-item {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            background: rgba(40, 167, 69, 0.05);
+            border: 1px solid rgba(40, 167, 69, 0.1);
+            padding: 12px;
+        }
+
+        .recent-badges-container .recent-badge-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+        }
+
+        /* Enhanced badge images */
+        .all-badges-container .badge-image {
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+
+        .all-badges-container .badge-card:hover .badge-image {
+            transform: scale(1.1);
+            border-color: #ffc107;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+
+        .all-badges-container .badge-card.earned:hover .badge-image {
+            border-color: #28a745;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        /* Enhanced recent badge icons */
+        .recent-badges-container .badge-icon {
+            transition: all 0.3s ease;
+        }
+
+        .recent-badges-container .recent-badge-item:hover .badge-icon {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        /* Scroll indicators for all badges */
+        .all-badges-scroll-indicator {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .all-badges-scroll-indicator.show {
+            opacity: 1;
+        }
+
+        .all-badges-scroll-indicator-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .all-badges-scroll-indicator i {
+            background: rgba(255, 193, 7, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+        }
+
+        .all-badges-scroll-indicator-top.hide,
+        .all-badges-scroll-indicator-bottom.hide {
+            opacity: 0.3;
+        }
+
+        /* Scroll indicators for recent badges */
+        .recent-badges-scroll-indicator {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .recent-badges-scroll-indicator.show {
+            opacity: 1;
+        }
+
+        .recent-badges-scroll-indicator-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .recent-badges-scroll-indicator i {
+            background: rgba(40, 167, 69, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .recent-badges-scroll-indicator-top.hide,
+        .recent-badges-scroll-indicator-bottom.hide {
+            opacity: 0.3;
+        }
+
+        /* Enhanced statistics cards */
+        .badges-stats .card {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .badges-stats .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .badges-stats .card i {
+            transition: transform 0.3s ease;
+        }
+
+        .badges-stats .card:hover i {
+            transform: scale(1.1);
+        }
+
+        /* Enhanced progress circle */
+        .progress-circle {
+            transition: all 0.3s ease;
+        }
+
+        .badges-stats .card:hover .progress-circle {
+            transform: scale(1.05);
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 991.98px) {
+            .all-badges-container {
+                max-height: 450px;
+            }
+            
+            .recent-badges-container {
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .all-badges-container {
+                max-height: 350px;
+            }
+            
+            .recent-badges-container {
+                max-height: 250px;
+            }
+            
+            .all-badges-container .badge-card {
+                margin-bottom: 12px;
+            }
+            
+            .recent-badges-container .recent-badge-item {
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+        }
+
+        /* Loading and animation states */
+        .badges-loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .badge-item-enter {
+            animation: badgeItemEnter 0.5s ease-out;
+        }
+
+        @keyframes badgeItemEnter {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .badge-item-exit {
+            animation: badgeItemExit 0.5s ease-in;
+        }
+
+        @keyframes badgeItemExit {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+        }
     </style>
 </head>
 <body>
@@ -178,7 +494,7 @@ foreach ($all_badges as $badge) {
                 </div>
 
                 <!-- Statistics -->
-                <div class="row mb-4">
+                <div class="row mb-4 badges-stats">
                     <div class="col-md-4">
                         <div class="card text-center">
                             <div class="card-body">
@@ -255,8 +571,9 @@ foreach ($all_badges as $badge) {
                                 <h5 class="mb-0">All Badges</h5>
                             </div>
                             <div class="card-body">
-                                <div class="row">
-                                    <?php foreach ($all_badges as $badge): ?>
+                                <div class="all-badges-container">
+                                    <div class="row">
+                                        <?php foreach ($all_badges as $badge): ?>
                                         <div class="col-md-6 col-lg-4 mb-3">
                                             <div class="card badge-card <?php echo $badge['is_earned'] ? 'earned' : 'locked'; ?> position-relative">
                                                 <div class="card-body text-center">
@@ -305,7 +622,8 @@ foreach ($all_badges as $badge) {
                                                 </div>
                                             </div>
                                         </div>
-                                    <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -321,7 +639,8 @@ foreach ($all_badges as $badge) {
                                 <?php if (empty($recent_badges)): ?>
                                     <p class="text-muted">No badges earned yet. Keep learning to earn badges!</p>
                                 <?php else: ?>
-                                    <?php foreach ($recent_badges as $badge): ?>
+                                    <div class="recent-badges-container">
+                                        <?php foreach ($recent_badges as $badge): ?>
                                         <div class="d-flex align-items-center mb-3 p-2 rounded recent-badge-item" style="background: rgba(40, 167, 69, 0.05); border: 1px solid rgba(40, 167, 69, 0.1);">
                                                                                          <div class="badge-icon-container me-3">
                                                  <?php 
@@ -355,7 +674,8 @@ foreach ($all_badges as $badge) {
                                                 <i class="fas fa-star"></i> <?php echo ucfirst(str_replace('_', ' ', $badge['badge_type'])); ?>
                                             </span>
                                         </div>
-                                    <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -392,5 +712,100 @@ foreach ($all_badges as $badge) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Enhanced scrolling behavior for student badges
+        document.addEventListener('DOMContentLoaded', function() {
+            function enhanceStudentBadgesScrolling() {
+                // All badges scrolling
+                const allBadgesContainer = document.querySelector('.all-badges-container');
+                if (allBadgesContainer) {
+                    allBadgesContainer.style.scrollBehavior = 'smooth';
+                    const allBadgesCard = allBadgesContainer.closest('.card');
+                    if (allBadgesCard) {
+                        addAllBadgesScrollIndicators(allBadgesContainer, allBadgesCard);
+                    }
+                }
+                
+                // Recent badges scrolling
+                const recentBadgesContainer = document.querySelector('.recent-badges-container');
+                if (recentBadgesContainer) {
+                    recentBadgesContainer.style.scrollBehavior = 'smooth';
+                    const recentBadgesCard = recentBadgesContainer.closest('.card');
+                    if (recentBadgesCard) {
+                        addRecentBadgesScrollIndicators(recentBadgesContainer, recentBadgesCard);
+                    }
+                }
+            }
+            
+            // Add scroll indicators to all badges
+            function addAllBadgesScrollIndicators(scrollContainer, cardContainer) {
+                const scrollIndicator = document.createElement('div');
+                scrollIndicator.className = 'all-badges-scroll-indicator';
+                scrollIndicator.innerHTML = `
+                    <div class="all-badges-scroll-indicator-content">
+                        <i class="fas fa-chevron-up all-badges-scroll-indicator-top"></i>
+                        <i class="fas fa-chevron-down all-badges-scroll-indicator-bottom"></i>
+                    </div>
+                `;
+                
+                cardContainer.style.position = 'relative';
+                cardContainer.appendChild(scrollIndicator);
+                
+                function updateAllBadgesScrollIndicators() {
+                    const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+                    const isAtTop = scrollContainer.scrollTop === 0;
+                    const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                    
+                    if (isScrollable) {
+                        scrollIndicator.classList.add('show');
+                        scrollIndicator.querySelector('.all-badges-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                        scrollIndicator.querySelector('.all-badges-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+                    } else {
+                        scrollIndicator.classList.remove('show');
+                    }
+                }
+                
+                updateAllBadgesScrollIndicators();
+                scrollContainer.addEventListener('scroll', updateAllBadgesScrollIndicators);
+                window.addEventListener('resize', updateAllBadgesScrollIndicators);
+            }
+            
+            // Add scroll indicators to recent badges
+            function addRecentBadgesScrollIndicators(scrollContainer, cardContainer) {
+                const scrollIndicator = document.createElement('div');
+                scrollIndicator.className = 'recent-badges-scroll-indicator';
+                scrollIndicator.innerHTML = `
+                    <div class="recent-badges-scroll-indicator-content">
+                        <i class="fas fa-chevron-up recent-badges-scroll-indicator-top"></i>
+                        <i class="fas fa-chevron-down recent-badges-scroll-indicator-bottom"></i>
+                    </div>
+                `;
+                
+                cardContainer.style.position = 'relative';
+                cardContainer.appendChild(scrollIndicator);
+                
+                function updateRecentBadgesScrollIndicators() {
+                    const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+                    const isAtTop = scrollContainer.scrollTop === 0;
+                    const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                    
+                    if (isScrollable) {
+                        scrollIndicator.classList.add('show');
+                        scrollIndicator.querySelector('.recent-badges-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                        scrollIndicator.querySelector('.recent-badges-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+                    } else {
+                        scrollIndicator.classList.remove('show');
+                    }
+                }
+                
+                updateRecentBadgesScrollIndicators();
+                scrollContainer.addEventListener('scroll', updateRecentBadgesScrollIndicators);
+                window.addEventListener('resize', updateRecentBadgesScrollIndicators);
+            }
+            
+            // Initialize enhanced scrolling
+            enhanceStudentBadgesScrolling();
+        });
+    </script>
 </body>
 </html> 

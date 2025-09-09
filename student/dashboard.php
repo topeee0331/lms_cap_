@@ -515,6 +515,37 @@ $stats['completed_modules'] = $completed_modules;
             background-color: #007bff;
             color: white;
         }
+
+        /* Scrollable Container Styles */
+        .scrollable-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .scrollable-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .scrollable-container::-webkit-scrollbar-thumb {
+            background: #2E5E4E;
+            border-radius: 4px;
+        }
+
+        .scrollable-container::-webkit-scrollbar-thumb:hover {
+            background: #7DCB80;
+        }
+
+        /* Firefox scrollbar styling */
+        .scrollable-container {
+            scrollbar-width: thin;
+            scrollbar-color: #2E5E4E #f1f1f1;
+        }
     </style>
 </head>
 <body>
@@ -653,6 +684,7 @@ $stats['completed_modules'] = $completed_modules;
                                 <?php if (empty($enrollment_requests)): ?>
                                     <p class="text-muted">No enrollment requests found.</p>
                                 <?php else: ?>
+                                    <div class="scrollable-container">
                                     <?php foreach ($enrollment_requests as $request): ?>
                                         <div class="d-flex justify-content-between align-items-start mb-3 p-2 rounded">
                                             <div class="flex-grow-1">
@@ -681,6 +713,7 @@ $stats['completed_modules'] = $completed_modules;
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -696,6 +729,7 @@ $stats['completed_modules'] = $completed_modules;
                                 <?php if (empty($recent_announcements)): ?>
                                     <p class="text-muted">No announcements available.</p>
                                 <?php else: ?>
+                                    <div class="scrollable-container">
                                     <?php foreach ($recent_announcements as $announcement): ?>
                                         <div class="announcement-item">
                                             <div class="d-flex justify-content-between align-items-start">
@@ -719,6 +753,7 @@ $stats['completed_modules'] = $completed_modules;
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -813,6 +848,7 @@ $stats['completed_modules'] = $completed_modules;
                                 <?php if (empty($recent_activities)): ?>
                                     <p class="text-muted">No recent activities</p>
                                 <?php else: ?>
+                                    <div class="scrollable-container">
                                     <?php foreach ($recent_activities as $activity): ?>
                                         <div class="activity-item">
                                             <div class="d-flex justify-content-between">
@@ -827,6 +863,7 @@ $stats['completed_modules'] = $completed_modules;
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -843,6 +880,7 @@ $stats['completed_modules'] = $completed_modules;
                                 <?php if (empty($badges)): ?>
                                     <p class="text-muted">No badges earned yet. Keep learning to earn badges!</p>
                                 <?php else: ?>
+                                    <div class="scrollable-container">
                                     <?php foreach ($badges as $badge): ?>
                                         <div class="badge-item">
                                             <?php
@@ -860,6 +898,7 @@ $stats['completed_modules'] = $completed_modules;
                                             <small class="text-muted"><?php echo $badge['formatted_date']; ?></small>
                                         </div>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>

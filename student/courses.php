@@ -330,7 +330,7 @@ $course_themes = [
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .course-image {
-            height: 200px;
+            height: 240px;
             object-fit: cover;
         }
         .enrolled-badge {
@@ -575,6 +575,223 @@ $course_themes = [
             50% { transform: scale(1.02); }
             100% { transform: scale(1); }
         }
+
+        /* Course Slider Styles */
+        .course-slider-container {
+            position: relative;
+            overflow: hidden;
+            margin: 0 -15px;
+            padding: 0 15px;
+        }
+
+        .course-slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .course-slider::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        .course-slide {
+            flex: 0 0 400px;
+            min-width: 400px;
+            max-width: 400px;
+        }
+
+        @media (max-width: 768px) {
+            .course-slide {
+                flex: 0 0 360px;
+                min-width: 360px;
+                max-width: 360px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .course-slide {
+                flex: 0 0 320px;
+                min-width: 320px;
+                max-width: 320px;
+            }
+        }
+
+        /* Ensure all course cards have the same height */
+        .course-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .course-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .course-card .card-text {
+            flex: 1;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+            max-height: 4.2em; /* 3 lines * 1.4 line-height */
+        }
+
+        /* Ensure buttons stay at the bottom */
+        .course-card .btn {
+            margin-top: auto;
+        }
+
+        /* Ensure consistent spacing for course statistics */
+        .course-card .row.text-center {
+            margin-bottom: 1rem;
+        }
+
+        /* Ensure course details section has consistent height */
+        .course-card .row.text-center.mb-3 {
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Ensure course statistics section has consistent height */
+        .course-card .row.text-center.mb-3:last-of-type {
+            min-height: 50px;
+        }
+
+        /* Ensure enrollment date section has consistent height */
+        .course-card .text-center.mb-3 {
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ensure semester status warning has consistent height */
+        .course-card .alert-warning.alert-sm {
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        .slider-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .slider-nav:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .slider-nav.prev {
+            left: 10px;
+        }
+
+        .slider-nav.next {
+            right: 10px;
+        }
+
+        .slider-nav:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .slider-nav:disabled:hover {
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Section headers with slider controls */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .slider-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .slider-dots {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .slider-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #dee2e6;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .slider-dot.active {
+            background: #2E5E4E;
+        }
+
+        .slider-dot:hover {
+            background: #7DCB80;
+        }
+
+        /* Ensure modal course cards also have consistent heights */
+        .modal .course-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal .course-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal .course-card .card-text {
+            flex: 1;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+            max-height: 2.8em; /* 2 lines * 1.4 line-height */
+        }
+
+        .modal .course-card .btn {
+            margin-top: auto;
+        }
+
+        /* Ensure modal course statistics have consistent height */
+        .modal .course-card .row.text-center.mb-2 {
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -715,90 +932,112 @@ $course_themes = [
                 <!-- Enrolled Courses Section -->
                 <?php if (!empty($enrolled_courses)): ?>
                     <div class="mb-4">
-                        <h3>My Enrolled Courses</h3>
-                        <div class="row" id="enrolled-courses-container">
-                            <?php foreach ($enrolled_courses as $index => $course): ?>
-                                <?php
-                                    $theme = $course_themes[$course['id'] % count($course_themes)];
-                                ?>
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card course-card position-relative">
-                                        <!-- Course Status Badge - Top Right -->
-                                        <div class="course-status-badge bg-primary">
-                                            <i class="fas fa-user-check"></i> Enrolled
-                                        </div>
-                                        
-                                        <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
-                                            <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
-                                            <h2 class="course-code-text">
-                                                <?php echo htmlspecialchars($course['course_code'] ?? 'N/A'); ?>
-                                            </h2>
-                                        </div>
-                                        <div class="card-body">
-                                            <h5 class="card-title"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h5>
-                                            <p class="card-text text-muted">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
-                                            
-                                            <!-- Course Details -->
-                                            <div class="row text-center mb-3">
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-calendar-alt"></i><br>
-                                                        <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-clock"></i><br>
-                                                        <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-layer-group"></i><br>
-                                                        <?php echo $course['module_count'] ?? 0; ?> modules
-                                                    </small>
-                                                </div>
+                        <div class="section-header">
+                            <h3>My Enrolled Courses</h3>
+                            <div class="slider-controls">
+                                <button class="btn btn-outline-secondary btn-sm" id="enrolled-prev">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" id="enrolled-next">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="course-slider-container">
+                            <div class="course-slider" id="enrolled-slider">
+                                <?php foreach ($enrolled_courses as $index => $course): ?>
+                                    <?php
+                                        $theme = $course_themes[$course['id'] % count($course_themes)];
+                                    ?>
+                                    <div class="course-slide">
+                                        <div class="card course-card position-relative h-100">
+                                            <!-- Course Status Badge - Top Right -->
+                                            <div class="course-status-badge bg-primary">
+                                                <i class="fas fa-user-check"></i> Enrolled
                                             </div>
                                             
-                                            <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
-                                            
-                                            <!-- Course Statistics -->
-                                            <div class="row text-center mb-3">
-                                                <div class="col-6">
+                                            <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
+                                                <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
+                                                <h2 class="course-code-text">
+                                                    <?php echo htmlspecialchars($course['course_code'] ?? 'N/A'); ?>
+                                                </h2>
+                                            </div>
+                                            <div class="card-body">
+                                                <h5 class="card-title"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h5>
+                                                <p class="card-text text-muted">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
+                                                
+                                                <!-- Course Details -->
+                                                <div class="row text-center mb-3">
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-calendar-alt"></i><br>
+                                                            <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock"></i><br>
+                                                            <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-layer-group"></i><br>
+                                                            <?php echo $course['module_count'] ?? 0; ?> modules
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
+                                                
+                                                <!-- Course Statistics -->
+                                                <div class="row text-center mb-3">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-tasks"></i><br>
+                                                            <?php echo $course['assessment_count'] ?? 0; ?> assessments
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-check-circle"></i><br>
+                                                            <?php echo $course['finished_assessments'] ?? 0; ?> finished
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Enrollment Date -->
+                                                <div class="text-center mb-3">
                                                     <small class="text-muted">
-                                                        <i class="fas fa-tasks"></i><br>
-                                                        <?php echo $course['assessment_count'] ?? 0; ?> assessments
+                                                        <i class="fas fa-calendar-check"></i> Enrolled: <?php echo date('M j, Y', strtotime($course['enrolled_at'])); ?>
                                                     </small>
                                                 </div>
-                                                <div class="col-6">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-check-circle"></i><br>
-                                                        <?php echo $course['finished_assessments'] ?? 0; ?> finished
-                                                    </small>
-                                                </div>
+                                                
+                                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-primary w-100">
+                                                    Continue Learning
+                                                </a>
                                             </div>
-                                            
-                                            <!-- Enrollment Date -->
-                                            <div class="text-center mb-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-calendar-check"></i> Enrolled: <?php echo date('M j, Y', strtotime($course['enrolled_at'])); ?>
-                                                </small>
-                                            </div>
-                                            
-                                            <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-primary w-100">
-                                                Continue Learning
-                                            </a>
                                         </div>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
 
                 <!-- Other Available Courses Section (Section-Assigned Only) -->
                 <div class="mb-4">
-                    <h3><?php echo empty($enrolled_courses) ? 'Available Courses' : 'Other Available Courses'; ?></h3>
+                    <div class="section-header">
+                        <h3><?php echo empty($enrolled_courses) ? 'Available Courses' : 'Other Available Courses'; ?></h3>
+                        <div class="slider-controls">
+                            <button class="btn btn-outline-secondary btn-sm" id="available-prev">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="available-next">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                     <p class="text-muted mb-3">
                         <i class="fas fa-info-circle"></i> These are courses available in your assigned section that you can enroll in directly.
                     </p>
@@ -808,186 +1047,188 @@ $course_themes = [
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     <?php else: ?>
-                        <div class="row">
-                            <?php foreach ($section_available_courses as $index => $course): ?>
-                                <?php
-                                    $theme = $course_themes[$course['id'] % count($course_themes)];
-                                ?>
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card course-card position-relative">
-                                        <!-- Course Status Badge - Top Right -->
-                                        <div class="course-status-badge <?php 
-                                            if ($course['is_enrolled']): 
-                                                echo 'bg-primary';
-                                            elseif ($course['has_pending_request']): 
-                                                echo 'bg-warning';
-                                            elseif ($course['has_rejected_request']): 
-                                                echo 'bg-danger';
-                                            elseif (!$course['semester_active'] || !$course['academic_year_active']): 
-                                                echo 'bg-warning';
-                                            else: 
-                                                echo 'bg-info';
-                                            endif; 
-                                        ?>">
-                                            <?php if ($course['is_enrolled']): ?>
-                                                <i class="fas fa-user-check"></i> Enrolled
-                                            <?php elseif ($course['has_pending_request']): ?>
-                                                <i class="fas fa-clock"></i> Pending
-                                            <?php elseif ($course['has_rejected_request']): ?>
-                                                <i class="fas fa-times-circle"></i> Rejected
-                                            <?php elseif (!$course['semester_active'] || !$course['academic_year_active']): ?>
-                                                <i class="fas fa-exclamation-triangle"></i> Inactive Semester
-                                            <?php else: ?>
-                                                <i class="fas fa-plus-circle"></i> Available
-                                            <?php endif; ?>
-                                        </div>
-                                        
-                                        <!-- Semester Status Indicator - Top Left -->
-                                        <div class="position-absolute top-0 start-0 m-2">
-                                            <div class="d-flex flex-column align-items-start">
-                                                <span class="badge <?php echo $course['academic_year_active'] ? 'bg-success' : 'bg-danger'; ?> mb-1">
-                                                    <i class="fas fa-calendar-alt"></i> <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
-                                                </span>
-                                                <span class="badge <?php echo $course['semester_active'] ? 'bg-success' : 'bg-danger'; ?>">
-                                                    <i class="fas fa-clock"></i> <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <?php if ($course['is_enrolled']): ?>
-                                            <div class="enrolled-badge">
-                                                <span class="badge bg-success">Enrolled</span>
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
-                                            <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
-                                            <h2 class="course-code-text">
-                                                <?php echo htmlspecialchars($course['course_code'] ?? 'N/A'); ?>
-                                            </h2>
-                                        </div>
-                                        
-                                        <div class="card-body">
-                                            <h5 class="card-title"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h5>
-                                            <p class="card-text text-muted">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
-                                            
-                                            <!-- Course Details -->
-                                            <div class="row text-center mb-3">
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-calendar-alt"></i><br>
-                                                        <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-clock"></i><br>
-                                                        <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-layer-group"></i><br>
-                                                        <?php echo $course['module_count']; ?> modules
-                                                    </small>
-                                                </div>
+                        <div class="course-slider-container">
+                            <div class="course-slider" id="available-slider">
+                                <?php foreach ($section_available_courses as $index => $course): ?>
+                                    <?php
+                                        $theme = $course_themes[$course['id'] % count($course_themes)];
+                                    ?>
+                                    <div class="course-slide">
+                                        <div class="card course-card position-relative h-100">
+                                            <!-- Course Status Badge - Top Right -->
+                                            <div class="course-status-badge <?php 
+                                                if ($course['is_enrolled']): 
+                                                    echo 'bg-primary';
+                                                elseif ($course['has_pending_request']): 
+                                                    echo 'bg-warning';
+                                                elseif ($course['has_rejected_request']): 
+                                                    echo 'bg-danger';
+                                                elseif (!$course['semester_active'] || !$course['academic_year_active']): 
+                                                    echo 'bg-warning';
+                                                else: 
+                                                    echo 'bg-info';
+                                                endif; 
+                                            ?>">
+                                                <?php if ($course['is_enrolled']): ?>
+                                                    <i class="fas fa-user-check"></i> Enrolled
+                                                <?php elseif ($course['has_pending_request']): ?>
+                                                    <i class="fas fa-clock"></i> Pending
+                                                <?php elseif ($course['has_rejected_request']): ?>
+                                                    <i class="fas fa-times-circle"></i> Rejected
+                                                <?php elseif (!$course['semester_active'] || !$course['academic_year_active']): ?>
+                                                    <i class="fas fa-exclamation-triangle"></i> Inactive Semester
+                                                <?php else: ?>
+                                                    <i class="fas fa-plus-circle"></i> Available
+                                                <?php endif; ?>
                                             </div>
                                             
-                                            <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
-                                            
-                                            <!-- Course Statistics -->
-                                            <div class="row text-center mb-3">
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-tasks"></i><br>
-                                                        <?php echo $course['assessment_count'] ?? 0; ?> assessments
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-users"></i><br>
-                                                        <?php echo $course['enrolled_students']; ?> students
-                                                    </small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-check-circle"></i><br>
-                                                        <?php echo $course['finished_assessments'] ?? 0; ?> finished
-                                                    </small>
+                                            <!-- Semester Status Indicator - Top Left -->
+                                            <div class="position-absolute top-0 start-0 m-2">
+                                                <div class="d-flex flex-column align-items-start">
+                                                    <span class="badge <?php echo $course['academic_year_active'] ? 'bg-success' : 'bg-danger'; ?> mb-1">
+                                                        <i class="fas fa-calendar-alt"></i> <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
+                                                    </span>
+                                                    <span class="badge <?php echo $course['semester_active'] ? 'bg-success' : 'bg-danger'; ?>">
+                                                        <i class="fas fa-clock"></i> <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
+                                                    </span>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Course Creation Info -->
-                                            <div class="text-center mb-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-calendar-plus"></i> Created: <?php echo date('M j, Y', strtotime($course['created_at'])); ?>
-                                                </small>
-                                            </div>
-                                            
-                                            <!-- Semester Status Warning -->
-                                            <?php if (!$course['semester_active'] || !$course['academic_year_active']): ?>
-                                                <div class="alert alert-warning alert-sm mb-3">
-                                                    <small>
-                                                        <i class="fas fa-exclamation-triangle"></i>
-                                                        <?php if (!$course['academic_year_active']): ?>
-                                                            <strong>Academic Year <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?> is inactive.</strong><br>
-                                                        <?php endif; ?>
-                                                        <?php if (!$course['semester_active']): ?>
-                                                            <strong>Semester <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?> is inactive.</strong><br>
-                                                        <?php endif; ?>
-                                                        This course is view-only for review purposes.
-                                                    </small>
-                                                </div>
-                                            <?php endif; ?>
                                             
                                             <?php if ($course['is_enrolled']): ?>
-                                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-primary w-100">
-                                                    Continue Learning
-                                                </a>
-                                            <?php elseif ($course['is_section_assigned']): ?>
-                                                <form method="POST" class="d-inline">
-                                                    <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
-                                                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                                                    <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100" <?php echo (!$course['semester_active'] || !$course['academic_year_active']) ? 'disabled' : ''; ?>>
-                                                        <i class="fas fa-plus"></i> Enroll Now
-                                                    </button>
-                                                </form>
-                                            <?php elseif ($course['has_pending_request']): ?>
-                                                <button class="btn btn-warning w-100" disabled>
-                                                    <i class="fas fa-clock"></i> Request Pending
-                                                </button>
-                                            <?php elseif ($course['has_rejected_request']): ?>
-                                                <button class="btn btn-danger w-100" disabled>
-                                                    <i class="fas fa-times-circle"></i> Request Rejected
-                                                </button>
-                                                <button type="button" class="btn btn-outline-info w-100 mt-2" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#rejectionReasonModal" 
-                                                        data-course-name="<?php echo htmlspecialchars($course['course_name']); ?>"
-                                                        data-rejection-reason="<?php echo htmlspecialchars($course['rejection_reason'] ?? ''); ?>"
-                                                        data-request-date="<?php echo isset($course['approved_at']) ? date('M j, Y g:i A', strtotime($course['approved_at'])) : ''; ?>">
-                                                    <i class="fas fa-eye"></i> View Reason
-                                                </button>
-                                                <form method="POST" class="d-inline mt-2">
-                                                    <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
-                                                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                                                    <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100">
-                                                        <i class="fas fa-redo"></i> Request Again
-                                                    </button>
-                                                </form>
-                                            <?php else: ?>
-                                                <form method="POST" class="d-inline">
-                                                    <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
-                                                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                                                    <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100" <?php echo (!$course['semester_active'] || !$course['academic_year_active']) ? 'disabled' : ''; ?>>
-                                                        <i class="fas fa-plus"></i> Request Enrollment
-                                                    </button>
-                                                </form>
+                                                <div class="enrolled-badge">
+                                                    <span class="badge bg-success">Enrolled</span>
+                                                </div>
                                             <?php endif; ?>
+                                            
+                                            <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
+                                                <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
+                                                <h2 class="course-code-text">
+                                                    <?php echo htmlspecialchars($course['course_code'] ?? 'N/A'); ?>
+                                                </h2>
+                                            </div>
+                                            
+                                            <div class="card-body">
+                                                <h5 class="card-title"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h5>
+                                                <p class="card-text text-muted">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
+                                                
+                                                <!-- Course Details -->
+                                                <div class="row text-center mb-3">
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-calendar-alt"></i><br>
+                                                            <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock"></i><br>
+                                                            <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-layer-group"></i><br>
+                                                            <?php echo $course['module_count']; ?> modules
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
+                                                
+                                                <!-- Course Statistics -->
+                                                <div class="row text-center mb-3">
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-tasks"></i><br>
+                                                            <?php echo $course['assessment_count'] ?? 0; ?> assessments
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-users"></i><br>
+                                                            <?php echo $course['enrolled_students']; ?> students
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-check-circle"></i><br>
+                                                            <?php echo $course['finished_assessments'] ?? 0; ?> finished
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Course Creation Info -->
+                                                <div class="text-center mb-3">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar-plus"></i> Created: <?php echo date('M j, Y', strtotime($course['created_at'])); ?>
+                                                    </small>
+                                                </div>
+                                                
+                                                <!-- Semester Status Warning -->
+                                                <?php if (!$course['semester_active'] || !$course['academic_year_active']): ?>
+                                                    <div class="alert alert-warning alert-sm mb-3">
+                                                        <small>
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            <?php if (!$course['academic_year_active']): ?>
+                                                                <strong>Academic Year <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?> is inactive.</strong><br>
+                                                            <?php endif; ?>
+                                                            <?php if (!$course['semester_active']): ?>
+                                                                <strong>Semester <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?> is inactive.</strong><br>
+                                                            <?php endif; ?>
+                                                            This course is view-only for review purposes.
+                                                        </small>
+                                                    </div>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($course['is_enrolled']): ?>
+                                                    <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-primary w-100">
+                                                        Continue Learning
+                                                    </a>
+                                                <?php elseif ($course['is_section_assigned']): ?>
+                                                    <form method="POST" class="d-inline">
+                                                        <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
+                                                        <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                                                        <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100" <?php echo (!$course['semester_active'] || !$course['academic_year_active']) ? 'disabled' : ''; ?>>
+                                                            <i class="fas fa-plus"></i> Enroll Now
+                                                        </button>
+                                                    </form>
+                                                <?php elseif ($course['has_pending_request']): ?>
+                                                    <button class="btn btn-warning w-100" disabled>
+                                                        <i class="fas fa-clock"></i> Request Pending
+                                                    </button>
+                                                <?php elseif ($course['has_rejected_request']): ?>
+                                                    <button class="btn btn-danger w-100" disabled>
+                                                        <i class="fas fa-times-circle"></i> Request Rejected
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-info w-100 mt-2" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#rejectionReasonModal" 
+                                                            data-course-name="<?php echo htmlspecialchars($course['course_name']); ?>"
+                                                            data-rejection-reason="<?php echo htmlspecialchars($course['rejection_reason'] ?? ''); ?>"
+                                                            data-request-date="<?php echo isset($course['approved_at']) ? date('M j, Y g:i A', strtotime($course['approved_at'])) : ''; ?>">
+                                                        <i class="fas fa-eye"></i> View Reason
+                                                    </button>
+                                                    <form method="POST" class="d-inline mt-2">
+                                                        <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
+                                                        <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                                                        <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100">
+                                                            <i class="fas fa-redo"></i> Request Again
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <form method="POST" class="d-inline">
+                                                        <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
+                                                        <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                                                        <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100" <?php echo (!$course['semester_active'] || !$course['academic_year_active']) ? 'disabled' : ''; ?>>
+                                                            <i class="fas fa-plus"></i> Request Enrollment
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -1322,6 +1563,73 @@ document.addEventListener('DOMContentLoaded', function() {
              rejectionReasonElement.style.unicodeBidi = 'normal';
          }
      }, 100);
+});
+
+// Course Slider Functionality
+function initCourseSlider(sliderId, prevBtnId, nextBtnId) {
+    const slider = document.getElementById(sliderId);
+    const prevBtn = document.getElementById(prevBtnId);
+    const nextBtn = document.getElementById(nextBtnId);
+    
+    if (!slider || !prevBtn || !nextBtn) return;
+    
+    const slides = slider.querySelectorAll('.course-slide');
+    const slideWidth = 400; // Match CSS flex-basis
+    const gap = 16; // Match CSS gap
+    const visibleSlides = Math.floor(slider.offsetWidth / (slideWidth + gap));
+    const totalSlides = slides.length;
+    let currentIndex = 0;
+    
+    function updateButtons() {
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex >= totalSlides - visibleSlides;
+    }
+    
+    function scrollToSlide(index) {
+        const scrollAmount = index * (slideWidth + gap);
+        slider.scrollTo({
+            left: scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+    
+    prevBtn.addEventListener('click', () => {
+        if (currentIndex > 0) {
+            currentIndex = Math.max(0, currentIndex - 1);
+            scrollToSlide(currentIndex);
+            updateButtons();
+        }
+    });
+    
+    nextBtn.addEventListener('click', () => {
+        if (currentIndex < totalSlides - visibleSlides) {
+            currentIndex = Math.min(totalSlides - visibleSlides, currentIndex + 1);
+            scrollToSlide(currentIndex);
+            updateButtons();
+        }
+    });
+    
+    // Handle scroll events to update current index
+    slider.addEventListener('scroll', () => {
+        const scrollLeft = slider.scrollLeft;
+        currentIndex = Math.round(scrollLeft / (slideWidth + gap));
+        updateButtons();
+    });
+    
+    // Initialize button states
+    updateButtons();
+    
+    // Hide navigation if all slides are visible
+    if (totalSlides <= visibleSlides) {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+    }
+}
+
+// Initialize sliders when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
+    initCourseSlider('available-slider', 'available-prev', 'available-next');
 });
 </script>
 </body>

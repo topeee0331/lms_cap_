@@ -397,7 +397,7 @@ require_once '../includes/header.php';
     <!-- Assessments List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
+            <div class="card assessments-card">
                 <div class="card-header">
                     <h5 class="mb-0">Assessments (<?php echo count($assessments); ?>)</h5>
                 </div>
@@ -409,7 +409,7 @@ require_once '../includes/header.php';
                             <p class="text-muted">Create your first assessment to start evaluating student progress.</p>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-responsive assessments-table-container">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
@@ -546,6 +546,244 @@ require_once '../includes/header.php';
         </div>
     </div>
 </div>
+
+<style>
+/* Enhanced Assessments Table Scrolling */
+.assessments-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    position: relative;
+}
+
+/* Custom scrollbar for assessments table */
+.assessments-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.assessments-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.assessments-table-container::-webkit-scrollbar-thumb {
+    background: #0d6efd;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.assessments-table-container::-webkit-scrollbar-thumb:hover {
+    background: #0b5ed7;
+}
+
+/* Firefox scrollbar styling */
+.assessments-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #0d6efd #f1f1f1;
+}
+
+/* Enhanced table styling */
+.assessments-table-container .table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.assessments-table-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+    padding: 16px 12px;
+}
+
+.assessments-table-container .table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.assessments-table-container .table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+}
+
+.assessments-table-container .table tbody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Enhanced button styling */
+.assessments-table-container .btn-group .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    margin: 0 2px;
+}
+
+.assessments-table-container .btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Badge enhancements */
+.assessments-table-container .badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.assessments-table-container .badge:hover {
+    transform: scale(1.05);
+}
+
+/* Assessment title styling */
+.assessments-table-container .table tbody td h6 {
+    transition: all 0.3s ease;
+    margin-bottom: 4px;
+}
+
+.assessments-table-container .table tbody tr:hover h6 {
+    color: #0d6efd;
+    transform: translateX(2px);
+}
+
+/* Scroll indicators for assessments table */
+.assessments-scroll-indicator {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.assessments-scroll-indicator.show {
+    opacity: 1;
+}
+
+.assessments-scroll-indicator-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.assessments-scroll-indicator i {
+    background: rgba(13, 110, 253, 0.8);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+.assessments-scroll-indicator-top.hide,
+.assessments-scroll-indicator-bottom.hide {
+    opacity: 0.3;
+}
+
+/* Card enhancements */
+.assessments-card {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.assessments-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 16px 20px;
+}
+
+.assessments-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Mobile responsiveness for assessments table */
+@media (max-width: 991.98px) {
+    .assessments-table-container {
+        max-height: 450px;
+    }
+    
+    .assessments-table-container .table thead th,
+    .assessments-table-container .table tbody td {
+        padding: 12px 8px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .assessments-table-container {
+        max-height: 350px;
+    }
+    
+    .assessments-table-container .table thead th,
+    .assessments-table-container .table tbody td {
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    
+    .assessments-table-container .btn-group .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Loading and animation states */
+.assessments-table-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.assessment-row-enter {
+    animation: assessmentRowEnter 0.5s ease-out;
+}
+
+@keyframes assessmentRowEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.assessment-row-exit {
+    animation: assessmentRowExit 0.5s ease-in;
+}
+
+@keyframes assessmentRowExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+</style>
 
 <!-- Toggle Status Form -->
 <form id="toggleStatusForm" method="post" style="display: none;">
@@ -729,6 +967,66 @@ function updateLockFields() {
             break;
     }
 }
+
+// Enhanced scrolling behavior for assessments table
+document.addEventListener('DOMContentLoaded', function() {
+    function enhanceAssessmentsTableScrolling() {
+        const tableContainer = document.querySelector('.assessments-table-container');
+        
+        if (tableContainer) {
+            // Add smooth scrolling behavior
+            tableContainer.style.scrollBehavior = 'smooth';
+            
+            // Add scroll indicators
+            const cardContainer = tableContainer.closest('.card');
+            if (cardContainer) {
+                addAssessmentsTableScrollIndicators(tableContainer, cardContainer);
+            }
+        }
+    }
+    
+    // Add scroll indicators to assessments table
+    function addAssessmentsTableScrollIndicators(scrollContainer, cardContainer) {
+        const scrollIndicator = document.createElement('div');
+        scrollIndicator.className = 'assessments-scroll-indicator';
+        scrollIndicator.innerHTML = `
+            <div class="assessments-scroll-indicator-content">
+                <i class="bi bi-chevron-up assessments-scroll-indicator-top"></i>
+                <i class="bi bi-chevron-down assessments-scroll-indicator-bottom"></i>
+            </div>
+        `;
+        
+        cardContainer.style.position = 'relative';
+        cardContainer.appendChild(scrollIndicator);
+        
+        // Update scroll indicators based on scroll position
+        function updateAssessmentsScrollIndicators() {
+            const isScrollable = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+            const isAtTop = scrollContainer.scrollTop === 0;
+            const isAtBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+            
+            if (isScrollable) {
+                scrollIndicator.classList.add('show');
+                scrollIndicator.querySelector('.assessments-scroll-indicator-top').classList.toggle('hide', isAtTop);
+                scrollIndicator.querySelector('.assessments-scroll-indicator-bottom').classList.toggle('hide', isAtBottom);
+            } else {
+                scrollIndicator.classList.remove('show');
+            }
+        }
+        
+        // Initial check
+        updateAssessmentsScrollIndicators();
+        
+        // Update on scroll
+        scrollContainer.addEventListener('scroll', updateAssessmentsScrollIndicators);
+        
+        // Update on resize
+        window.addEventListener('resize', updateAssessmentsScrollIndicators);
+    }
+    
+    // Initialize enhanced assessments table scrolling
+    enhanceAssessmentsTableScrolling();
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?> 

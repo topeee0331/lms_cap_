@@ -24,13 +24,15 @@ class PusherNotifications {
                 PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ]);
             
-            $stmt = $db->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+            $stmt = $db->prepare("SELECT first_name, last_name, identifier FROM users WHERE id = ?");
             $stmt->execute([$studentId]);
             $student = $stmt->fetch();
             $studentName = $student ? ($student['first_name'] . ' ' . $student['last_name']) : 'A student';
+            $neustStudentId = $student ? $student['identifier'] : null;
         } catch (Exception $e) {
             error_log("Database error in PusherNotifications: " . $e->getMessage());
             $studentName = 'A student';
+            $neustStudentId = null;
         }
         
         $data = [
@@ -38,6 +40,7 @@ class PusherNotifications {
             'course_name' => $courseName,
             'student_name' => $studentName,
             'student_id' => $studentId,
+            'neust_student_id' => $neustStudentId ?? null,
             'timestamp' => date('Y-m-d H:i:s')
         ];
         

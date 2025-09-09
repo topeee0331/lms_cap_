@@ -76,73 +76,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Student and course are required.';
                     $message_type = 'danger';
                 } else {
-                    // Verify course belongs to teacher and is in selected academic period
-                    $stmt = $db->prepare('SELECT id FROM courses WHERE id = ? AND teacher_id = ? AND academic_period_id = ?');
-                    $stmt->execute([$course_id, $_SESSION['user_id'], $selected_year_id]);
-                    if ($stmt->fetch()) {
-                        // Remove student from all course_enrollments for this course
-                        $stmt = $db->prepare('DELETE FROM course_enrollments WHERE student_id = ? AND course_id = ?');
-                        $stmt->execute([$student_id, $course_id]);
-                        
-                        // Remove from section students if applicable (simplified for JSON-based system)
-                        $stmt = $db->prepare('
-                            DELETE ss FROM section_students ss 
-                            WHERE ss.student_id = ? AND ss.section_id IN (
-                                SELECT JSON_UNQUOTE(JSON_EXTRACT(sections, CONCAT("$[", idx, "].id")))
-                                FROM courses, JSON_TABLE(
-                                    JSON_ARRAY_LENGTH(sections), 
-                                    "$[*]" COLUMNS (idx FOR ORDINALITY)
-                                ) AS t
-                                WHERE id = ?
-                            )
-                        ');
-                        $stmt->execute([$student_id, $course_id]);
-                        
-                        // Remove all progress data for this student in this course (simplified for JSON-based system)
-                        $stmt = $db->prepare('
-                            DELETE mp FROM module_progress mp 
-                            WHERE mp.student_id = ? AND mp.module_id IN (
-                                SELECT JSON_UNQUOTE(JSON_EXTRACT(modules, CONCAT("$[", idx, "].id")))
-                                FROM courses, JSON_TABLE(
-                                    JSON_ARRAY_LENGTH(modules), 
-                                    "$[*]" COLUMNS (idx FOR ORDINALITY)
-                                ) AS t
-                                WHERE id = ?
-                            )
-                        ');
-                        $stmt->execute([$student_id, $course_id]);
-                        
-                        // Remove video views for this course (simplified for JSON-based system)
-                        $stmt = $db->prepare('
-                            DELETE vv FROM video_views vv 
-                            WHERE vv.student_id = ? AND vv.video_id IN (
-                                SELECT JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(modules, CONCAT("$[", m_idx, "].videos")), CONCAT("$[", v_idx, "].id")))
-                                FROM courses, 
-                                JSON_TABLE(JSON_ARRAY_LENGTH(modules), "$[*]" COLUMNS (m_idx FOR ORDINALITY)) AS m,
-                                JSON_TABLE(JSON_ARRAY_LENGTH(JSON_EXTRACT(modules, CONCAT("$[", m_idx-1, "].videos"))), "$[*]" COLUMNS (v_idx FOR ORDINALITY)) AS v
-                                WHERE id = ?
-                            )
-                        ');
-                        $stmt->execute([$student_id, $course_id]);
-                        
-                        // Remove assessment attempts for this course (simplified for JSON-based system)
-                        $stmt = $db->prepare('
-                            DELETE aa FROM assessment_attempts aa 
-                            WHERE aa.student_id = ? AND aa.assessment_id IN (
-                                SELECT JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(modules, CONCAT("$[", m_idx, "].assessments")), CONCAT("$[", a_idx, "].id")))
-                                FROM courses, 
-                                JSON_TABLE(JSON_ARRAY_LENGTH(modules), "$[*]" COLUMNS (m_idx FOR ORDINALITY)) AS m,
-                                JSON_TABLE(JSON_ARRAY_LENGTH(JSON_EXTRACT(modules, CONCAT("$[", m_idx-1, "].assessments"))), "$[*]" COLUMNS (a_idx FOR ORDINALITY)) AS a
-                                WHERE id = ?
-                            )
-                        ');
-                        $stmt->execute([$student_id, $course_id]);
-                        
-                        $message = 'Student has been KICKED from the course successfully. All their progress data has been removed.';
-                        $message_type = 'success';
-                    } else {
-                        $message = 'Invalid course selected.';
+                    try {
+                        // Verify course belongs to teacher and is in selected academic period
+                        $stmt = $db->prepare('SELECT id FROM courses WHERE id = ? AND teacher_id = ? AND academic_period_id = ?');
+                        $stmt->execute([$course_id, $_SESSION['user_id'], $selected_year_id]);
+                        if ($stmt->fetch()) {
+                            // Start transaction for data integrity
+                            $db->beginTransaction();
+                            
+                            // Remove student from course enrollments
+                            $stmt = $db->prepare('DELETE FROM course_enrollments WHERE student_id = ? AND course_id = ?');
+                            $stmt->execute([$student_id, $course_id]);
+                            
+                            // Remove assessment attempts for this student in this course
+                            $stmt = $db->prepare('
+                                DELETE aa FROM assessment_attempts aa 
+                                JOIN assessments a ON aa.assessment_id = a.id
+                                WHERE aa.student_id = ? AND a.course_id = ?
+                            ');
+                            $stmt->execute([$student_id, $course_id]);
+                            
+                            // Remove video views for this student in this course (if table exists)
+                            try {
+                                $stmt = $db->prepare('
+                                    DELETE vv FROM video_views vv 
+                                    JOIN videos v ON vv.video_id = v.id
+                                    WHERE vv.student_id = ? AND v.course_id = ?
+                                ');
+                                $stmt->execute([$student_id, $course_id]);
+                            } catch (PDOException $e) {
+                                // Table doesn't exist, skip this step
+                                error_log("Video views table not found, skipping: " . $e->getMessage());
+                            }
+                            
+                            // Remove module progress for this student in this course (if table exists)
+                            try {
+                                $stmt = $db->prepare('
+                                    DELETE mp FROM module_progress mp 
+                                    JOIN modules m ON mp.module_id = m.id
+                                    WHERE mp.student_id = ? AND m.course_id = ?
+                                ');
+                                $stmt->execute([$student_id, $course_id]);
+                            } catch (PDOException $e) {
+                                // Table doesn't exist, skip this step
+                                error_log("Module progress table not found, skipping: " . $e->getMessage());
+                            }
+                            
+                            // Remove any enrollment requests for this course
+                            $stmt = $db->prepare('DELETE FROM enrollment_requests WHERE student_id = ? AND course_id = ?');
+                            $stmt->execute([$student_id, $course_id]);
+                            
+                            // Commit transaction
+                            $db->commit();
+                            
+                            $message = 'Student has been KICKED from the course successfully. All their progress data has been removed.';
+                            $message_type = 'success';
+                        } else {
+                            $message = 'Invalid course selected.';
+                            $message_type = 'danger';
+                        }
+                    } catch (Exception $e) {
+                        // Rollback transaction on error
+                        if ($db->inTransaction()) {
+                            $db->rollback();
+                        }
+                        $message = 'Error kicking student: ' . $e->getMessage();
                         $message_type = 'danger';
+                        error_log("Error kicking student: " . $e->getMessage());
                     }
                 }
                 break;
@@ -154,73 +154,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'No students selected.';
                     $message_type = 'warning';
                 } else {
-                    $kicked_count = 0;
-                    
-                    foreach ($student_ids as $section_student_id) {
-                        // Get student and course info from section_student_id
-                        // Note: This functionality needs to be updated for the new schema
-                        // For now, we'll skip bulk operations until the schema is fully migrated
-                        continue;
-                        $enrollment_info = $stmt->fetch();
+                    try {
+                        $kicked_count = 0;
+                        $db->beginTransaction();
                         
-                        if ($enrollment_info) {
-                            $student_id = $enrollment_info['student_id'];
-                            $course_id = $enrollment_info['course_id'];
+                        foreach ($student_ids as $student_id) {
+                            $student_id = (int)$student_id;
                             
-                            // Remove student from all course_enrollments for this course
-                            $stmt = $db->prepare('DELETE FROM course_enrollments WHERE student_id = ? AND course_id = ?');
-                            $stmt->execute([$student_id, $course_id]);
-                            
-                            // Remove from section students
-                            $stmt = $db->prepare('UPDATE sections SET students = JSON_REMOVE(students, JSON_UNQUOTE(JSON_SEARCH(students, "one", ?))) WHERE JSON_SEARCH(students, "one", ?) IS NOT NULL');
-                            $stmt->execute([$student_id, $student_id]);
-                            
-                            // Remove all progress data for this student in this course (simplified for JSON-based system)
+                            // Get all courses for this student that belong to this teacher
                             $stmt = $db->prepare('
-                                DELETE mp FROM module_progress mp 
-                                WHERE mp.student_id = ? AND mp.module_id IN (
-                                    SELECT JSON_UNQUOTE(JSON_EXTRACT(modules, CONCAT("$[", idx, "].id")))
-                                    FROM courses, JSON_TABLE(
-                                        JSON_ARRAY_LENGTH(modules), 
-                                        "$[*]" COLUMNS (idx FOR ORDINALITY)
-                                    ) AS t
-                                    WHERE id = ?
-                                )
+                                SELECT ce.course_id 
+                                FROM course_enrollments ce
+                                JOIN courses c ON ce.course_id = c.id
+                                WHERE ce.student_id = ? AND c.teacher_id = ? AND c.academic_period_id = ?
                             ');
-                            $stmt->execute([$student_id, $course_id]);
+                            $stmt->execute([$student_id, $_SESSION['user_id'], $selected_year_id]);
+                            $courses = $stmt->fetchAll(PDO::FETCH_COLUMN);
                             
-                            // Remove video views for this course (simplified for JSON-based system)
-                            $stmt = $db->prepare('
-                                DELETE vv FROM video_views vv 
-                                WHERE vv.student_id = ? AND vv.video_id IN (
-                                    SELECT JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(modules, CONCAT("$[", m_idx, "].videos")), CONCAT("$[", v_idx, "].id")))
-                                    FROM courses, 
-                                    JSON_TABLE(JSON_ARRAY_LENGTH(modules), "$[*]" COLUMNS (m_idx FOR ORDINALITY)) AS m,
-                                    JSON_TABLE(JSON_ARRAY_LENGTH(JSON_EXTRACT(modules, CONCAT("$[", m_idx-1, "].videos"))), "$[*]" COLUMNS (v_idx FOR ORDINALITY)) AS v
-                                    WHERE id = ?
-                                )
-                            ');
-                            $stmt->execute([$student_id, $course_id]);
-                            
-                            // Remove assessment attempts for this course (simplified for JSON-based system)
-                            $stmt = $db->prepare('
-                                DELETE aa FROM assessment_attempts aa 
-                                WHERE aa.student_id = ? AND aa.assessment_id IN (
-                                    SELECT JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(modules, CONCAT("$[", m_idx, "].assessments")), CONCAT("$[", a_idx, "].id")))
-                                    FROM courses, 
-                                    JSON_TABLE(JSON_ARRAY_LENGTH(modules), "$[*]" COLUMNS (m_idx FOR ORDINALITY)) AS m,
-                                    JSON_TABLE(JSON_ARRAY_LENGTH(JSON_EXTRACT(modules, CONCAT("$[", m_idx-1, "].assessments"))), "$[*]" COLUMNS (a_idx FOR ORDINALITY)) AS a
-                                    WHERE id = ?
-                                )
-                            ');
-                            $stmt->execute([$student_id, $course_id]);
+                            foreach ($courses as $course_id) {
+                                // Remove student from course enrollments
+                                $stmt = $db->prepare('DELETE FROM course_enrollments WHERE student_id = ? AND course_id = ?');
+                                $stmt->execute([$student_id, $course_id]);
+                                
+                                // Remove assessment attempts for this student in this course
+                                $stmt = $db->prepare('
+                                    DELETE aa FROM assessment_attempts aa 
+                                    JOIN assessments a ON aa.assessment_id = a.id
+                                    WHERE aa.student_id = ? AND a.course_id = ?
+                                ');
+                                $stmt->execute([$student_id, $course_id]);
+                                
+                                // Remove video views for this student in this course (if table exists)
+                                try {
+                                    $stmt = $db->prepare('
+                                        DELETE vv FROM video_views vv 
+                                        JOIN videos v ON vv.video_id = v.id
+                                        WHERE vv.student_id = ? AND v.course_id = ?
+                                    ');
+                                    $stmt->execute([$student_id, $course_id]);
+                                } catch (PDOException $e) {
+                                    // Table doesn't exist, skip this step
+                                    error_log("Video views table not found in bulk kick, skipping: " . $e->getMessage());
+                                }
+                                
+                                // Remove module progress for this student in this course (if table exists)
+                                try {
+                                    $stmt = $db->prepare('
+                                        DELETE mp FROM module_progress mp 
+                                        JOIN modules m ON mp.module_id = m.id
+                                        WHERE mp.student_id = ? AND m.course_id = ?
+                                    ');
+                                    $stmt->execute([$student_id, $course_id]);
+                                } catch (PDOException $e) {
+                                    // Table doesn't exist, skip this step
+                                    error_log("Module progress table not found in bulk kick, skipping: " . $e->getMessage());
+                                }
+                                
+                                // Remove any enrollment requests for this course
+                                $stmt = $db->prepare('DELETE FROM enrollment_requests WHERE student_id = ? AND course_id = ?');
+                                $stmt->execute([$student_id, $course_id]);
+                            }
                             
                             $kicked_count++;
                         }
+                        
+                        $db->commit();
+                        $message = "Successfully KICKED {$kicked_count} student(s) from their courses. All their progress data has been removed.";
+                        $message_type = 'success';
+                    } catch (Exception $e) {
+                        // Rollback transaction on error
+                        if ($db->inTransaction()) {
+                            $db->rollback();
+                        }
+                        $message = 'Error bulk kicking students: ' . $e->getMessage();
+                        $message_type = 'danger';
+                        error_log("Error bulk kicking students: " . $e->getMessage());
                     }
-                    
-                    $message = "Successfully KICKED {$kicked_count} student(s) from their courses. All their progress data has been removed.";
-                    $message_type = 'success';
                 }
                 break;
                 
@@ -756,12 +765,12 @@ function getSortClause($sort_by) {
                                                 </div>
                                             </td>
                                             <td>
-                                                <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to KICK this student from the course? This action cannot be undone.')">
+                                                <form method="POST" class="d-inline" onsubmit="return confirmKickStudent('<?php echo htmlspecialchars($enrollment['first_name'] . ' ' . $enrollment['last_name']); ?>', '<?php echo htmlspecialchars($enrollment['course_name']); ?>')">
                                                     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                                     <input type="hidden" name="action" value="kick_student">
                                                     <input type="hidden" name="student_id" value="<?php echo $enrollment['student_id']; ?>">
                                                     <input type="hidden" name="course_id" value="<?php echo $enrollment['course_id']; ?>">
-                                                    <button type="submit" class="btn btn-outline-danger" title="Kick Student from Course">
+                                                    <button type="submit" class="btn btn-outline-danger kick-student-btn" title="Kick Student from Course">
                                                         <i class="bi bi-person-x-fill"></i>
                                                     </button>
                                                 </form>
@@ -863,6 +872,53 @@ function getSortClause($sort_by) {
 .students-table-container .btn-group .btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Kick student button styling */
+.kick-student-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.kick-student-btn:hover {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+}
+
+.kick-student-btn:active {
+    transform: scale(0.95);
+}
+
+.kick-student-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Loading animation for bulk kick */
+.btn:disabled {
+    position: relative;
+}
+
+.btn:disabled::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Badge enhancements */
@@ -1172,14 +1228,25 @@ function updateBulkKickButton() {
     }
 }
 
+// Enhanced kick student confirmation
+function confirmKickStudent(studentName, courseName) {
+    const confirmMessage = `Are you sure you want to KICK "${studentName}" from "${courseName}"?\n\nThis action will:\n• Remove the student from the course\n• Delete ALL their progress data\n• Remove assessment attempts\n• Remove video views\n• Remove module progress\n\nThis action CANNOT be undone!`;
+    
+    return confirm(confirmMessage);
+}
+
 // Bulk kick functionality
 document.getElementById('bulkKickBtn').addEventListener('click', function() {
     const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
     if (selectedCheckboxes.length === 0) return;
     
-    const confirmMessage = `Are you sure you want to KICK ${selectedCheckboxes.length} student(s) from their courses? This action cannot be undone and will remove all their progress data.`;
+    const confirmMessage = `Are you sure you want to KICK ${selectedCheckboxes.length} student(s) from their courses?\n\nThis action will:\n• Remove students from all their courses\n• Delete ALL their progress data\n• Remove assessment attempts\n• Remove video views\n• Remove module progress\n\nThis action CANNOT be undone!`;
     
     if (confirm(confirmMessage)) {
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+        
         const form = document.createElement('form');
         form.method = 'POST';
         form.innerHTML = `

@@ -5,6 +5,7 @@ require_once '../config/database.php';
 require_once '../config/pusher.php';
 require_once '../includes/pusher_notifications.php';
 
+
 $db = new Database();
 $pdo = $db->getConnection();
 
@@ -71,24 +72,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_course'])) {
         $stmt->execute([$course_id, $student_section_id]);
         $is_section_assigned = $stmt->rowCount() > 0;
         
-        if ($is_section_assigned) {
-            // Direct enrollment for section-assigned courses (both regular and irregular students)
-            $stmt = $pdo->prepare("INSERT INTO course_enrollments (student_id, course_id, enrolled_at, status) VALUES (?, ?, NOW(), 'active')");
-            $stmt->execute([$user_id, $course_id]);
-            
-            $_SESSION['success'] = "Successfully enrolled in the course!";
-        } else {
-            // All students can request enrollment for non-section-assigned courses
-            // Check if there's already a pending request
-            $stmt = $pdo->prepare("SELECT * FROM enrollment_requests WHERE student_id = ? AND course_id = ? AND status = 'pending'");
-            $stmt->execute([$user_id, $course_id]);
-            
-            if ($stmt->rowCount() == 0) {
-                // Check if there's a rejected request and update it to pending
-                $stmt = $pdo->prepare("SELECT * FROM enrollment_requests WHERE student_id = ? AND course_id = ? AND status = 'rejected'");
-                $stmt->execute([$user_id, $course_id]);
-                
-                if ($stmt->rowCount() > 0) {
+        // ALL course enrollments now require teacher verification to prevent assessment leaks
+        // Check if there's already ANY enrollment request (pending, approved, or rejected)
+        $stmt = $pdo->prepare("SELECT * FROM enrollment_requests WHERE student_id = ? AND course_id = ?");
+        $stmt->execute([$user_id, $course_id]);
+        $existing_request = $stmt->fetch();
+        
+        if ($existing_request) {
+            // Handle existing request based on status
+            switch ($existing_request['status']) {
+                case 'pending':
+                    $_SESSION['error'] = "You already have a pending enrollment request for this course.";
+                    break;
+                case 'approved':
+                    $_SESSION['error'] = "Your enrollment request for this course has already been approved. You should be enrolled in the course.";
+                    break;
+                case 'rejected':
                     // Update rejected request to pending
                     $stmt = $pdo->prepare("UPDATE enrollment_requests SET status = 'pending', requested_at = NOW() WHERE student_id = ? AND course_id = ? AND status = 'rejected'");
                     $stmt->execute([$user_id, $course_id]);
@@ -105,26 +104,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_course'])) {
                     }
                     
                     $_SESSION['success'] = "Enrollment request resent! The teacher will review your request again.";
-                } else {
-                    // Create new enrollment request
-                    $stmt = $pdo->prepare("INSERT INTO enrollment_requests (student_id, course_id, status) VALUES (?, ?, 'pending')");
-                    $stmt->execute([$user_id, $course_id]);
-                    
-                    // Get course details for notification
-                    $stmt = $pdo->prepare("SELECT c.course_name, c.teacher_id FROM courses c WHERE c.id = ?");
-                    $stmt->execute([$course_id]);
-                    $course = $stmt->fetch();
-                    
-                    // Send real-time notification to teacher about new enrollment request
-                    if ($course && PusherConfig::isAvailable()) {
-                        require_once __DIR__ . '/../includes/pusher_notifications.php';
-                        PusherNotifications::sendNewEnrollmentRequest($course['teacher_id'], $course['course_name'], $user_id);
-                    }
-                    
-                    $_SESSION['success'] = "Enrollment request sent! The teacher will review your request.";
+                    break;
+            }
+        } else {
+            // Create new enrollment request
+            try {
+                $stmt = $pdo->prepare("INSERT INTO enrollment_requests (student_id, course_id, status, requested_at) VALUES (?, ?, 'pending', NOW())");
+                $stmt->execute([$user_id, $course_id]);
+                
+                // Get course details for notification
+                $stmt = $pdo->prepare("SELECT c.course_name, c.teacher_id FROM courses c WHERE c.id = ?");
+                $stmt->execute([$course_id]);
+                $course = $stmt->fetch();
+                
+                // Send real-time notification to teacher about new enrollment request
+                if ($course && PusherConfig::isAvailable()) {
+                    require_once __DIR__ . '/../includes/pusher_notifications.php';
+                    PusherNotifications::sendNewEnrollmentRequest($course['teacher_id'], $course['course_name'], $user_id);
                 }
-            } else {
-                $_SESSION['error'] = "You already have a pending enrollment request for this course.";
+                
+                $_SESSION['success'] = "Enrollment request sent! The teacher will review your request.";
+                error_log("Enrollment request created: Student ID: $user_id, Course ID: $course_id, Status: pending");
+            } catch (PDOException $e) {
+                error_log("Enrollment error: " . $e->getMessage());
+                if ($e->getCode() == 23000) { // Duplicate entry error
+                    $_SESSION['error'] = "You already have an enrollment request for this course. Please check your request status.";
+                } else {
+                    $_SESSION['error'] = "An error occurred while processing your enrollment request: " . $e->getMessage();
+                }
             }
         }
     } else {
@@ -896,14 +903,14 @@ $course_themes = [
                                     </div>
                                     <div class="col-md-3 mb-2">
                                         <span class="badge bg-info me-2">●</span>
-                                        <small>Available - You can enroll in this course</small>
+                                        <small>Available - You can request enrollment (requires teacher approval)</small>
                                     </div>
                                 </div>
                                 <div class="row mt-2">
                                     <div class="col-12">
                                         <small class="text-muted">
                                             <i class="fas fa-lightbulb me-1"></i>
-                                            <strong>Note:</strong> Courses in inactive semesters cannot be enrolled in and assessments cannot be taken, but all content remains accessible for review purposes.
+                                            <strong>Note:</strong> All course enrollments require teacher verification to prevent assessment leaks. Courses in inactive semesters cannot be enrolled in and assessments cannot be taken, but all content remains accessible for review purposes.
                                         </small>
                                     </div>
                                 </div>
@@ -1039,7 +1046,7 @@ $course_themes = [
                         </div>
                     </div>
                     <p class="text-muted mb-3">
-                        <i class="fas fa-info-circle"></i> These are courses available in your assigned section that you can enroll in directly.
+                        <i class="fas fa-info-circle"></i> These are courses available in your assigned section. All enrollments require teacher verification to prevent assessment leaks.
                     </p>
                     <?php if (empty($section_available_courses)): ?>
                         <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -1189,7 +1196,7 @@ $course_themes = [
                                                         <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
                                                         <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                                         <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100" <?php echo (!$course['semester_active'] || !$course['academic_year_active']) ? 'disabled' : ''; ?>>
-                                                            <i class="fas fa-plus"></i> Enroll Now
+                                                            <i class="fas fa-plus"></i> Request Enrollment
                                                         </button>
                                                     </form>
                                                 <?php elseif ($course['has_pending_request']): ?>
@@ -1262,7 +1269,7 @@ $course_themes = [
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle"></i> These are courses from other sections. You can request enrollment in any of these courses.
+                            <i class="fas fa-info-circle"></i> These are courses from other sections. All enrollments require teacher verification to prevent assessment leaks.
                         </div>
                         <input type="text" id="modalCourseFilter" class="form-control mb-3" placeholder="Filter by course name or teacher...">
                         <div class="row" id="modalCourseList">
@@ -1344,26 +1351,29 @@ $course_themes = [
                                                     <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
                                                     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                                     <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100">
-                                                        <i class="fas fa-plus"></i> Enroll Now
+                                                        <i class="fas fa-plus"></i> Request Enrollment
                                                     </button>
                                                 </form>
                                             <?php elseif ($course['has_pending_request']): ?>
                                                 <button class="btn btn-warning w-100" disabled>
                                                     <i class="fas fa-clock"></i> Request Pending
                                                 </button>
-                                                <form method="POST" class="d-inline">
+                                            <?php elseif ($course['has_rejected_request']): ?>
+                                                <button class="btn btn-danger w-100" disabled>
+                                                    <i class="fas fa-times-circle"></i> Request Rejected
+                                                </button>
+                                                <form method="POST" class="d-inline mt-2">
                                                     <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
                                                     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                                                    <button type="submit" name="enroll_course" class="btn btn-outline-danger w-100">
+                                                    <button type="submit" name="enroll_course" class="btn btn-outline-primary w-100">
                                                         <i class="fas fa-redo"></i> Request Again
                                                     </button>
                                                 </form>
-                                                <small class="text-muted d-block mt-1">
-                                                    <i class="fas fa-info-circle"></i> Previous request was rejected
-                                                    <?php if (!empty($course['rejection_reason'])): ?>
-                                                        <br><small class="text-danger">Reason: <?php echo htmlspecialchars($course['rejection_reason']); ?></small>
-                                                    <?php endif; ?>
-                                                </small>
+                                                <?php if (!empty($course['rejection_reason'])): ?>
+                                                    <small class="text-muted d-block mt-1">
+                                                        <i class="fas fa-info-circle"></i> Reason: <?php echo htmlspecialchars($course['rejection_reason']); ?>
+                                                    </small>
+                                                <?php endif; ?>
                                             <?php else: ?>
                                                 <form method="POST" class="d-inline">
                                                     <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
@@ -1631,6 +1641,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
     initCourseSlider('available-slider', 'available-prev', 'available-next');
 });
+
 </script>
 </body>
 </html> 

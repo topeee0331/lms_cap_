@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get all enrollment requests for courses taught by this teacher
 $stmt = $db->prepare("
-    SELECT er.*, c.course_name, c.course_code, u.first_name, u.last_name, u.username,
+    SELECT er.*, c.course_name, c.course_code, u.first_name, u.last_name, u.username, u.identifier as neust_student_id,
            er.requested_at, er.status, er.rejection_reason,
            CASE WHEN JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL THEN 1 ELSE 0 END as is_section_assigned,
            u.is_irregular,
@@ -159,9 +159,31 @@ $stmt = $db->prepare("
 $stmt->execute([$teacher_id]);
 $pending_requests = $stmt->fetchAll();
 
+// Debug: Log enrollment requests
+error_log("Teacher ID: " . $teacher_id);
+error_log("Pending requests count: " . count($pending_requests));
+if (count($pending_requests) > 0) {
+    error_log("First pending request: " . print_r($pending_requests[0], true));
+} else {
+    // Check if there are any enrollment requests at all for this teacher
+    $debug_stmt = $db->prepare("
+        SELECT er.*, c.course_name, c.teacher_id
+        FROM enrollment_requests er
+        JOIN courses c ON er.course_id = c.id
+        WHERE c.teacher_id = ?
+        ORDER BY er.requested_at DESC
+    ");
+    $debug_stmt->execute([$teacher_id]);
+    $all_requests = $debug_stmt->fetchAll();
+    error_log("All enrollment requests for teacher: " . count($all_requests));
+    if (count($all_requests) > 0) {
+        error_log("Sample request: " . print_r($all_requests[0], true));
+    }
+}
+
 // Get recently processed requests (approved/rejected)
 $stmt = $db->prepare("
-    SELECT er.*, c.course_name, c.course_code, u.first_name, u.last_name, u.username,
+    SELECT er.*, c.course_name, c.course_code, u.first_name, u.last_name, u.username, u.identifier as neust_student_id,
            er.requested_at, er.status, er.rejection_reason, er.approved_at,
            s.section_name, s.year_level as academic_year
     FROM enrollment_requests er
@@ -230,6 +252,7 @@ $processed_requests = $stmt->fetchAll();
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th>Student ID</th>
                                         <th>Student</th>
                                         <th>Year & Section</th>
                                         <th>Course</th>
@@ -240,6 +263,9 @@ $processed_requests = $stmt->fetchAll();
                                 <tbody>
                                     <?php foreach ($irregular_section_requests as $request): ?>
                                         <tr>
+                                            <td>
+                                                <span class="badge bg-secondary"><?php echo htmlspecialchars($request['neust_student_id'] ?? $request['student_id'] ?? ''); ?></span>
+                                            </td>
                                             <td>
                                                 <div>
                                                     <strong><?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?></strong>
@@ -319,6 +345,7 @@ $processed_requests = $stmt->fetchAll();
                             <table class="table table-hover" id="other-requests-table">
                                 <thead>
                                     <tr>
+                                        <th>Student ID</th>
                                         <th>Student</th>
                                         <th>Year & Section</th>
                                         <th>Course</th>
@@ -329,6 +356,9 @@ $processed_requests = $stmt->fetchAll();
                                 <tbody id="other-requests-tbody">
                                     <?php foreach ($other_requests as $request): ?>
                                         <tr id="request-row-<?php echo $request['id']; ?>">
+                                            <td>
+                                                <span class="badge bg-secondary"><?php echo htmlspecialchars($request['neust_student_id'] ?? $request['student_id'] ?? ''); ?></span>
+                                            </td>
                                             <td>
                                                 <div>
                                                     <strong><?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?></strong>
@@ -412,6 +442,7 @@ $processed_requests = $stmt->fetchAll();
                             <table class="table table-hover" id="processedRequestsTable">
                                 <thead>
                                     <tr>
+                                        <th>Student ID</th>
                                         <th>Student</th>
                                         <th>Year & Section</th>
                                         <th>Course</th>
@@ -423,6 +454,9 @@ $processed_requests = $stmt->fetchAll();
                                 <tbody>
                                     <?php foreach ($processed_requests as $request): ?>
                                         <tr>
+                                            <td>
+                                                <span class="badge bg-secondary"><?php echo htmlspecialchars($request['neust_student_id'] ?? $request['student_id'] ?? ''); ?></span>
+                                            </td>
                                             <td>
                                                 <div>
                                                     <strong><?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?></strong>
@@ -701,6 +735,9 @@ function addNewEnrollmentRequestToTable(data) {
     const newRowHtml = `
         <tr id="request-row-${data.id}" class="new-request-highlight">
             <td>
+                <span class="badge bg-secondary">${data.neust_student_id || data.student_id || ''}</span>
+            </td>
+            <td>
                 <div>
                     <strong>${data.student_name}</strong>
                     <br>
@@ -790,6 +827,7 @@ function createOtherRequestsTable() {
             <table class="table table-hover" id="other-requests-table">
                 <thead>
                     <tr>
+                        <th>Student ID</th>
                         <th>Student</th>
                         <th>Year & Section</th>
                         <th>Course</th>

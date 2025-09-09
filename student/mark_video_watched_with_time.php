@@ -125,43 +125,52 @@ $stmt->execute([
 ]);
 
 // Record in video_views table
+// Note: video_id needs to be converted to integer for the database
+// We'll use a hash of the video_id string to create a consistent integer
+$video_id_int = crc32($video_id);
+
 $stmt = $pdo->prepare("
-    INSERT INTO video_views (student_id, video_id, watch_duration, completion_percentage, watched_at) 
+    INSERT INTO video_views (student_id, video_id, watch_duration, completion_percentage, viewed_at) 
     VALUES (?, ?, ?, ?, NOW())
     ON DUPLICATE KEY UPDATE 
     watch_duration = GREATEST(watch_duration, VALUES(watch_duration)),
     completion_percentage = GREATEST(completion_percentage, VALUES(completion_percentage)),
-    watched_at = NOW()
+    viewed_at = NOW()
 ");
-$stmt->execute([$user_id, $video_id, $watch_duration, $completion_percentage]);
+$stmt->execute([$user_id, $video_id_int, $watch_duration, $completion_percentage]);
 
-// Send Pusher notifications
-require_once __DIR__ . '/../config/pusher.php';
-require_once __DIR__ . '/../includes/pusher_notifications.php';
+// Send Pusher notifications (with error handling)
+try {
+    require_once __DIR__ . '/../config/pusher.php';
+    require_once __DIR__ . '/../includes/pusher_notifications.php';
 
-// Get video and course details for notifications
-$videoDetails = [
-    'video_title' => $video['video_title'] ?? 'Unknown Video',
-    'course_name' => $course['course_name'],
-    'teacher_id' => $course['teacher_id'],
-    'first_name' => $_SESSION['first_name'] ?? '',
-    'last_name' => $_SESSION['last_name'] ?? ''
-];
+    // Get video and course details for notifications
+    $videoDetails = [
+        'video_title' => $video['video_title'] ?? 'Unknown Video',
+        'course_name' => $course['course_name'],
+        'teacher_id' => $course['teacher_id'],
+        'first_name' => $_SESSION['first_name'] ?? '',
+        'last_name' => $_SESSION['last_name'] ?? ''
+    ];
 
-// Send notification to student
-PusherNotifications::sendVideoCompleted(
-    $user_id,
-    $videoDetails['video_title'],
-    $videoDetails['course_name']
-);
+    // Send notification to student
+    PusherNotifications::sendVideoCompleted(
+        $user_id,
+        $videoDetails['video_title'],
+        $videoDetails['course_name']
+    );
 
-// Send notification to teacher
-PusherNotifications::sendVideoProgressToTeacher(
-    $videoDetails['teacher_id'],
-    $videoDetails['first_name'] . ' ' . $videoDetails['last_name'],
-    $videoDetails['video_title'],
-    $videoDetails['course_name']
-);
+    // Send notification to teacher
+    PusherNotifications::sendVideoProgressToTeacher(
+        $videoDetails['teacher_id'],
+        $videoDetails['first_name'] . ' ' . $videoDetails['last_name'],
+        $videoDetails['video_title'],
+        $videoDetails['course_name']
+    );
+} catch (Exception $e) {
+    // Log the error but don't fail the video marking
+    error_log("Pusher notification error: " . $e->getMessage());
+}
 
 echo 'ok';
 ?>

@@ -301,28 +301,28 @@ if (isLoggedIn()) {
             <!-- Student Dashboard -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="student-courses">
                         <i class="bi bi-book fs-1 mb-3"></i>
                         <h3><?php echo $stats['enrolled_courses'] ?? 0; ?></h3>
                         <p class="mb-0">Enrolled Courses</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="student-assessments">
                         <i class="bi bi-clipboard-check fs-1 mb-3"></i>
                         <h3><?php echo $stats['completed_assessments'] ?? 0; ?></h3>
                         <p class="mb-0">Completed Assessments</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="student-score">
                         <i class="bi bi-graph-up fs-1 mb-3"></i>
                         <h3><?php echo number_format($stats['average_score'] ?? 0, 1); ?>%</h3>
                         <p class="mb-0">Average Score</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="student-badges">
                         <i class="bi bi-award fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_badges'] ?? 0; ?></h3>
                         <p class="mb-0">Badges Earned</p>
@@ -364,28 +364,28 @@ if (isLoggedIn()) {
             <!-- Teacher Dashboard -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="teacher-courses">
                         <i class="bi bi-book fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_courses'] ?? 0; ?></h3>
                         <p class="mb-0">Total Courses</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="teacher-students">
                         <i class="bi bi-people fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_students'] ?? 0; ?></h3>
                         <p class="mb-0">Total Students</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="teacher-assessments">
                         <i class="bi bi-clipboard-check fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_assessments'] ?? 0; ?></h3>
                         <p class="mb-0">Assessments</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="teacher-score">
                         <i class="bi bi-graph-up fs-1 mb-3"></i>
                         <h3><?php echo number_format($stats['average_student_score'] ?? 0, 1); ?>%</h3>
                         <p class="mb-0">Avg Student Score</p>
@@ -428,28 +428,28 @@ if (isLoggedIn()) {
             <!-- Admin Dashboard -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="admin-users">
                         <i class="bi bi-people fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_users'] ?? 0; ?></h3>
                         <p class="mb-0">Total Users</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="admin-courses">
                         <i class="bi bi-book fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_courses'] ?? 0; ?></h3>
                         <p class="mb-0">Total Courses</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="admin-students">
                         <i class="bi bi-mortarboard fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_students'] ?? 0; ?></h3>
                         <p class="mb-0">Total Students</p>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card text-center">
+                    <div class="stats-card text-center" data-tutorial="admin-assessments">
                         <i class="bi bi-clipboard-check fs-1 mb-3"></i>
                         <h3><?php echo $stats['total_assessments_taken'] ?? 0; ?></h3>
                         <p class="mb-0">Assessments Taken</p>

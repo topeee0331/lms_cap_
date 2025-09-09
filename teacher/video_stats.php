@@ -68,18 +68,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_video'])) {
 }
 
 // Get video statistics
+// Convert string video_id to integer using crc32 hash (same as in mark_video_watched_with_time.php)
+$video_id_int = crc32($video_id);
+
 $stmt = $db->prepare("
     SELECT 
         COUNT(DISTINCT vv.student_id) as unique_viewers,
         COUNT(vv.id) as total_views,
         AVG(vv.completion_percentage) as avg_completion,
         AVG(vv.watch_duration) as avg_watch_duration,
-        MIN(vv.watched_at) as first_view,
-        MAX(vv.watched_at) as last_view
+        MIN(vv.viewed_at) as first_view,
+        MAX(vv.viewed_at) as last_view
     FROM video_views vv
     WHERE vv.video_id = ?
 ");
-$stmt->execute([$video_id]);
+$stmt->execute([$video_id_int]);
 $stats = $stmt->fetch();
 
 // Get viewer details
@@ -88,9 +91,9 @@ $stmt = $db->prepare("
     FROM video_views vv
     JOIN users u ON vv.student_id = u.id
     WHERE vv.video_id = ?
-    ORDER BY vv.watched_at DESC
+    ORDER BY vv.viewed_at DESC
 ");
-$stmt->execute([$video_id]);
+$stmt->execute([$video_id_int]);
 $viewers = $stmt->fetchAll();
 
 // Get completion rate distribution
@@ -109,34 +112,34 @@ $stmt = $db->prepare("
     GROUP BY completion_range
     ORDER BY completion_range DESC
 ");
-$stmt->execute([$video_id]);
+$stmt->execute([$video_id_int]);
 $completion_distribution = $stmt->fetchAll();
 
 // Get daily view trends (last 30 days)
 $stmt = $db->prepare("
     SELECT 
-        DATE(watched_at) as view_date,
+        DATE(viewed_at) as view_date,
         COUNT(*) as view_count,
         COUNT(DISTINCT student_id) as unique_viewers
     FROM video_views
-    WHERE video_id = ? AND watched_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY DATE(watched_at)
+    WHERE video_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY DATE(viewed_at)
     ORDER BY view_date
 ");
-$stmt->execute([$video_id]);
+$stmt->execute([$video_id_int]);
 $daily_trends = $stmt->fetchAll();
 
 // Get engagement by time of day
 $stmt = $db->prepare("
     SELECT 
-        HOUR(watched_at) as hour,
+        HOUR(viewed_at) as hour,
         COUNT(*) as view_count
     FROM video_views
     WHERE video_id = ?
-    GROUP BY HOUR(watched_at)
+    GROUP BY HOUR(viewed_at)
     ORDER BY hour
 ");
-$stmt->execute([$video_id]);
+$stmt->execute([$video_id_int]);
 $hourly_engagement = $stmt->fetchAll();
 ?>
 

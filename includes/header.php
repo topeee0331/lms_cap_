@@ -40,6 +40,7 @@ if (!defined('NO_HTML_OUTPUT')) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Pusher -->
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <!-- Tutorial System (Modal-based) -->
     
     <style>
         :root {
@@ -78,6 +79,197 @@ if (!defined('NO_HTML_OUTPUT')) {
             border-radius: 0 0 12px 12px;
             box-shadow: 0 2px 8px rgba(46,94,78,0.08);
             margin-bottom: 0.5rem;
+        }
+        
+        /* Tutorial System Styles */
+        .introjs-tooltip {
+            background: var(--white) !important;
+            border: 2px solid var(--main-green) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 8px 32px rgba(46,94,78,0.15) !important;
+        }
+        
+        .introjs-tooltip .introjs-tooltip-header {
+            background: var(--main-green) !important;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .introjs-tooltip .introjs-tooltip-title {
+            color: var(--white) !important;
+            font-weight: 700 !important;
+        }
+        
+        .introjs-tooltip .introjs-tooltip-content {
+            color: var(--main-green) !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+        }
+        
+        .introjs-tooltip .introjs-tooltip-buttons {
+            border-top: 1px solid #e9ecef !important;
+            padding: 12px !important;
+        }
+        
+        .introjs-tooltip .introjs-button {
+            background: var(--main-green) !important;
+            border: none !important;
+            color: var(--white) !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            padding: 8px 16px !important;
+            margin: 0 4px !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        .introjs-tooltip .introjs-button:hover {
+            background: var(--accent-green) !important;
+            color: var(--main-green) !important;
+            transform: translateY(-1px) !important;
+        }
+        
+        .introjs-tooltip .introjs-button.introjs-skipbutton {
+            background: #6c757d !important;
+            color: var(--white) !important;
+        }
+        
+        .introjs-tooltip .introjs-button.introjs-skipbutton:hover {
+            background: #5a6268 !important;
+        }
+        
+        .introjs-tooltip .introjs-arrow {
+            border-color: var(--main-green) !important;
+        }
+        
+        .introjs-tooltip .introjs-arrow.top {
+            border-bottom-color: var(--main-green) !important;
+        }
+        
+        .introjs-tooltip .introjs-arrow.bottom {
+            border-top-color: var(--main-green) !important;
+        }
+        
+        .introjs-tooltip .introjs-arrow.left {
+            border-right-color: var(--main-green) !important;
+        }
+        
+        .introjs-tooltip .introjs-arrow.right {
+            border-left-color: var(--main-green) !important;
+        }
+        
+        .introjs-overlay {
+            background: rgba(46, 94, 78, 0.1) !important;
+        }
+        
+        .tutorial-trigger {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: var(--main-green);
+            color: var(--white);
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(46,94,78,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .tutorial-trigger:hover {
+            background: var(--accent-green);
+            color: var(--main-green);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46,94,78,0.3);
+        }
+        
+        .tutorial-trigger i {
+            margin-right: 8px;
+        }
+        
+        /* Tutorial Modal Styles */
+        .tutorial-modal .modal-content {
+            border: 2px solid var(--main-green);
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(46,94,78,0.2);
+        }
+        
+        .tutorial-modal .modal-header {
+            background: var(--main-green);
+            color: var(--white);
+            border-radius: 13px 13px 0 0;
+            border-bottom: none;
+        }
+        
+        .tutorial-modal .modal-title {
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+        
+        .tutorial-modal .modal-body {
+            padding: 2rem;
+            background: var(--off-white);
+        }
+        
+        .tutorial-modal .modal-footer {
+            background: var(--off-white);
+            border-top: 1px solid #e9ecef;
+            border-radius: 0 0 13px 13px;
+        }
+        
+        .tutorial-modal .btn-primary {
+            background: var(--main-green);
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            border-radius: 8px;
+        }
+        
+        .tutorial-modal .btn-primary:hover {
+            background: var(--accent-green);
+            color: var(--main-green);
+        }
+        
+        .tutorial-modal .btn-secondary {
+            background: #6c757d;
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            border-radius: 8px;
+        }
+        
+        .tutorial-modal .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .tutorial-feature {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--white);
+            border-radius: 10px;
+            border-left: 4px solid var(--accent-green);
+            box-shadow: 0 2px 8px rgba(46,94,78,0.1);
+        }
+        
+        .tutorial-feature i {
+            color: var(--main-green);
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            margin-top: 0.2rem;
+        }
+        
+        .tutorial-feature-content h6 {
+            color: var(--main-green);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tutorial-feature-content p {
+            color: #6c757d;
+            margin-bottom: 0;
+            line-height: 1.5;
         }
         
         .navbar-brand {
@@ -2826,6 +3018,383 @@ function removeEnrollmentRequestsBadge() {
     });
   }
 }
+
+// Tutorial System
+class TutorialSystem {
+    constructor() {
+        this.userRole = '<?php echo $_SESSION["role"] ?? "guest"; ?>';
+        this.currentPage = '<?php echo $current_page ?? ""; ?>';
+        this.init();
+    }
+
+    init() {
+        // Only show tutorial for logged-in users
+        if (this.userRole === 'guest') return;
+        
+        // Always add tutorial trigger button (no auto-show)
+        this.addTutorialTrigger();
+    }
+
+
+    showTutorialModal(tutorialData) {
+        // Create modal HTML
+        const modalHtml = `
+            <div class="modal fade tutorial-modal" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="tutorialModalLabel">
+                                <i class="bi bi-info-circle me-2"></i>
+                                ${tutorialData.title}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-4">
+                                <p class="lead text-center">${tutorialData.description}</p>
+                            </div>
+                            
+                            <div class="tutorial-features">
+                                ${tutorialData.features.map(feature => `
+                                    <div class="tutorial-feature">
+                                        <i class="${feature.icon}"></i>
+                                        <div class="tutorial-feature-content">
+                                            <h6>${feature.title}</h6>
+                                            <p>${feature.description}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            ${tutorialData.tips ? `
+                                <div class="alert alert-info mt-4">
+                                    <h6><i class="bi bi-lightbulb me-2"></i>Quick Tips</h6>
+                                    <ul class="mb-0">
+                                        ${tutorialData.tips.map(tip => `<li>${tip}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                                <i class="bi bi-check-circle me-1"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('tutorialModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('tutorialModal'));
+        modal.show();
+    }
+
+    getTutorialData() {
+        const tutorials = {
+            'student': {
+                'index.php': {
+                    title: 'Student Dashboard',
+                    description: 'Welcome to your Student Dashboard! This is your central hub for tracking your learning progress, enrolled courses, and achievements.',
+                    features: [
+                        {
+                            icon: 'bi bi-book',
+                            title: 'Enrolled Courses',
+                            description: 'View all your enrolled courses and track your progress through each one.'
+                        },
+                        {
+                            icon: 'bi bi-clipboard-check',
+                            title: 'Completed Assessments',
+                            description: 'Keep track of all assessments you have completed across all courses.'
+                        },
+                        {
+                            icon: 'bi bi-graph-up',
+                            title: 'Average Score',
+                            description: 'Monitor your overall performance with your average score across all assessments.'
+                        },
+                        {
+                            icon: 'bi bi-award',
+                            title: 'Badges Earned',
+                            description: 'See the badges you have earned for your achievements and course completions.'
+                        }
+                    ],
+                    tips: [
+                        'Check your dashboard regularly to stay updated on your progress',
+                        'Click on course cards to access course content and materials',
+                        'Use the navigation menu to access different sections of the LMS'
+                    ]
+                },
+                'courses.php': {
+                    title: 'My Courses',
+                    description: 'Browse and manage all your enrolled courses. Access course materials, assessments, and track your progress.',
+                    features: [
+                        {
+                            icon: 'bi bi-book-open',
+                            title: 'Course Access',
+                            description: 'Click on any course card to access course content, videos, and materials.'
+                        },
+                        {
+                            icon: 'bi bi-graph-up',
+                            title: 'Progress Tracking',
+                            description: 'View your progress percentage for each course based on completed assessments.'
+                        },
+                        {
+                            icon: 'bi bi-person-badge',
+                            title: 'Teacher Information',
+                            description: 'See which teacher is instructing each course.'
+                        }
+                    ],
+                    tips: [
+                        'Click "Continue Learning" to access course content',
+                        'Check your progress regularly to stay on track',
+                        'Contact your teacher if you have questions about course content'
+                    ]
+                }
+            },
+            'teacher': {
+                'index.php': {
+                    title: 'Teacher Dashboard',
+                    description: 'Welcome to your Teacher Dashboard! This is your command center for managing courses, students, and educational content.',
+                    features: [
+                        {
+                            icon: 'bi bi-book',
+                            title: 'Total Courses',
+                            description: 'View the total number of courses you have created and are managing.'
+                        },
+                        {
+                            icon: 'bi bi-people',
+                            title: 'Total Students',
+                            description: 'Track the total number of students enrolled in your courses.'
+                        },
+                        {
+                            icon: 'bi bi-clipboard-check',
+                            title: 'Assessments Created',
+                            description: 'Monitor the total number of assessments you have created for your courses.'
+                        },
+                        {
+                            icon: 'bi bi-graph-up',
+                            title: 'Average Student Score',
+                            description: 'See the average performance of your students across all assessments.'
+                        }
+                    ],
+                    tips: [
+                        'Use the "Create Course" button to add new courses',
+                        'Click on course cards to manage course content and students',
+                        'Monitor student performance regularly to identify areas for improvement'
+                    ]
+                },
+                'courses.php': {
+                    title: 'Course Management',
+                    description: 'Manage all your courses, create new ones, and organize your educational content effectively.',
+                    features: [
+                        {
+                            icon: 'bi bi-plus-circle',
+                            title: 'Create New Course',
+                            description: 'Click the "Create Course" button to add new courses for your students.'
+                        },
+                        {
+                            icon: 'bi bi-gear',
+                            title: 'Course Settings',
+                            description: 'Click on course cards to manage course content, students, and settings.'
+                        },
+                        {
+                            icon: 'bi bi-people',
+                            title: 'Student Management',
+                            description: 'View and manage students enrolled in each course.'
+                        }
+                    ],
+                    tips: [
+                        'Plan your course structure before creating new courses',
+                        'Use descriptive course names and codes for easy identification',
+                        'Regularly update course content to keep it current and engaging'
+                    ]
+                },
+                'module_videos.php': {
+                    title: 'Module Video Management',
+                    description: 'Upload, organize, and manage video content for your course modules. This is where you add educational videos to enhance student learning.',
+                    features: [
+                        {
+                            icon: 'bi bi-upload',
+                            title: 'Video Upload',
+                            description: 'Upload educational videos in MP4 format to your course modules.'
+                        },
+                        {
+                            icon: 'bi bi-play-circle',
+                            title: 'Video Organization',
+                            description: 'Organize videos by modules and add descriptions to help students understand content.'
+                        },
+                        {
+                            icon: 'bi bi-eye',
+                            title: 'Video Preview',
+                            description: 'Preview uploaded videos to ensure quality and content accuracy.'
+                        },
+                        {
+                            icon: 'bi bi-trash',
+                            title: 'Video Management',
+                            description: 'Edit video details, delete outdated content, and manage video accessibility.'
+                        }
+                    ],
+                    tips: [
+                        'Keep video file sizes under 100MB for optimal performance',
+                        'Add clear, descriptive titles and descriptions for each video',
+                        'Test video playback before making videos available to students',
+                        'Organize videos logically by topic or lesson sequence'
+                    ]
+                },
+                'videos.php': {
+                    title: 'Video Library',
+                    description: 'Manage your entire video library across all courses. Upload, organize, and maintain your educational video content.',
+                    features: [
+                        {
+                            icon: 'bi bi-collection',
+                            title: 'Video Library',
+                            description: 'View and manage all videos across all your courses in one central location.'
+                        },
+                        {
+                            icon: 'bi bi-search',
+                            title: 'Search & Filter',
+                            description: 'Search for specific videos and filter by course or module.'
+                        },
+                        {
+                            icon: 'bi bi-download',
+                            title: 'Bulk Operations',
+                            description: 'Download multiple videos or perform bulk operations on your video library.'
+                        }
+                    ],
+                    tips: [
+                        'Use consistent naming conventions for your videos',
+                        'Add tags and categories to make videos easier to find',
+                        'Regularly review and update video content for accuracy',
+                        'Consider video quality and file size for optimal student experience'
+                    ]
+                }
+            },
+            'admin': {
+                'index.php': {
+                    title: 'Admin Dashboard',
+                    description: 'Welcome to the Admin Dashboard! Monitor system-wide statistics and manage the entire LMS platform.',
+                    features: [
+                        {
+                            icon: 'bi bi-people',
+                            title: 'Total Users',
+                            description: 'Monitor the total number of users registered in the system.'
+                        },
+                        {
+                            icon: 'bi bi-book',
+                            title: 'Total Courses',
+                            description: 'Track the total number of courses created across the platform.'
+                        },
+                        {
+                            icon: 'bi bi-mortarboard',
+                            title: 'Total Students',
+                            description: 'Monitor the total number of enrolled students in the system.'
+                        },
+                        {
+                            icon: 'bi bi-clipboard-check',
+                            title: 'Assessments Taken',
+                            description: 'Track the total number of assessments completed by students.'
+                        }
+                    ],
+                    tips: [
+                        'Use the Quick Actions section to access common administrative tasks',
+                        'Monitor system statistics regularly to identify trends and issues',
+                        'Check user activity and course performance metrics'
+                    ]
+                }
+            }
+        };
+
+        // Check for specific page tutorial first
+        let tutorial = tutorials[this.userRole]?.[this.currentPage];
+        
+        // If no specific tutorial, provide a general one
+        if (!tutorial) {
+            tutorial = {
+                title: `${this.userRole.charAt(0).toUpperCase() + this.userRole.slice(1)} Interface`,
+                description: `Welcome to the ${this.userRole} section of the NEUST-MGT BSIT LMS. This interface provides you with the tools and features specific to your role.`,
+                features: [
+                    {
+                        icon: 'bi bi-gear',
+                        title: 'Role-Specific Features',
+                        description: `Access features and tools designed specifically for ${this.userRole}s in the LMS.`
+                    },
+                    {
+                        icon: 'bi bi-navigation',
+                        title: 'Navigation Menu',
+                        description: 'Use the navigation menu to access different sections and features of the system.'
+                    },
+                    {
+                        icon: 'bi bi-question-circle',
+                        title: 'Help & Support',
+                        description: 'Click the tutorial button anytime to get help and learn about page features.'
+                    }
+                ],
+                tips: [
+                    'Explore the interface to familiarize yourself with available features',
+                    'Use the navigation menu to access different sections',
+                    'Contact support if you need assistance with specific features'
+                ]
+            };
+        }
+
+        return tutorial;
+    }
+
+    addTutorialTrigger() {
+        console.log('Adding tutorial trigger button');
+        const trigger = document.createElement('button');
+        trigger.className = 'tutorial-trigger';
+        trigger.innerHTML = '<i class="bi bi-question-circle"></i> Tutorial';
+        trigger.onclick = () => {
+            console.log('Tutorial trigger clicked');
+            const tutorialData = this.getTutorialData();
+            if (tutorialData) {
+                this.showTutorialModal(tutorialData);
+            }
+        };
+        
+        document.body.appendChild(trigger);
+        console.log('Tutorial trigger button added to page');
+    }
+
+    // Method to reset tutorial for testing (kept for compatibility)
+    resetTutorial() {
+        // No-op since we don't track completion anymore
+        console.log('Tutorial reset requested (no-op)');
+    }
+}
+
+// Initialize tutorial system when page loads
+let tutorialSystem;
+document.addEventListener('DOMContentLoaded', function() {
+    tutorialSystem = new TutorialSystem();
+});
+
+// Global function to reset tutorial for testing
+window.resetTutorial = function() {
+    if (tutorialSystem) {
+        tutorialSystem.resetTutorial();
+    }
+};
+
+// Global function to start tutorial manually
+window.startTutorial = function() {
+    if (tutorialSystem) {
+        const tutorialData = tutorialSystem.getTutorialData();
+        if (tutorialData) {
+            tutorialSystem.showTutorialModal(tutorialData);
+        }
+    }
+};
 </script>
 </body>
 </html>

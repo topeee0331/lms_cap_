@@ -14,34 +14,6 @@ if (!isset($db) || !$db) {
 }
 
 
-// Helper function to get next available video order (simplified)
-function getNextAvailableVideoOrder($videos) {
-    if (empty($videos)) {
-        return 1;
-    }
-    
-    $max_order = 0;
-    foreach ($videos as $video) {
-        $order = (int)($video['video_order'] ?? 0);
-        if ($order > $max_order) {
-            $max_order = $order;
-        }
-    }
-    
-    return $max_order + 1;
-}
-
-// Helper function to refresh and sort videos array
-function refreshAndSortVideos(&$videos) {
-    if (empty($videos)) {
-        return;
-    }
-    
-    // Sort videos by order
-    usort($videos, function($a, $b) {
-        return ($a['video_order'] ?? 1) - ($b['video_order'] ?? 1);
-    });
-}
 
 
 
@@ -104,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'upload_video':
                 $video_title = sanitizeInput($_POST['video_title'] ?? '');
                 $description = sanitizeInput($_POST['description'] ?? '');
-                $video_order = (int)($_POST['video_order'] ?? 1);
                 $min_watch_time = (int)($_POST['min_watch_time'] ?? 30);
                 $video_url = trim($_POST['video_url'] ?? '');
                 
@@ -131,7 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     'id' => uniqid('vid_'),
                                     'video_title' => $video_title,
                                     'video_description' => $description,
-                                    'video_order' => $video_order,
                                     'video_url' => $video_url,
                                     'min_watch_time' => $min_watch_time,
                                     'created_at' => date('Y-m-d H:i:s')
@@ -163,7 +133,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $video_id = sanitizeInput($_POST['video_id'] ?? '');
                 $video_title = sanitizeInput($_POST['video_title'] ?? '');
                 $description = sanitizeInput($_POST['description'] ?? '');
-                $video_order = (int)($_POST['video_order'] ?? 1);
                 $min_watch_time = (int)($_POST['min_watch_time'] ?? 30);
                 $video_url = trim($_POST['video_url'] ?? '');
                 
@@ -185,7 +154,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         if ($video['id'] === $video_id) {
                                             $video['video_title'] = $video_title;
                                             $video['video_description'] = $description;
-                                            $video['video_order'] = $video_order;
                                             $video['video_url'] = $video_url;
                                             $video['min_watch_time'] = $min_watch_time;
                                             $video['updated_at'] = date('Y-m-d H:i:s');
@@ -277,32 +245,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get videos from the current module (JSON-based approach)
+// Get videos from the current module (JSON-based approach) - using videos.php logic
 $videos = [];
-$processed_video_ids = []; // Track processed video IDs to prevent duplicates
 
 // Check if the current module has videos
 if (isset($module['videos']) && is_array($module['videos'])) {
-    foreach ($module['videos'] as $index => $video) {
-        // Skip videos that don't have an ID
-        if (!isset($video['id'])) {
+    foreach ($module['videos'] as $video) {
+        // Skip videos that don't have required fields
+        if (!isset($video['id']) || !isset($video['video_title'])) {
             continue;
         }
         
-        // Skip if we've already processed this video ID
-        if (in_array($video['id'], $processed_video_ids)) {
-            continue;
-        }
-        
-        // Add to processed list
-        $processed_video_ids[] = $video['id'];
-        
-        // If no title, use a default
-        if (!isset($video['video_title']) || empty($video['video_title'])) {
-            $video['video_title'] = 'Untitled Video ' . ($index + 1);
-        }
-        
-        // Add additional fields for display
         $video['course_name'] = $course['course_name'];
         $video['course_code'] = $course['course_code'];
         $video['module_title'] = $module['module_title'] ?? 'Unknown Module';
@@ -317,12 +270,17 @@ if (isset($module['videos']) && is_array($module['videos'])) {
     }
 }
 
-// Sort videos by order
+// Sort videos by creation time (newest first)
 usort($videos, function($a, $b) {
-    return ($a['video_order'] ?? 0) - ($b['video_order'] ?? 0);
+    $time_a = strtotime($a['created_at'] ?? '1970-01-01 00:00:00');
+    $time_b = strtotime($b['created_at'] ?? '1970-01-01 00:00:00');
+    return $time_b - $time_a; // Newest first
 });
 
-// Get students in sections for this course
+// Debug logging for video count - using videos.php logic
+error_log("Total videos found in module: " . count($videos));
+
+// Get students in sections for this course - using videos.php logic
 $student_names = [];
 $student_ids = [];
 $video_viewers = [];
@@ -332,31 +290,31 @@ if ($course['sections']) {
     $section_ids = json_decode($course['sections'], true);
     if (is_array($section_ids)) {
         $placeholders = str_repeat('?,', count($section_ids) - 1) . '?';
-$stmt = $db->prepare("SELECT u.id, u.first_name, u.last_name 
-                      FROM sections s 
-                      JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL 
+        $stmt = $db->prepare("SELECT u.id, u.first_name, u.last_name 
+                              FROM sections s 
+                              JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL 
                               WHERE s.id IN ($placeholders)");
         $stmt->execute($section_ids);
-foreach ($stmt->fetchAll() as $stu) {
-    $student_names[$stu['id']] = $stu['last_name'] . ', ' . $stu['first_name'];
-    $student_ids[] = $stu['id'];
-}
+        foreach ($stmt->fetchAll() as $stu) {
+            $student_names[$stu['id']] = $stu['last_name'] . ', ' . $stu['first_name'];
+            $student_ids[] = $stu['id'];
+        }
         
         // Get video statistics from video_views table (if it exists)
-if ($videos && $student_ids) {
-    // Check if video_views table exists
-    $table_exists = false;
-    try {
-        $stmt = $db->prepare("SHOW TABLES LIKE 'video_views'");
-        $stmt->execute();
-        $table_exists = $stmt->rowCount() > 0;
-    } catch (Exception $e) {
-        error_log("Error checking video_views table: " . $e->getMessage());
-        $table_exists = false;
-    }
-    
-    if ($table_exists) {
-        foreach ($videos as $video) {
+        if ($videos && $student_ids) {
+            // Check if video_views table exists
+            $table_exists = false;
+            try {
+                $stmt = $db->prepare("SHOW TABLES LIKE 'video_views'");
+                $stmt->execute();
+                $table_exists = $stmt->rowCount() > 0;
+            } catch (Exception $e) {
+                error_log("Error checking video_views table: " . $e->getMessage());
+                $table_exists = false;
+            }
+            
+            if ($table_exists) {
+                foreach ($videos as $video) {
                     $video_id = $video['id'];
                     $video_viewers[$video_id] = [];
                     $video_stats[$video_id] = [
@@ -367,6 +325,9 @@ if ($videos && $student_ids) {
                     ];
                     
                     try {
+                        // Convert string video_id to integer using crc32 hash (same as in mark_video_watched_with_time.php)
+                        $video_id_int = crc32($video_id);
+                        
                         // Get video view statistics
                         $stmt = $db->prepare("
                             SELECT 
@@ -378,7 +339,7 @@ if ($videos && $student_ids) {
                             FROM video_views 
                             WHERE video_id = ? AND student_id IN (" . str_repeat('?,', count($student_ids) - 1) . "?)
                         ");
-                        $params = array_merge([$video_id], $student_ids);
+                        $params = array_merge([$video_id_int], $student_ids);
                         $stmt->execute($params);
                         $stats = $stmt->fetch();
                         
@@ -401,20 +362,20 @@ if ($videos && $student_ids) {
                         // Continue with default stats
                     }
                 }
-    } else {
-        // Table doesn't exist, use default stats
-        foreach ($videos as $video) {
-            $video_id = $video['id'];
-            $video_viewers[$video_id] = [];
-            $video_stats[$video_id] = [
-                'total_views' => 0,
-                'unique_viewers' => 0,
-                'avg_completion' => 0,
-                'total_watch_time' => 0
-            ];
+            } else {
+                // Table doesn't exist, use default stats
+                foreach ($videos as $video) {
+                    $video_id = $video['id'];
+                    $video_viewers[$video_id] = [];
+                    $video_stats[$video_id] = [
+                        'total_views' => 0,
+                        'unique_viewers' => 0,
+                        'avg_completion' => 0,
+                        'total_watch_time' => 0
+                    ];
+                }
+            }
         }
-    }
-}
     }
 }
 
@@ -439,8 +400,11 @@ function checkVideoTracking($video_id, $db) {
             return 0; // Table doesn't exist
         }
         
+        // Convert string video_id to integer using crc32 hash (same as in mark_video_watched_with_time.php)
+        $video_id_int = crc32($video_id);
+        
         $stmt = $db->prepare("SELECT COUNT(*) as count FROM video_views WHERE video_id = ?");
-        $stmt->execute([$video_id]);
+        $stmt->execute([$video_id_int]);
         return $stmt->fetch()['count'];
     } catch (Exception $e) {
         error_log("Error checking video tracking: " . $e->getMessage());
@@ -694,7 +658,6 @@ if (isset($_GET['debug'])) {
                                             <?php endif; ?>
                                             <div class="mb-2">
                                                 <small class="text-muted">
-                                                    <i class="bi bi-sort-numeric-up me-1"></i>Order: <?php echo $video['video_order'] ?? 1; ?><br>
                                                     <i class="bi bi-clock me-1"></i>Min Watch: <?php echo $video['min_watch_time'] ?? 30; ?> seconds
                                                 </small>
                                             </div>
@@ -755,19 +718,11 @@ if (isset($_GET['debug'])) {
                         <textarea class="form-control" id="upload_description" name="description" rows="3"></textarea>
                     </div>
                     
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="upload_video_order" class="form-label">Video Order (Optional)</label>
-                            <input type="number" class="form-control" id="upload_video_order" name="video_order" 
-                                   value="<?php echo getNextAvailableVideoOrder($videos); ?>" min="1">
-                            <div class="form-text">Order for display purposes (auto-generated if not specified)</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="upload_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
-                            <input type="number" class="form-control" id="upload_min_watch_time" name="min_watch_time" 
-                                   value="5" min="1" max="30" step="1" required>
-                            <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="upload_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
+                        <input type="number" class="form-control" id="upload_min_watch_time" name="min_watch_time" 
+                               value="5" min="1" max="30" step="1" required>
+                        <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
                     </div>
                     <div class="mb-3">
                         <label for="upload_video_url" class="form-label">Video Link (YouTube, Google Drive, or direct .mp4 link)</label>
@@ -808,18 +763,11 @@ if (isset($_GET['debug'])) {
                         <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
                     </div>
                     
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="edit_video_order" class="form-label">Video Order (Optional)</label>
-                            <input type="number" class="form-control" id="edit_video_order" name="video_order" min="1">
-                            <div class="form-text">Order for display purposes only</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
-                            <input type="number" class="form-control" id="edit_min_watch_time" name="min_watch_time" 
-                                   min="1" max="30" step="1" required>
-                            <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_min_watch_time" class="form-label">Minimum Watch Time (minutes)</label>
+                        <input type="number" class="form-control" id="edit_min_watch_time" name="min_watch_time" 
+                               min="1" max="30" step="1" required>
+                        <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -846,7 +794,6 @@ function editVideo(video) {
         document.getElementById('edit_video_id').value = video.id;
         document.getElementById('edit_video_title').value = video.video_title || '';
         document.getElementById('edit_description').value = video.video_description || '';
-        document.getElementById('edit_video_order').value = video.video_order || 1;
         document.getElementById('edit_min_watch_time').value = video.min_watch_time || 30;
 
         const modal = new bootstrap.Modal(document.getElementById('editVideoModal'));

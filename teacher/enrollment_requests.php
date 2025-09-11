@@ -761,13 +761,14 @@ function addNewEnrollmentRequestToTable(data) {
                 </div>
             </td>
             <td>
-                <small class="text-muted">${new Date().toLocaleString('en-US', { 
+                <small class="text-muted">${new Date(data.requested_at).toLocaleString('en-US', { 
                     month: 'short', 
                     day: 'numeric', 
                     year: 'numeric',
                     hour: 'numeric',
                     minute: 'numeric',
-                    hour12: true 
+                    hour12: true,
+                    timeZone: 'Asia/Manila'
                 })}</small>
             </td>
             <td>

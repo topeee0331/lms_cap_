@@ -38,13 +38,13 @@ try {
     }
     
     // First, check if this notification exists and belongs to the student
-    // The notification.user_id should match the student's ID
+    // Handle both enrollment notifications and course_kicked notifications
     $stmt = $pdo->prepare("
         SELECT n.*, er.student_id, er.status as enrollment_status
         FROM notifications n
-        JOIN enrollment_requests er ON n.related_id = er.id
+        LEFT JOIN enrollment_requests er ON n.related_id = er.id AND n.type IN ('enrollment_approved', 'enrollment_rejected')
         WHERE n.id = ? 
-        AND n.type IN ('enrollment_approved', 'enrollment_rejected')
+        AND n.type IN ('enrollment_approved', 'enrollment_rejected', 'course_kicked')
         AND n.user_id = ?  -- This should match the current student
     ");
     $stmt->execute([$notificationId, $studentId]);
@@ -56,34 +56,20 @@ try {
         exit();
     }
     
-    // Double-check that the student_id from enrollment request matches
-    if ($notification['student_id'] != $studentId) {
+    // For enrollment notifications, double-check that the student_id from enrollment request matches
+    if ($notification['type'] !== 'course_kicked' && $notification['student_id'] != $studentId) {
         echo json_encode(['success' => false, 'error' => 'Unauthorized - Notification does not belong to this student']);
         ob_end_flush();
         exit();
     }
     
-    // Mark the notification as read by updating the student_notification_views table
-    // We'll insert with notification_id for individual tracking
+    // Mark the notification as read in the notifications table
     $stmt = $pdo->prepare("
-        INSERT INTO student_notification_views (student_id, notification_type, notification_id, viewed_at)
-        VALUES (?, 'enrollment_status', ?, NOW())
-        ON DUPLICATE KEY UPDATE viewed_at = NOW()
+        UPDATE notifications 
+        SET is_read = 1 
+        WHERE id = ?
     ");
-    $stmt->execute([$studentId, $notificationId]);
-    
-    // Also mark the notification as read in the notifications table if it has a read_at field
-    try {
-        $stmt = $pdo->prepare("
-            UPDATE notifications 
-            SET read_at = NOW() 
-            WHERE id = ?
-        ");
-        $stmt->execute([$notificationId]);
-    } catch (Exception $e) {
-        // If read_at field doesn't exist, that's okay
-        error_log("Note: notifications table may not have read_at field: " . $e->getMessage());
-    }
+    $stmt->execute([$notificationId]);
     
     echo json_encode([
         'success' => true,

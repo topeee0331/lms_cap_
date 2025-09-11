@@ -14,7 +14,7 @@ $role = $_SESSION['role'];
 
 try {
     if ($role === 'teacher') {
-        // Get teacher's announcements (both general and course-specific)
+        // Get teacher's announcements (both general and course-specific) - only unread ones
         $stmt = $db->prepare("
             SELECT 
                 a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
@@ -32,17 +32,46 @@ try {
                     ELSE 'Course'
                 END as announcement_type
             FROM announcements a
-            WHERE a.author_id = ? 
+            WHERE (a.author_id = ? 
                OR a.is_global = 1
-               OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL)
+               OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL))
+               AND (a.read_by IS NULL OR JSON_SEARCH(a.read_by, 'one', ?) IS NULL)
+            ORDER BY a.created_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute([$user_id, $user_id, $user_id]);
+        $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } elseif ($role === 'student') {
+        // Get student's announcements (both general and course-specific) - only unread ones
+        $stmt = $db->prepare("
+            SELECT 
+                a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
+                CASE 
+                    WHEN a.is_global = 1 THEN 'General Announcement'
+                    WHEN a.target_audience IS NOT NULL THEN (
+                        SELECT c.course_name 
+                        FROM courses c 
+                        WHERE c.id = JSON_UNQUOTE(JSON_EXTRACT(a.target_audience, '$.courses[0]'))
+                    )
+                    ELSE 'Unknown'
+                END as context,
+                CASE 
+                    WHEN a.is_global = 1 THEN 'General'
+                    ELSE 'Course'
+                END as announcement_type
+            FROM announcements a
+            WHERE (a.is_global = 1
+               OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL))
+               AND (a.read_by IS NULL OR JSON_SEARCH(a.read_by, 'one', ?) IS NULL)
             ORDER BY a.created_at DESC
             LIMIT 10
         ");
         $stmt->execute([$user_id, $user_id]);
         $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-    } elseif ($role === 'student') {
-        // Get student's announcements (both general and course-specific)
+    } else {
+        // Admin or other roles - get all announcements (only unread ones)
         $stmt = $db->prepare("
             SELECT 
                 a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
@@ -60,37 +89,11 @@ try {
                     ELSE 'Course'
                 END as announcement_type
             FROM announcements a
-            WHERE a.is_global = 1
-               OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL)
+            WHERE a.read_by IS NULL OR JSON_SEARCH(a.read_by, 'one', ?) IS NULL
             ORDER BY a.created_at DESC
             LIMIT 10
         ");
         $stmt->execute([$user_id]);
-        $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } else {
-        // Admin or other roles - get all announcements
-        $stmt = $db->prepare("
-            SELECT 
-                a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
-                CASE 
-                    WHEN a.is_global = 1 THEN 'General Announcement'
-                    WHEN a.target_audience IS NOT NULL THEN (
-                        SELECT c.course_name 
-                        FROM courses c 
-                        WHERE c.id = JSON_UNQUOTE(JSON_EXTRACT(a.target_audience, '$.courses[0]'))
-                    )
-                    ELSE 'Unknown'
-                END as context,
-                CASE 
-                    WHEN a.is_global = 1 THEN 'General'
-                    ELSE 'Course'
-                END as announcement_type
-            FROM announcements a
-            ORDER BY a.created_at DESC
-            LIMIT 10
-        ");
-        $stmt->execute();
         $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     

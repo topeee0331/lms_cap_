@@ -126,6 +126,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt = $db->prepare('DELETE FROM enrollment_requests WHERE student_id = ? AND course_id = ?');
                             $stmt->execute([$student_id, $course_id]);
                             
+                            // Create notification for the student
+                            $stmt = $db->prepare('SELECT course_name, course_code FROM courses WHERE id = ?');
+                            $stmt->execute([$course_id]);
+                            $course_info = $stmt->fetch();
+                            
+                            if ($course_info) {
+                                $notification_title = "Removed from Course";
+                                $notification_message = "You have been removed from the course '{$course_info['course_name']}' ({$course_info['course_code']}) by your teacher. All your progress data has been cleared.";
+                                
+                                $stmt = $db->prepare("
+                                    INSERT INTO notifications (user_id, title, message, type, related_id, priority) 
+                                    VALUES (?, ?, ?, 'course_kicked', ?, 'high')
+                                ");
+                                $stmt->execute([$student_id, $notification_title, $notification_message, $course_id]);
+                                
+                                // Send real-time notification via Pusher
+                                require_once '../includes/pusher_notifications.php';
+                                PusherNotifications::sendSystemNotification(
+                                    $student_id, 
+                                    $notification_title, 
+                                    $notification_message, 
+                                    'warning'
+                                );
+                            }
+                            
                             // Commit transaction
                             $db->commit();
                             
@@ -213,6 +238,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 // Remove any enrollment requests for this course
                                 $stmt = $db->prepare('DELETE FROM enrollment_requests WHERE student_id = ? AND course_id = ?');
                                 $stmt->execute([$student_id, $course_id]);
+                                
+                                // Create notification for the student for this course
+                                $stmt = $db->prepare('SELECT course_name, course_code FROM courses WHERE id = ?');
+                                $stmt->execute([$course_id]);
+                                $course_info = $stmt->fetch();
+                                
+                                if ($course_info) {
+                                    $notification_title = "Removed from Course";
+                                    $notification_message = "You have been removed from the course '{$course_info['course_name']}' ({$course_info['course_code']}) by your teacher. All your progress data has been cleared.";
+                                    
+                                    $stmt = $db->prepare("
+                                        INSERT INTO notifications (user_id, title, message, type, related_id, priority) 
+                                        VALUES (?, ?, ?, 'course_kicked', ?, 'high')
+                                    ");
+                                    $stmt->execute([$student_id, $notification_title, $notification_message, $course_id]);
+                                    
+                                    // Send real-time notification via Pusher
+                                    require_once '../includes/pusher_notifications.php';
+                                    PusherNotifications::sendSystemNotification(
+                                        $student_id, 
+                                        $notification_title, 
+                                        $notification_message, 
+                                        'warning'
+                                    );
+                                }
                             }
                             
                             $kicked_count++;
@@ -656,7 +706,7 @@ function getSortClause($sort_by) {
                                                     <?php 
                                                     // Use actual enrollment date
                                                     if ($enrollment['enrolled_at']) {
-                                                        echo date('M j, Y', strtotime($enrollment['enrolled_at']));
+                                                        echo date('M j, Y g:i A', strtotime($enrollment['enrolled_at']));
                                                     } else {
                                                         echo 'N/A';
                                                     }
@@ -899,12 +949,12 @@ function getSortClause($sort_by) {
     transform: none;
 }
 
-/* Loading animation for bulk kick */
-.btn:disabled {
+/* Loading animation for bulk kick - only when processing */
+#bulkKickBtn.processing {
     position: relative;
 }
 
-.btn:disabled::after {
+#bulkKickBtn.processing::after {
     content: '';
     position: absolute;
     width: 16px;
@@ -1221,9 +1271,11 @@ function updateBulkKickButton() {
     
     if (selectedCheckboxes.length > 0) {
         bulkKickBtn.disabled = false;
+        bulkKickBtn.classList.remove('processing');
         bulkKickBtn.textContent = `Kick Selected (${selectedCheckboxes.length})`;
     } else {
         bulkKickBtn.disabled = true;
+        bulkKickBtn.classList.remove('processing');
         bulkKickBtn.innerHTML = '<i class="bi bi-person-x-fill"></i> Kick Selected';
     }
 }
@@ -1245,6 +1297,7 @@ document.getElementById('bulkKickBtn').addEventListener('click', function() {
     if (confirm(confirmMessage)) {
         // Show loading state
         this.disabled = true;
+        this.classList.add('processing');
         this.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
         
         const form = document.createElement('form');
@@ -1257,6 +1310,17 @@ document.getElementById('bulkKickBtn').addEventListener('click', function() {
             ).join('')}
         `;
         document.body.appendChild(form);
+        
+        // Add a timeout to reset the button if form submission takes too long
+        setTimeout(() => {
+            const bulkKickBtn = document.getElementById('bulkKickBtn');
+            if (bulkKickBtn && bulkKickBtn.classList.contains('processing')) {
+                bulkKickBtn.disabled = false;
+                bulkKickBtn.classList.remove('processing');
+                bulkKickBtn.innerHTML = '<i class="bi bi-person-x-fill"></i> Kick Selected';
+            }
+        }, 10000); // 10 second timeout
+        
         form.submit();
     }
 });

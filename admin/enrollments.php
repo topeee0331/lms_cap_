@@ -270,7 +270,7 @@ $unique_students = count(array_unique(array_column($enrollments, 'student_id')))
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            <?php echo date('M j, Y', strtotime($enrollment['enrolled_at'])); ?>
+                                            <?php echo date('M j, Y g:i A', strtotime($enrollment['enrolled_at'])); ?>
                                         </small>
                                     </td>
                                     <td>

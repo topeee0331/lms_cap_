@@ -700,7 +700,7 @@ $stats['completed_modules'] = $completed_modules;
                                                 </small>
                                                 <small class="text-muted d-block">
                                                     <i class="fas fa-calendar me-1"></i>
-                                                    <?php echo date('M j, Y', strtotime($request['requested_at'])); ?>
+                                                    <?php echo date('M j, Y g:i A', strtotime($request['requested_at'])); ?>
                                                 </small>
                                                 <?php if ($request['status'] === 'rejected' && !empty($request['rejection_reason'])): ?>
                                                     <div class="mt-2 p-2 bg-light rounded">

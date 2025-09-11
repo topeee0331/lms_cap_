@@ -22,6 +22,9 @@ if (session_status() == PHP_SESSION_NONE) {
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Set timezone to Philippines (Asia/Manila)
+date_default_timezone_set('Asia/Manila');
+
 // Application constants
 define('SITE_NAME', 'NEUST-MGT BSIT LMS');
 define('SITE_URL', 'http://localhost/lms_cap');

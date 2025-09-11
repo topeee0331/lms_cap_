@@ -111,7 +111,8 @@ try {
         'pending_requests' => $pending_requests,
         'processed_requests' => $processed_requests,
         'pending_count' => $pending_count,
-        'timestamp' => date('Y-m-d H:i:s')
+        'timestamp' => date('Y-m-d H:i:s'),
+        'timezone' => 'Asia/Manila'
     ];
     
     // Clear any output buffer

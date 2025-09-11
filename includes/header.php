@@ -988,6 +988,51 @@ if (!defined('NO_HTML_OUTPUT')) {
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
+        /* Scrollable announcements styling */
+        .announcements-scrollable {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 15px;
+        }
+        
+        .announcements-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .announcements-scrollable::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .announcements-scrollable::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .announcements-scrollable::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Smooth scrolling */
+        .announcements-scrollable {
+            scroll-behavior: smooth;
+        }
+        
+        /* Ensure list items have proper spacing */
+        .announcements-scrollable .list-group-item {
+            border-left: none;
+            border-right: none;
+            border-radius: 0;
+        }
+        
+        .announcements-scrollable .list-group-item:first-child {
+            border-top: none;
+        }
+        
+        .announcements-scrollable .list-group-item:last-child {
+            border-bottom: none;
+        }
 
     </style>
 </head>
@@ -1188,18 +1233,27 @@ if (!defined('NO_HTML_OUTPUT')) {
                         ?>
                         <li class="nav-item">
                             <?php
-                            // For teachers, use announcement count only
+                            // Calculate notification count based on role
                             $bell_active = '';
-                            $notification_count = 0;
+                            $notification_count = $ann_count; // Start with announcement count
                             
-                            if ($_SESSION['role'] === 'teacher') {
-                                $notification_count = $ann_count;
-                            } elseif ($_SESSION['role'] === 'student') {
-                                // For students, use announcement count only
-                                $notification_count = $ann_count;
-                            } else {
-                                // For admins, use announcement count
-                                $notification_count = $ann_count;
+                            // For students, also include enrollment notifications
+                            if ($_SESSION['role'] === 'student') {
+                                try {
+                                    $enrollment_stmt = $pdo->prepare("
+                                        SELECT COUNT(*) as count
+                                        FROM notifications n
+                                        WHERE n.user_id = ? 
+                                        AND n.type IN ('enrollment_approved', 'enrollment_rejected', 'course_kicked')
+                                        AND n.is_read = 0
+                                    ");
+                                    $enrollment_stmt->execute([$user_id]);
+                                    $enrollment_result = $enrollment_stmt->fetch();
+                                    $enrollment_count = $enrollment_result['count'] ?? 0;
+                                    $notification_count += $enrollment_count;
+                                } catch (Exception $e) {
+                                    error_log("Error counting enrollment notifications: " . $e->getMessage());
+                                }
                             }
                             
                             if ($notification_count > 0) $bell_active = ' active';
@@ -1271,7 +1325,7 @@ if (!defined('NO_HTML_OUTPUT')) {
                         <p class="mt-2 text-muted">Loading announcements...</p>
                     </div>
                     
-                    <div id="announcement-content">
+                    <div id="announcement-content" class="announcements-scrollable">
                         <?php if ($ann_count === 0): ?>
                             <div class="text-center py-5">
                                 <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
@@ -1356,7 +1410,7 @@ if (!defined('NO_HTML_OUTPUT')) {
                                     <i class="bi bi-check-all me-1"></i>Mark All as Read
                                 </button>
                             </div>
-                            <div id="teacher-announcements-content">
+                            <div id="teacher-announcements-content" class="announcements-scrollable">
                                 <div class="text-center py-5">
                                     <i class="bi bi-megaphone text-primary" style="font-size: 3rem;"></i>
                                     <h5 class="mt-3 text-muted">Loading announcements...</h5>
@@ -1387,7 +1441,13 @@ if (!defined('NO_HTML_OUTPUT')) {
                         </h5>
                         <ul class="nav nav-tabs nav-tabs-light" id="studentNotificationTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active position-relative" id="student-announcements-tab" data-bs-toggle="tab" data-bs-target="#student-announcements-content" type="button" role="tab">
+                                <button class="nav-link active position-relative" id="student-enrollment-tab" data-bs-toggle="tab" data-bs-target="#student-enrollment-content" type="button" role="tab">
+                                    <i class="bi bi-person-check me-1"></i>Enrollment Status
+                                    <span class="red-dot enrollment-count-badge" style="display: none;"></span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link position-relative" id="student-announcements-tab" data-bs-toggle="tab" data-bs-target="#student-announcements-content" type="button" role="tab">
                                     <i class="bi bi-megaphone me-1"></i>Announcements
                                     <span class="red-dot announcement-count-badge" style="display: none;"></span>
                                 </button>
@@ -1405,15 +1465,32 @@ if (!defined('NO_HTML_OUTPUT')) {
                     </div>
                     
                     <div class="tab-content" id="studentNotificationTabContent">
+                        <!-- Enrollment Status Tab -->
+                        <div class="tab-pane fade show active" id="student-enrollment-content" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-3 border-bottom">
+                                <h6 class="mb-0">Enrollment Notifications</h6>
+                                <button type="button" class="btn btn-outline-success btn-sm" id="student-mark-enrollment-read">
+                                    <i class="bi bi-check-all me-1"></i>Mark All as Read
+                                </button>
+                            </div>
+                            <div id="student-enrollment-list" class="announcements-scrollable">
+                                <div class="text-center py-5">
+                                    <i class="bi bi-person-check text-success" style="font-size: 3rem;"></i>
+                                    <h5 class="mt-3 text-muted">Loading enrollment notifications...</h5>
+                                    <p class="text-muted">Please wait while we fetch your notifications.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Announcements Tab -->
-                        <div class="tab-pane fade show active" id="student-announcements-content" role="tabpanel">
+                        <div class="tab-pane fade" id="student-announcements-content" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3 p-3 border-bottom">
                                 <h6 class="mb-0">Unread Announcements</h6>
                                 <button type="button" class="btn btn-outline-success btn-sm" id="student-mark-all-read">
                                     <i class="bi bi-check-all me-1"></i>Mark All as Read
                                 </button>
                             </div>
-                            <div id="student-announcements-content">
+                            <div id="student-announcements-list" class="announcements-scrollable">
                                 <div class="text-center py-5">
                                     <i class="bi bi-megaphone text-success" style="font-size: 3rem;"></i>
                                     <h5 class="mt-3 text-muted">Loading announcements...</h5>
@@ -1726,14 +1803,20 @@ function updateTabBadges(enrollmentCount, announcementCount) {
   }
   
   // Update student modal tab badges
-
+  var studentEnrollmentBadge = $('.enrollment-count-badge');
   var studentAnnouncementBadge = $('.announcement-count-badge');
   
-
+  if (studentEnrollmentBadge.length) {
+    if (enrollmentCount > 0) {
+      studentEnrollmentBadge.text(enrollmentCount).show();
+    } else {
+      studentEnrollmentBadge.hide();
+    }
+  }
   
   if (studentAnnouncementBadge.length) {
     if (announcementCount > 0) {
-      studentAnnouncementBadge.show();
+      studentAnnouncementBadge.text(announcementCount).show();
     } else {
       studentAnnouncementBadge.hide();
     }
@@ -1741,7 +1824,7 @@ function updateTabBadges(enrollmentCount, announcementCount) {
   
   // Update bell icon red dot visibility
   var bellRedDot = $('#navbarAnnounceDropdown .red-dot');
-  var totalCount = announcementCount;
+  var totalCount = enrollmentCount + announcementCount;
   
   if (totalCount > 0) {
     if (bellRedDot.length === 0) {
@@ -1774,7 +1857,7 @@ function updateTabBadgesFromModalContent() {
   
   // Count student modal notifications
   if ($('#studentNotificationModal').hasClass('show')) {
-    studentEnrollmentCount = 0;
+    studentEnrollmentCount = $('#student-enrollment-list .list-group-item').length;
     studentAnnouncementCount = $('#student-announcements-content .list-group-item').length;
     console.log('📊 Student modal counts:', { enrollment: studentEnrollmentCount, announcement: studentAnnouncementCount });
   }
@@ -1792,7 +1875,7 @@ function updateTabBadgesFromModalContent() {
   }
   
   // Update tab badges with actual counts
-  updateTabBadges(0, teacherAnnouncementCount + studentAnnouncementCount);
+  updateTabBadges(studentEnrollmentCount, teacherAnnouncementCount + studentAnnouncementCount);
   
   console.log('✅ Tab badges updated from modal content');
 }
@@ -2192,7 +2275,146 @@ function loadTeacherAnnouncements() {
   });
 }
 
-// Load student notifications when modal opens (using teacher logic)
+// Function to load student enrollment notifications
+function loadStudentEnrollmentNotifications() {
+  console.log('Loading student enrollment notifications...');
+  
+  $.get('<?php echo SITE_URL; ?>/student/get_notifications.php', function(data) {
+    console.log('Student enrollment notifications data:', data);
+    
+    try {
+      if (data.success && data.enrollment_notifications) {
+        var notifications = data.enrollment_notifications;
+        var enrollmentList = $('#student-enrollment-list');
+        
+        if (notifications.length > 0) {
+          var html = '';
+          notifications.forEach(function(notif) {
+            var iconClass = '';
+            var statusClass = '';
+            var statusText = '';
+            
+            if (notif.type === 'course_kicked') {
+              iconClass = 'bi-person-x text-danger';
+              statusClass = 'text-danger';
+              statusText = 'Removed from Course';
+            } else if (notif.type === 'enrollment_approved') {
+              iconClass = 'bi-check-circle text-success';
+              statusClass = 'text-success';
+              statusText = 'Approved';
+            } else if (notif.type === 'enrollment_rejected') {
+              iconClass = 'bi-x-circle text-danger';
+              statusClass = 'text-danger';
+              statusText = 'Rejected';
+            }
+            
+            html += `
+              <div class="list-group-item border-0 border-bottom" id="enrollment-notif-${notif.id}">
+                <div class="d-flex align-items-start">
+                  <div class="flex-shrink-0 me-3">
+                    <i class="bi ${iconClass}" style="font-size: 1.5rem;"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 class="mb-1">${notif.title}</h6>
+                        <p class="mb-1 text-muted">${notif.message}</p>
+                        <small class="text-muted">
+                          <i class="bi bi-clock me-1"></i>${notif.created_at}
+                        </small>
+                      </div>
+                      <div class="text-end">
+                        <span class="badge ${statusClass}">${statusText}</span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="markEnrollmentNotificationRead(${notif.id})" title="Mark as Read">
+                          <i class="bi bi-check"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          
+          enrollmentList.html(html);
+        } else {
+          enrollmentList.html(`
+            <div class="text-center py-5">
+              <i class="bi bi-person-check text-success" style="font-size: 3rem;"></i>
+              <h5 class="mt-3 text-muted">All Caught Up!</h5>
+              <p class="text-muted">No unread enrollment notifications at this time.</p>
+            </div>
+          `);
+        }
+        
+        // Update enrollment tab badge
+        updateEnrollmentTabBadge(notifications.length);
+      } else {
+        $('#student-enrollment-list').html('<div class="alert alert-danger">Error loading enrollment notifications</div>');
+      }
+    } catch (e) {
+      console.error('Error parsing student enrollment notification data:', e);
+      $('#student-enrollment-list').html('<div class="alert alert-danger">Error loading enrollment notifications: ' + e.message + '</div>');
+    }
+  }).fail(function(xhr, status, error) {
+    console.error('AJAX Error loading student enrollment notifications:', status, error);
+    $('#student-enrollment-list').html('<div class="alert alert-danger">Error loading enrollment notifications: ' + error + '</div>');
+  });
+}
+
+// Function to mark enrollment notification as read
+function markEnrollmentNotificationRead(notificationId) {
+  console.log('Marking enrollment notification as read:', notificationId);
+  
+  $.post('<?php echo SITE_URL; ?>/student/mark_notification_read.php', {
+    notification_id: notificationId
+  }, function(response) {
+    console.log('Mark enrollment notification response:', response);
+    
+    if (response.success) {
+      // Remove the notification from the list
+      $('#enrollment-notif-' + notificationId).fadeOut(300, function() {
+        $(this).remove();
+        
+        // Check if any enrollment notifications remain
+        var remainingNotifications = $('#student-enrollment-list .list-group-item').length;
+        
+        if (remainingNotifications === 0) {
+          $('#student-enrollment-list').html(`
+            <div class="text-center py-5">
+              <i class="bi bi-person-check text-success" style="font-size: 3rem;"></i>
+              <h5 class="mt-3 text-muted">All Caught Up!</h5>
+              <p class="text-muted">No unread enrollment notifications at this time.</p>
+            </div>
+          `);
+        }
+        
+        // Update tab badges and notification count
+        updateEnrollmentTabBadge(remainingNotifications);
+        updateStudentNotificationCount();
+        updateNavbarBadgeCount();
+      });
+    } else {
+      console.error('Error marking enrollment notification as read:', response.error);
+      alert('Error marking notification as read: ' + response.error);
+    }
+  }).fail(function(xhr, status, error) {
+    console.error('AJAX Error marking enrollment notification as read:', status, error);
+    alert('Error marking notification as read: ' + error);
+  });
+}
+
+// Function to update enrollment tab badge
+function updateEnrollmentTabBadge(count) {
+  var badge = $('.enrollment-count-badge');
+  if (count > 0) {
+    badge.text(count).show();
+  } else {
+    badge.hide();
+  }
+}
+
+// Load student notifications when modal opens
 $(document).on('show.bs.modal', '#studentNotificationModal', function() {
   console.log('Student notification modal opening, loading content...');
   
@@ -2200,20 +2422,21 @@ $(document).on('show.bs.modal', '#studentNotificationModal', function() {
   $('#student-notification-loading').show();
   $('#studentNotificationTabContent').hide();
   
-  // Load announcements first since it's the default active tab
+  // Load both enrollment notifications and announcements
+  loadStudentEnrollmentNotifications();
   loadStudentAnnouncements();
   
   // Hide loading and show content
-  $('#student-notification-loading').hide();
-  $('#studentNotificationTabContent').show();
-  
-  // Update notification count in modal title
-  updateStudentNotificationCount();
-  
-  // Update tab badges based on actual content after loading
   setTimeout(function() {
+    $('#student-notification-loading').hide();
+    $('#studentNotificationTabContent').show();
+    
+    // Update notification count in modal title
+    updateStudentNotificationCount();
+    
+    // Update tab badges based on actual content after loading
     updateTabBadgesFromModalContent();
-  }, 1000);
+  }, 500);
 });
 
 

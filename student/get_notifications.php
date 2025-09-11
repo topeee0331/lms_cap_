@@ -15,7 +15,7 @@ error_log("Student notifications endpoint called");
 
 // Load only the necessary files
 try {
-    require_once '../config/database.php';
+    require_once __DIR__ . '/../config/database.php';
 } catch (Exception $e) {
     // Log error and return JSON error response
     error_log("Error loading database config: " . $e->getMessage());
@@ -57,32 +57,19 @@ try {
     // Get academic year selection if available
     $selected_year_id = $_GET['academic_year_id'] ?? null;
     
-    // Check when student last viewed their enrollment requests
-    $view_stmt = $pdo->prepare("
-        SELECT viewed_at 
-        FROM student_notification_views 
-        WHERE student_id = ? AND notification_type = 'enrollment_requests'
-    ");
-    $view_stmt->execute([$student_id]);
-    $view_result = $view_stmt->fetch();
-    $last_viewed = $view_result['viewed_at'] ?? null;
+    // We don't need to check last viewed since we're using is_read field
+    $last_viewed = null;
     
     // Get count of unread enrollment notifications (status changes)
     $enrollment_count = 0;
     try {
-        // Count only unviewed enrollment notifications
+        // Count only unread enrollment notifications
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as count
             FROM notifications n
-            JOIN enrollment_requests er ON n.related_id = er.id
-            LEFT JOIN student_notification_views snv ON (
-                snv.student_id = n.user_id 
-                AND snv.notification_type = 'enrollment_status' 
-                AND snv.notification_id = n.id
-            )
             WHERE n.user_id = ? 
-            AND n.type IN ('enrollment_approved', 'enrollment_rejected')
-            AND snv.id IS NULL  -- Only count unviewed notifications
+            AND n.type IN ('enrollment_approved', 'enrollment_rejected', 'course_kicked')
+            AND n.is_read = 0
         ");
         $stmt->execute([$student_id]);
         $result = $stmt->fetch();
@@ -101,22 +88,24 @@ try {
         $notifications_query = "
             SELECT 
                 n.id as notification_id,
+                n.is_read,
                 er.id as enrollment_request_id,
                 er.status,
                 er.approved_at,
-                er.updated_at,
+                er.requested_at,
                 er.rejection_reason,
                 c.course_name,
                 c.course_code,
                 u.first_name,
                 u.last_name,
-                n.created_at as notification_created_at
+                n.created_at as notification_created_at,
+                n.type as notification_type
             FROM notifications n
-            JOIN enrollment_requests er ON n.related_id = er.id
-            JOIN courses c ON er.course_id = c.id
-            JOIN users u ON c.teacher_id = u.id
+            LEFT JOIN enrollment_requests er ON n.related_id = er.id AND n.type IN ('enrollment_approved', 'enrollment_rejected')
+            LEFT JOIN courses c ON (er.course_id = c.id OR n.related_id = c.id)
+            LEFT JOIN users u ON c.teacher_id = u.id
             WHERE n.user_id = ? 
-            AND n.type IN ('enrollment_approved', 'enrollment_rejected')
+            AND n.type IN ('enrollment_approved', 'enrollment_rejected', 'course_kicked')
         ";
         
         $notif_params = [$student_id];
@@ -135,22 +124,11 @@ try {
         
         error_log("Found " . count($enrollment_results) . " enrollment notifications before filtering");
         
-        // Now filter out notifications that have been individually marked as read
+        // Filter out notifications that are marked as read
         $filtered_notifications = [];
         foreach ($enrollment_results as $notif) {
-            // Check if this specific notification has been viewed
-            $viewed_stmt = $pdo->prepare("
-                SELECT COUNT(*) as count 
-                FROM student_notification_views 
-                WHERE student_id = ? 
-                AND notification_type = 'enrollment_status' 
-                AND notification_id = ?
-            ");
-            $viewed_stmt->execute([$student_id, $notif['notification_id']]);
-            $viewed_result = $viewed_stmt->fetch();
-            
-            // Only include if not viewed individually
-            if ($viewed_result['count'] == 0) {
+            // Only include unread notifications
+            if ($notif['is_read'] == 0) {
                 $filtered_notifications[] = $notif;
             }
         }
@@ -158,23 +136,43 @@ try {
         error_log("Found " . count($filtered_notifications) . " unviewed enrollment notifications after filtering");
         
         foreach ($filtered_notifications as $notif) {
-            $status_icon = $notif['status'] === 'approved' ? 'bi-check-circle text-success' : 'bi-x-circle text-danger';
-            $status_text = $notif['status'] === 'approved' ? 'Approved' : 'Rejected';
             $timestamp = $notif['notification_created_at'];
             
-            $enrollment_notifications[] = [
-                'id' => $notif['notification_id'],
-                'type' => 'enrollment_' . $notif['status'],
-                'title' => 'Enrollment ' . ucfirst($notif['status']),
-                'message' => "Your enrollment request for '{$notif['course_name']}' has been {$notif['status']}.",
-                'course_name' => $notif['course_name'],
-                'course_code' => $notif['course_code'],
-                'teacher_name' => ($notif['first_name'] ?? '') . ' ' . ($notif['last_name'] ?? ''),
-                'status' => $notif['status'],
-                'rejection_reason' => $notif['rejection_reason'],
-                'created_at' => date('M j, Y g:i A', strtotime($timestamp)),
-                'timestamp' => $timestamp
-            ];
+            // Handle different notification types
+            if ($notif['notification_type'] === 'course_kicked') {
+                // Course kicked notifications (from direct notifications table)
+                $enrollment_notifications[] = [
+                    'id' => $notif['notification_id'],
+                    'type' => 'course_kicked',
+                    'title' => 'Removed from Course',
+                    'message' => "You have been removed from the course '{$notif['course_name']}' ({$notif['course_code']}) by your teacher. All your progress data has been cleared.",
+                    'course_name' => $notif['course_name'],
+                    'course_code' => $notif['course_code'],
+                    'teacher_name' => ($notif['first_name'] ?? '') . ' ' . ($notif['last_name'] ?? ''),
+                    'status' => 'kicked',
+                    'rejection_reason' => null,
+                    'created_at' => date('M j, Y g:i A', strtotime($timestamp)),
+                    'timestamp' => $timestamp
+                ];
+            } elseif (isset($notif['status']) && in_array($notif['status'], ['approved', 'rejected'])) {
+                // Enrollment status notifications
+                $status_icon = $notif['status'] === 'approved' ? 'bi-check-circle text-success' : 'bi-x-circle text-danger';
+                $status_text = $notif['status'] === 'approved' ? 'Approved' : 'Rejected';
+                
+                $enrollment_notifications[] = [
+                    'id' => $notif['notification_id'],
+                    'type' => 'enrollment_' . $notif['status'],
+                    'title' => 'Enrollment ' . ucfirst($notif['status']),
+                    'message' => "Your enrollment request for '{$notif['course_name']}' has been {$notif['status']}.",
+                    'course_name' => $notif['course_name'],
+                    'course_code' => $notif['course_code'],
+                    'teacher_name' => ($notif['first_name'] ?? '') . ' ' . ($notif['last_name'] ?? ''),
+                    'status' => $notif['status'],
+                    'rejection_reason' => $notif['rejection_reason'],
+                    'created_at' => date('M j, Y g:i A', strtotime($timestamp)),
+                    'timestamp' => $timestamp
+                ];
+            }
         }
     }
     

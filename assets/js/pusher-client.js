@@ -123,6 +123,10 @@ class PusherClient {
                 this.handleBadgeAwarded(data);
                 break;
                 
+            case 'course_kicked':
+                this.handleCourseKicked(data);
+                break;
+                
             default:
                 console.log('⚠️ Unknown notification type:', data.type);
                 this.showNotificationToast(data);
@@ -153,6 +157,25 @@ class PusherClient {
         if (this.currentUserRole === 'student') {
             this.showStudentNavbarRedDot();
         }
+    }
+    
+    handleCourseKicked(data) {
+        console.log('🚫 Course kick notification received:', data);
+        
+        // Show notification toast
+        this.showNotificationToast(data);
+        
+        // Update student navbar badge immediately
+        if (this.currentUserRole === 'student') {
+            this.showStudentNavbarRedDot();
+        }
+        
+        // Optionally refresh the page to update course list
+        setTimeout(() => {
+            if (window.location.pathname.includes('courses') || window.location.pathname.includes('dashboard')) {
+                window.location.reload();
+            }
+        }, 3000);
     }
     
     // ===== ANNOUNCEMENT HANDLERS =====

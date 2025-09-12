@@ -7,37 +7,185 @@ requireRole('teacher');
 
 // Add custom CSS for enhanced scrolling and visual improvements
 echo '<style>
+    /* Import Google Fonts */
+    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+    
+    /* System Color Variables */
+    :root {
+        --main-green: #2E5E4E;      /* Deep, modern green */
+        --accent-green: #7DCB80;    /* Light, fresh green */
+        --highlight-yellow: #FFE066;/* Softer yellow for highlights */
+        --off-white: #F7FAF7;       /* Clean, soft background */
+        --white: #FFFFFF;
+        --border-radius: 16px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --shadow: 0 8px 32px rgba(46,94,78,0.10);
+        --shadow-hover: 0 20px 40px rgba(46,94,78,0.15);
+    }
+    
+    /* Global Styles */
+    body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--off-white);
+        min-height: 100vh;
+    }
+    
     .container-fluid {
         margin-top: 0 !important;
         padding-top: 0 !important;
+        background: transparent;
     }
+    
     .row:first-child {
         margin-top: 0 !important;
         padding-top: 0 !important;
     }
+    
     .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    .mb-3 {
         margin-bottom: 1rem !important;
     }
-    .mb-3 {
-        margin-bottom: 0.75rem !important;
-    }
+    
     .card:last-child {
         margin-bottom: 2rem !important;
     }
+    
     .text-center.py-5 {
         padding-bottom: 3rem !important;
         margin-bottom: 2rem !important;
     }
     
-    /* Enhanced Announcements Table Scrolling */
+    /* Enhanced Header Section */
+    .announcements-header {
+        background: var(--main-green);
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-hover);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .announcements-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'2\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+        opacity: 0.3;
+    }
+    
+    .announcements-header h1 {
+        color: white;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin: 0;
+        position: relative;
+        z-index: 2;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .announcements-header .btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        font-weight: 600;
+        padding: 12px 24px;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        position: relative;
+        z-index: 2;
+    }
+    
+    .announcements-header .btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Enhanced Search and Filter Section */
+    .search-filter-card {
+        background: var(--white);
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        box-shadow: var(--shadow);
+        border: 2px solid var(--accent-green);
+        backdrop-filter: blur(10px);
+        margin-bottom: 2rem;
+    }
+    
+    .search-filter-card .form-label {
+        font-weight: 600;
+        color: var(--main-green);
+        margin-bottom: 0.5rem;
+    }
+    
+    .search-filter-card .form-control,
+    .search-filter-card .form-select {
+        border: 2px solid var(--accent-green);
+        border-radius: var(--border-radius);
+        padding: 12px 16px;
+        font-size: 0.95rem;
+        transition: var(--transition);
+        background: var(--off-white);
+    }
+    
+    .search-filter-card .form-control:focus,
+    .search-filter-card .form-select:focus {
+        border-color: var(--main-green);
+        box-shadow: 0 0 0 3px rgba(46, 94, 78, 0.1);
+        background: var(--white);
+    }
+    
+    .search-filter-card .btn {
+        border-radius: var(--border-radius);
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .search-filter-card .btn-primary {
+        background: var(--main-green);
+        border: none;
+        color: var(--white);
+    }
+    
+    .search-filter-card .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        background: var(--accent-green);
+    }
+    
+    .search-filter-card .btn-secondary {
+        background: var(--off-white);
+        border: 2px solid var(--accent-green);
+        color: var(--main-green);
+    }
+    
+    .search-filter-card .btn-secondary:hover {
+        background: var(--accent-green);
+        color: var(--white);
+        transform: translateY(-2px);
+    }
+    
+    /* Enhanced Announcements Table */
     .announcements-table-container {
         max-height: 600px;
         overflow-y: auto;
         overflow-x: hidden;
         scroll-behavior: smooth;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
+        border-radius: var(--border-radius);
+        border: 2px solid var(--accent-green);
         position: relative;
+        background: var(--white);
+        box-shadow: var(--shadow);
     }
     
     /* Custom scrollbar for announcements table */
@@ -46,24 +194,24 @@ echo '<style>
     }
     
     .announcements-table-container::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
+        background: var(--off-white);
+        border-radius: var(--border-radius);
     }
     
     .announcements-table-container::-webkit-scrollbar-thumb {
-        background: #6f42c1;
-        border-radius: 4px;
-        transition: background 0.3s ease;
+        background: var(--main-green);
+        border-radius: var(--border-radius);
+        transition: var(--transition);
     }
     
     .announcements-table-container::-webkit-scrollbar-thumb:hover {
-        background: #5a2d91;
+        background: var(--accent-green);
     }
     
     /* Firefox scrollbar styling */
     .announcements-table-container {
         scrollbar-width: thin;
-        scrollbar-color: #6f42c1 #f1f1f1;
+        scrollbar-color: var(--main-green) var(--off-white);
     }
     
     /* Enhanced table styling */
@@ -71,61 +219,137 @@ echo '<style>
         margin-bottom: 0;
         border-collapse: separate;
         border-spacing: 0;
+        border-radius: var(--border-radius);
+        overflow: hidden;
     }
     
     .announcements-table-container .table thead th {
         position: sticky;
         top: 0;
-        background: #f8f9fa;
+        background: var(--accent-green);
         z-index: 10;
-        border-bottom: 2px solid #dee2e6;
-        font-weight: 600;
-        color: #495057;
-        padding: 16px 12px;
+        border-bottom: 3px solid var(--main-green);
+        font-weight: 700;
+        color: var(--main-green);
+        padding: 20px 16px;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .announcements-table-container .table thead th:first-child {
+        border-top-left-radius: var(--border-radius);
+    }
+    
+    .announcements-table-container .table thead th:last-child {
+        border-top-right-radius: var(--border-radius);
     }
     
     .announcements-table-container .table tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid #f0f0f0;
+        transition: var(--transition);
+        border-bottom: 1px solid var(--off-white);
     }
     
     .announcements-table-container .table tbody tr:hover {
-        background-color: rgba(111, 66, 193, 0.05);
-        transform: translateX(3px);
-        box-shadow: 0 2px 8px rgba(111, 66, 193, 0.1);
+        background: rgba(125, 203, 128, 0.1);
+        transform: translateX(5px);
+        box-shadow: var(--shadow);
     }
     
     .announcements-table-container .table tbody td {
-        padding: 16px 12px;
+        padding: 20px 16px;
         vertical-align: middle;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.95rem;
     }
     
-    /* Enhanced button styling */
-    .announcements-table-container .btn-group .btn {
-        padding: 6px 12px;
-        font-size: 0.875rem;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-        margin: 0 2px;
+    .announcements-table-container .table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: var(--border-radius);
     }
     
-    .announcements-table-container .btn-group .btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    .announcements-table-container .table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: var(--border-radius);
     }
     
-    /* Badge enhancements */
+    /* Enhanced Badge Styling */
     .announcements-table-container .badge {
-        font-size: 0.75rem;
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-weight: 500;
+        font-size: 0.8rem;
+        padding: 8px 12px;
+        border-radius: var(--border-radius);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         transition: all 0.3s ease;
+    }
+    
+    .announcements-table-container .badge.bg-primary {
+        background: var(--main-green) !important;
+        box-shadow: 0 2px 8px rgba(46, 94, 78, 0.3);
+        color: var(--white) !important;
+    }
+    
+    .announcements-table-container .badge.bg-secondary {
+        background: var(--accent-green) !important;
+        box-shadow: 0 2px 8px rgba(125, 203, 128, 0.3);
+        color: var(--white) !important;
     }
     
     .announcements-table-container .badge:hover {
         transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(46, 94, 78, 0.4);
+    }
+    
+    /* Enhanced Action Buttons */
+    .announcements-table-container .btn-group .btn {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        border-radius: var(--border-radius);
+        transition: all 0.3s ease;
+        margin: 0 3px;
+        font-weight: 600;
+        border: 2px solid transparent;
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-primary {
+        background: rgba(46, 94, 78, 0.1);
+        border-color: var(--main-green);
+        color: var(--main-green);
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-primary:hover {
+        background: var(--main-green);
+        border-color: var(--main-green);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-warning {
+        background: rgba(255, 224, 102, 0.1);
+        border-color: var(--highlight-yellow);
+        color: #b45309;
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-warning:hover {
+        background: var(--highlight-yellow);
+        border-color: var(--highlight-yellow);
+        color: var(--main-green);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-danger {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: #ef4444;
+        color: #dc2626;
+    }
+    
+    .announcements-table-container .btn-group .btn-outline-danger:hover {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
     }
     
     /* Scroll indicators for announcements table */
@@ -168,28 +392,166 @@ echo '<style>
         opacity: 0.3;
     }
     
-    /* Card enhancements */
+    /* Enhanced Card Styling */
     .announcements-card {
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
+        box-shadow: var(--shadow-hover);
+        border: 2px solid var(--accent-green);
+        border-radius: var(--border-radius);
         overflow: hidden;
+        background: var(--white);
+        backdrop-filter: blur(10px);
     }
     
     .announcements-card .card-header {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-bottom: 2px solid #dee2e6;
-        padding: 16px 20px;
+        background: var(--accent-green);
+        border-bottom: 3px solid var(--main-green);
+        padding: 24px 28px;
+        position: relative;
+    }
+    
+    .announcements-card .card-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--main-green);
     }
     
     .announcements-card .card-header h5 {
         margin: 0;
-        font-weight: 600;
-        color: #495057;
+        font-weight: 700;
+        color: var(--main-green);
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
     
-    /* Mobile responsiveness */
+    .announcements-card .card-header h5::before {
+        content: "📢";
+        font-size: 1.5rem;
+    }
+    
+    /* Enhanced Modal Styling */
+    .modal-content {
+        border-radius: var(--border-radius);
+        border: 2px solid var(--accent-green);
+        box-shadow: var(--shadow-hover);
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        background: var(--main-green);
+        color: var(--white);
+        border-bottom: none;
+        padding: 24px 28px;
+    }
+    
+    .modal-header .modal-title {
+        font-weight: 700;
+        font-size: 1.4rem;
+    }
+    
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+    
+    .modal-header .btn-close:hover {
+        opacity: 1;
+    }
+    
+    .modal-body {
+        padding: 28px;
+        background: var(--off-white);
+    }
+    
+    .modal-footer {
+        background: var(--white);
+        border-top: 2px solid var(--accent-green);
+        padding: 20px 28px;
+    }
+    
+    .modal .form-label {
+        font-weight: 600;
+        color: var(--main-green);
+        margin-bottom: 8px;
+    }
+    
+    .modal .form-control,
+    .modal .form-select {
+        border: 2px solid var(--accent-green);
+        border-radius: var(--border-radius);
+        padding: 12px 16px;
+        font-size: 0.95rem;
+        transition: var(--transition);
+        background: var(--white);
+    }
+    
+    .modal .form-control:focus,
+    .modal .form-select:focus {
+        border-color: var(--main-green);
+        box-shadow: 0 0 0 3px rgba(46, 94, 78, 0.1);
+    }
+    
+    .modal .btn {
+        border-radius: var(--border-radius);
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .modal .btn-primary {
+        background: var(--main-green);
+        border: none;
+        color: var(--white);
+    }
+    
+    .modal .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        background: var(--accent-green);
+    }
+    
+    .modal .btn-secondary {
+        background: var(--off-white);
+        border: 2px solid var(--accent-green);
+        color: var(--main-green);
+    }
+    
+    .modal .btn-secondary:hover {
+        background: var(--accent-green);
+        color: var(--white);
+        transform: translateY(-2px);
+    }
+    
+    .modal .btn-danger {
+        background: #ef4444;
+        border: none;
+        color: var(--white);
+    }
+    
+    .modal .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Enhanced Mobile Responsiveness */
     @media (max-width: 991.98px) {
+        .announcements-header {
+            padding: 1.5rem;
+        }
+        
+        .announcements-header h1 {
+            font-size: 2rem;
+        }
+        
+        .search-filter-card {
+            padding: 1.5rem;
+        }
+        
         .announcements-table-container {
             max-height: 450px;
         }
@@ -202,6 +564,25 @@ echo '<style>
     }
     
     @media (max-width: 575.98px) {
+        .announcements-header {
+            padding: 1rem;
+            border-radius: 16px;
+        }
+        
+        .announcements-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .announcements-header .btn {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+        
+        .search-filter-card {
+            padding: 1rem;
+            border-radius: 16px;
+        }
+        
         .announcements-table-container {
             max-height: 350px;
         }
@@ -213,8 +594,201 @@ echo '<style>
         }
         
         .announcements-table-container .btn-group .btn {
-            padding: 4px 8px;
+            padding: 6px 10px;
             font-size: 0.75rem;
+            margin: 0 1px;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            padding: 1rem 1.5rem;
+        }
+    }
+    
+    /* Enhanced Animations */
+    .announcements-container {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .announcements-header {
+        animation: slideInDown 0.8s ease-out;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .search-filter-card {
+        animation: slideInUp 0.6s ease-out 0.2s both;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .announcements-card {
+        animation: slideInUp 0.6s ease-out 0.4s both;
+    }
+    
+    /* Enhanced Focus States */
+    .form-control:focus,
+    .form-select:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15) !important;
+    }
+    
+    /* Smooth Transitions for All Interactive Elements */
+    * {
+        transition: all 0.3s ease;
+    }
+    
+    /* Enhanced Alert Styling - More Visible with Borders */
+    .alert {
+        border-radius: var(--border-radius);
+        border: 3px solid;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.2);
+        margin: 0.5rem 0;
+        padding: 0.8rem 1.2rem;
+        position: relative;
+        animation: slideInDown 0.5s ease-out;
+        z-index: 1050;
+        outline: 1px solid rgba(0,0,0,0.1);
+        outline-offset: 1px;
+    }
+    
+    .alert-success {
+        background: var(--accent-green);
+        color: var(--white);
+        border-color: var(--main-green);
+        box-shadow: 0 8px 32px rgba(46, 94, 78, 0.4), inset 0 0 0 2px rgba(255,255,255,0.3);
+        outline-color: var(--main-green);
+    }
+    
+    .alert-success::before {
+        content: "✓";
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--white);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .alert-success .alert-message {
+        margin-left: 1.5rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .alert-danger {
+        background: #ef4444;
+        color: var(--white);
+        border-color: #dc2626;
+        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4), inset 0 0 0 2px rgba(255,255,255,0.3);
+        outline-color: #dc2626;
+    }
+    
+    .alert-danger::before {
+        content: "⚠";
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--white);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .alert-danger .alert-message {
+        margin-left: 1.5rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    /* Alert Animation */
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Hide Alert Close Button */
+    .alert .btn-close {
+        display: none !important;
+    }
+    
+    /* Alert Container for Better Positioning */
+    .alert-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 70%;
+        max-width: 400px;
+        z-index: 1060;
+    }
+    
+    /* Mobile Alert Styling */
+    @media (max-width: 768px) {
+        .alert {
+            font-size: 0.85rem;
+            padding: 0.7rem 1rem;
+            margin: 0.3rem;
+        }
+        
+        .alert-container {
+            width: 85%;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .alert::before {
+            font-size: 1rem;
+        }
+        
+        .alert .alert-message {
+            margin-left: 1.2rem;
         }
     }
     
@@ -438,38 +1012,48 @@ $courses = $stmt->fetchAll();
 ?>
 
 <div class="container-fluid py-4">
+    <!-- Enhanced Header Section -->
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h1 class="h3">My Announcements</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAnnouncementModal">
+            <div class="announcements-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1>My Announcements</h1>
+                    <button class="btn" data-bs-toggle="modal" data-bs-target="#createAnnouncementModal">
                     <i class="bi bi-plus-circle me-2"></i>Create Announcement
                 </button>
+                </div>
             </div>
         </div>
     </div>
 
     <?php if ($message): ?>
+        <div class="alert-container">
         <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
+                <div class="alert-message">
             <?php echo $message; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         </div>
     <?php endif; ?>
 
-    <!-- Search and Filter -->
+    <!-- Enhanced Search and Filter -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body">
+            <div class="search-filter-card">
                     <form method="get" class="row g-3">
                         <div class="col-md-4">
-                            <label for="search" class="form-label">Search</label>
+                        <label for="search" class="form-label">
+                            <i class="bi bi-search me-2"></i>Search Announcements
+                        </label>
                             <input type="text" class="form-control" id="search" name="search" 
                                    value="<?php echo htmlspecialchars($search_query); ?>" 
-                                   placeholder="Search announcements...">
+                               placeholder="Search by title or content...">
                         </div>
                         <div class="col-md-4">
-                            <label for="course_id" class="form-label">Filter by Course</label>
+                        <label for="course_id" class="form-label">
+                            <i class="bi bi-funnel me-2"></i>Filter by Course
+                        </label>
                             <select class="form-select" id="course_id" name="course_id">
                                 <option value="">All Courses</option>
                                 <?php foreach ($courses as $course): ?>
@@ -489,7 +1073,6 @@ $courses = $stmt->fetchAll();
                             </a>
                         </div>
                     </form>
-                </div>
             </div>
         </div>
     </div>
@@ -504,16 +1087,23 @@ $courses = $stmt->fetchAll();
                 <div class="card-body">
                     <?php if (empty($announcements)): ?>
                         <div class="text-center py-5">
-                            <i class="bi bi-megaphone text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="mt-3 text-muted">No announcements found</h5>
-                            <p class="text-muted">
+                            <div class="empty-state-icon mb-4">
+                                <i class="bi bi-megaphone" style="font-size: 4rem; color: #cbd5e0;"></i>
+                            </div>
+                            <h4 class="text-muted mb-3">No announcements found</h4>
+                            <p class="text-muted mb-4" style="font-size: 1.1rem;">
                                 <?php if ($search_query || $course_filter): ?>
                                     Try adjusting your search criteria or 
-                                    <a href="announcements.php">view all announcements</a>.
+                                    <a href="announcements.php" class="text-decoration-none" style="color: #667eea; font-weight: 600;">view all announcements</a>.
                                 <?php else: ?>
                                     Create your first announcement to get started.
                                 <?php endif; ?>
                             </p>
+                            <?php if (!$search_query && !$course_filter): ?>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAnnouncementModal">
+                                    <i class="bi bi-plus-circle me-2"></i>Create Your First Announcement
+                                </button>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <div class="table-responsive announcements-table-container">
@@ -834,5 +1424,67 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize enhanced announcements table scrolling
     enhanceAnnouncementsTableScrolling();
+    
+    // Enhanced Alert Visibility
+    function enhanceAlertVisibility() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            // Add pulsing effect to make it more noticeable
+            alert.style.animation = 'slideInDown 0.5s ease-out, pulse 2s infinite 1s';
+            
+                // Auto-dismiss after 3 seconds for success messages
+                if (alert.classList.contains('alert-success')) {
+                    setTimeout(() => {
+                        if (alert && alert.parentNode) {
+                            alert.style.animation = 'slideOutUp 0.5s ease-in forwards';
+                            setTimeout(() => {
+                                if (alert && alert.parentNode) {
+                                    alert.remove();
+                                }
+                            }, 500);
+                        }
+                    }, 3000);
+                }
+
+                // Auto-dismiss after 3 seconds for error messages
+                if (alert.classList.contains('alert-danger')) {
+                    setTimeout(() => {
+                        if (alert && alert.parentNode) {
+                            alert.style.animation = 'slideOutUp 0.5s ease-in forwards';
+                            setTimeout(() => {
+                                if (alert && alert.parentNode) {
+                                    alert.remove();
+                                }
+                            }, 500);
+                        }
+                    }, 3000);
+                }
+        });
+    }
+    
+    // Add pulse animation for alerts
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes slideOutUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Initialize alert enhancements
+    enhanceAlertVisibility();
 });
 </script>

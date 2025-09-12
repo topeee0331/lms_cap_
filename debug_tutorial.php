@@ -84,7 +84,7 @@ function checkTutorialStatus() {
     const userRole = '<?php echo $_SESSION["role"] ?? "guest"; ?>';
     const currentPage = '<?php echo $current_page ?? "debug_tutorial.php"; ?>';
     
-    alert(`Tutorial Status:\nRole: ${userRole}\nPage: ${currentPage}\nMode: Manual trigger only\nStatus: Always available`);
+    console.log(`Tutorial Status:\nRole: ${userRole}\nPage: ${currentPage}\nMode: Manual trigger only\nStatus: Always available`);
 }
 
 // Tutorial trigger button is automatically added on page load

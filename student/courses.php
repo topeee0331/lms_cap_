@@ -921,20 +921,31 @@ $course_themes = [
 
                 <!-- Alert Messages -->
                 <?php if (isset($_SESSION['success'])): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="alert alert-success alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
                         <?php echo $_SESSION['success']; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                     <?php unset($_SESSION['success']); ?>
                 <?php endif; ?>
 
                 <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
                         <?php echo $_SESSION['error']; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
+
+                <!-- Browse Courses from Other Sections -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3>Browse Courses from Other Sections</h3>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
+                            <i class="fas fa-plus"></i> Browse All Courses
+                        </button>
+                    </div>
+                    <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
+                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections. Click "Browse All Courses" to see all available courses outside your assigned section.
+                    </div>
+                </div>
 
                 <!-- Enrolled Courses Section -->
                 <?php if (!empty($enrolled_courses)): ?>
@@ -1049,9 +1060,8 @@ $course_themes = [
                         <i class="fas fa-info-circle"></i> These are courses available in your assigned section. All enrollments require teacher verification to prevent assessment leaks.
                     </p>
                     <?php if (empty($section_available_courses)): ?>
-                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
                             <i class="fas fa-info-circle"></i> No additional courses are currently available in your section.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     <?php else: ?>
                         <div class="course-slider-container">
@@ -1238,20 +1248,6 @@ $course_themes = [
                             </div>
                         </div>
                     <?php endif; ?>
-                </div>
-
-                <!-- Browse Courses from Other Sections -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3>Browse Courses from Other Sections</h3>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
-                            <i class="fas fa-plus"></i> Browse All Courses
-                        </button>
-                    </div>
-                    <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections. Click "Browse All Courses" to see all available courses outside your assigned section.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
                 </div>
             </main>
         </div>
@@ -1640,7 +1636,31 @@ function initCourseSlider(sliderId, prevBtnId, nextBtnId) {
 document.addEventListener('DOMContentLoaded', function() {
     initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
     initCourseSlider('available-slider', 'available-prev', 'available-next');
+    
+    // Auto-dismiss alerts
+    initAutoDismissAlerts();
 });
+
+// Auto-dismiss alerts functionality
+function initAutoDismissAlerts() {
+    const alerts = document.querySelectorAll('.auto-dismiss');
+    
+    alerts.forEach(function(alert) {
+        const delay = parseInt(alert.getAttribute('data-dismiss-delay')) || 5000; // Default 5 seconds
+        
+        setTimeout(function() {
+            // Add fade out animation
+            alert.classList.add('fade');
+            
+            // Remove the alert after animation completes
+            setTimeout(function() {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 300); // Bootstrap fade duration
+        }, delay);
+    });
+}
 
 </script>
 </body>

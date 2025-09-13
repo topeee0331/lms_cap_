@@ -38,8 +38,8 @@ require_once '../includes/header.php';
 // Assume teacher is logged in and their ID is in $_SESSION['user_id']
 $teacher_id = $_SESSION['user_id'];
 
-// 1. Fetch all academic periods for the dropdown
-$ay_stmt = $db->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name');
+// 1. Fetch all academic periods for the dropdown (active first)
+$ay_stmt = $db->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY is_active DESC, academic_year DESC, semester_name');
 $ay_stmt->execute();
 $all_years = $ay_stmt->fetchAll();
 

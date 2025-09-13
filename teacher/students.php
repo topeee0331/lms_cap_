@@ -320,66 +320,213 @@ if (isset($_POST['remove_student'])) {
 
 // Get filters
 $course_filter = (int)($_GET['course'] ?? 0);
-$status_filter = sanitizeInput($_GET['status'] ?? '');
+$section_filter = (int)($_GET['section'] ?? 0);
+$search_filter = sanitizeInput($_GET['search'] ?? '');
 $sort_by = sanitizeInput($_GET['sort'] ?? 'name');
 
 // Get teacher's courses for selected academic period
-$stmt = $db->prepare('SELECT id, course_name, course_code FROM courses WHERE teacher_id = ? AND academic_period_id = ? ORDER BY course_name');
-$stmt->execute([$_SESSION['user_id'], $selected_year_id]);
+// If a section is selected, only show courses that have that section assigned
+if ($section_filter > 0) {
+    $stmt = $db->prepare('
+        SELECT DISTINCT c.id, c.course_name, c.course_code 
+        FROM courses c 
+        WHERE c.teacher_id = ? 
+        AND c.academic_period_id = ? 
+        AND JSON_SEARCH(c.sections, "one", ?) IS NOT NULL
+        ORDER BY c.course_name
+    ');
+    $stmt->execute([$_SESSION['user_id'], $selected_year_id, $section_filter]);
+} else {
+    $stmt = $db->prepare('SELECT id, course_name, course_code FROM courses WHERE teacher_id = ? AND academic_period_id = ? ORDER BY course_name');
+    $stmt->execute([$_SESSION['user_id'], $selected_year_id]);
+}
 $courses = $stmt->fetchAll();
 
-// Get enrolled students with filters
-$where_conditions = ["c.teacher_id = ?", "c.academic_period_id = ?"];
-$params = [$_SESSION['user_id'], $selected_year_id];
+// Get sections that are assigned to teacher's courses for selected academic period
+// If a course is selected, only show sections assigned to that course
+if ($course_filter > 0) {
+    $stmt = $db->prepare("
+        SELECT DISTINCT s.id, s.section_name, s.year_level
+        FROM sections s
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
+        WHERE s.is_active = 1 
+        AND c.teacher_id = ? 
+        AND c.academic_period_id = ?
+        AND c.id = ?
+        ORDER BY s.year_level, s.section_name
+    ");
+    $stmt->execute([$_SESSION['user_id'], $selected_year_id, $course_filter]);
+} else {
+    $stmt = $db->prepare("
+        SELECT DISTINCT s.id, s.section_name, s.year_level
+        FROM sections s
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
+        WHERE s.is_active = 1 
+        AND c.teacher_id = ? 
+        AND c.academic_period_id = ?
+        ORDER BY s.year_level, s.section_name
+    ");
+    $stmt->execute([$_SESSION['user_id'], $selected_year_id]);
+}
+$sections = $stmt->fetchAll();
+
+// Get students from teacher's sections with filters
+$where_conditions = [];
+$params = [];
 
 if ($course_filter > 0) {
     $where_conditions[] = "c.id = ?";
     $params[] = $course_filter;
 }
 
-$where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+if ($section_filter > 0) {
+    $where_conditions[] = "s.id = ?";
+    $params[] = $section_filter;
+}
 
-$stmt = $db->prepare("
-    SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
-           c.course_name, c.course_code, c.id as course_id, 
-           COALESCE(s.section_name, 'Not Assigned') as section_name, 
-           COALESCE(s.year_level, 'N/A') as section_year,
-           e.enrolled_at, e.status as enrollment_status,
-           e.progress_percentage as course_progress,
-           e.last_accessed as last_activity,
-           
-           -- Assessment Statistics
-           COALESCE(assessment_stats.total_assessments, 0) as total_assessments,
-           COALESCE(assessment_stats.completed_assessments, 0) as completed_assessments,
-           COALESCE(assessment_stats.avg_score, 0) as avg_score,
-           COALESCE(assessment_stats.best_score, 0) as best_score,
-           COALESCE(assessment_stats.total_attempts, 0) as total_attempts
-           
-    FROM course_enrollments e
-    JOIN users u ON e.student_id = u.id
-    JOIN courses c ON e.course_id = c.id
-    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
-    
-    -- Assessment Statistics Subquery
-    LEFT JOIN (
-        SELECT 
-            aa.student_id,
-            c.id as course_id,
-            COUNT(DISTINCT aa.assessment_id) as total_assessments,
-            COUNT(DISTINCT CASE WHEN aa.score >= 70 THEN aa.assessment_id END) as completed_assessments,
-            ROUND(AVG(aa.score), 2) as avg_score,
-            MAX(aa.score) as best_score,
-            COUNT(*) as total_attempts
-        FROM assessment_attempts aa
-        JOIN courses c ON JSON_SEARCH(c.modules, 'one', aa.assessment_id) IS NOT NULL
-        WHERE c.teacher_id = ? AND c.academic_period_id = ?
-        GROUP BY aa.student_id, c.id
-    ) assessment_stats ON assessment_stats.student_id = e.student_id AND assessment_stats.course_id = e.course_id
-    
-    $where_clause
-    ORDER BY " . getSortClause($sort_by) . "
-");
-$stmt->execute(array_merge($params, [$_SESSION['user_id'], $selected_year_id]));
+if (!empty($search_filter)) {
+    $where_conditions[] = "(u.first_name LIKE ? OR u.last_name LIKE ? OR u.identifier LIKE ? OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?)";
+    $search_term = "%{$search_filter}%";
+    $params[] = $search_term;
+    $params[] = $search_term;
+    $params[] = $search_term;
+    $params[] = $search_term;
+}
+
+$where_clause = !empty($where_conditions) ? implode(' AND ', $where_conditions) : '';
+
+// Add option to show only enrolled students
+$show_enrolled_only = isset($_GET['enrolled_only']) && $_GET['enrolled_only'] === '1';
+$having_clause = $show_enrolled_only ? "HAVING COUNT(DISTINCT e.id) > 0" : "";
+
+// Debug: Log the query and parameters for troubleshooting
+error_log("Students Query Debug:");
+error_log("Course Filter: " . $course_filter);
+error_log("Section Filter: " . $section_filter);
+error_log("Search Filter: " . $search_filter);
+error_log("Enrolled Only: " . ($show_enrolled_only ? 'Yes' : 'No'));
+error_log("Where conditions: " . implode(' AND ', $where_conditions));
+error_log("Parameters: " . json_encode($params));
+error_log("Having clause: " . $having_clause);
+
+// Debug: Check if there are any enrollments for this course
+if ($course_filter > 0) {
+    $debug_stmt = $db->prepare("SELECT COUNT(*) as count FROM course_enrollments WHERE course_id = ?");
+    $debug_stmt->execute([$course_filter]);
+    $enrollment_count = $debug_stmt->fetch()['count'];
+    error_log("Enrollments in course $course_filter: $enrollment_count");
+}
+
+// If filtering by course, show students from sections assigned to that course
+if ($course_filter > 0) {
+    $stmt = $db->prepare("
+        SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
+               GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as section_names,
+               GROUP_CONCAT(DISTINCT s.year_level ORDER BY s.year_level SEPARATOR ', ') as section_years,
+               1 as total_courses,
+               COUNT(DISTINCT e.id) as enrolled_courses,
+               MAX(e.enrolled_at) as latest_enrollment,
+               AVG(e.progress_percentage) as avg_progress,
+               MAX(e.last_accessed) as last_activity,
+               CASE 
+                   WHEN COUNT(DISTINCT e.id) > 0 THEN 'Regular'
+                   ELSE 'Irregular'
+               END as student_status,
+               
+               -- Assessment Statistics for this specific course
+               COALESCE(SUM(assessment_stats.total_assessments), 0) as total_assessments,
+               COALESCE(SUM(assessment_stats.completed_assessments), 0) as completed_assessments,
+               COALESCE(AVG(assessment_stats.avg_score), 0) as avg_score,
+               COALESCE(MAX(assessment_stats.best_score), 0) as best_score,
+               COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts
+               
+        FROM sections s
+        JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
+            AND c.id = ? AND c.teacher_id = ? AND c.academic_period_id = ?
+        LEFT JOIN course_enrollments e ON e.student_id = u.id AND e.course_id = c.id
+        
+        -- Assessment Statistics Subquery for this specific course
+        LEFT JOIN (
+            SELECT 
+                aa.student_id,
+                COUNT(DISTINCT aa.assessment_id) as total_assessments,
+                COUNT(DISTINCT CASE WHEN aa.score >= 70 THEN aa.assessment_id END) as completed_assessments,
+                ROUND(AVG(aa.score), 2) as avg_score,
+                MAX(aa.score) as best_score,
+                COUNT(*) as total_attempts
+            FROM assessment_attempts aa
+            WHERE aa.assessment_id IN (
+                SELECT JSON_UNQUOTE(JSON_EXTRACT(c.modules, CONCAT('$[', numbers.n, ']')))
+                FROM courses c
+                CROSS JOIN (
+                    SELECT 0 as n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9
+                ) numbers
+                WHERE c.id = ? AND JSON_UNQUOTE(JSON_EXTRACT(c.modules, CONCAT('$[', numbers.n, ']'))) IS NOT NULL
+            )
+            GROUP BY aa.student_id
+        ) assessment_stats ON assessment_stats.student_id = u.id
+        
+        WHERE s.is_active = 1
+        GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at, u.identifier
+        " . $having_clause . "
+        ORDER BY " . getSortClause($sort_by) . "
+    ");
+    $stmt->execute([$course_filter, $_SESSION['user_id'], $selected_year_id, $course_filter]);
+} else {
+    // Original query for when not filtering by course
+    $stmt = $db->prepare("
+        SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
+               GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as section_names,
+               GROUP_CONCAT(DISTINCT s.year_level ORDER BY s.year_level SEPARATOR ', ') as section_years,
+               COUNT(DISTINCT c.id) as total_courses,
+               COUNT(DISTINCT e.id) as enrolled_courses,
+               MAX(e.enrolled_at) as latest_enrollment,
+               AVG(e.progress_percentage) as avg_progress,
+               MAX(e.last_accessed) as last_activity,
+               CASE 
+                   WHEN COUNT(DISTINCT e.id) = COUNT(DISTINCT c.id) THEN 'Regular'
+                   WHEN COUNT(DISTINCT e.id) > 0 THEN 'Irregular'
+                   ELSE 'Irregular'
+               END as student_status,
+               
+               -- Overall Assessment Statistics
+               COALESCE(SUM(assessment_stats.total_assessments), 0) as total_assessments,
+               COALESCE(SUM(assessment_stats.completed_assessments), 0) as completed_assessments,
+               COALESCE(AVG(assessment_stats.avg_score), 0) as avg_score,
+               COALESCE(MAX(assessment_stats.best_score), 0) as best_score,
+               COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts
+               
+        FROM sections s
+        JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
+            AND c.teacher_id = ? AND c.academic_period_id = ?
+        LEFT JOIN course_enrollments e ON e.student_id = u.id AND e.course_id = c.id
+        
+        -- Assessment Statistics Subquery
+        LEFT JOIN (
+            SELECT 
+                aa.student_id,
+                c.id as course_id,
+                COUNT(DISTINCT aa.assessment_id) as total_assessments,
+                COUNT(DISTINCT CASE WHEN aa.score >= 70 THEN aa.assessment_id END) as completed_assessments,
+                ROUND(AVG(aa.score), 2) as avg_score,
+                MAX(aa.score) as best_score,
+                COUNT(*) as total_attempts
+            FROM assessment_attempts aa
+            JOIN courses c ON JSON_SEARCH(c.modules, 'one', aa.assessment_id) IS NOT NULL
+            WHERE c.teacher_id = ? AND c.academic_period_id = ?
+            GROUP BY aa.student_id, c.id
+        ) assessment_stats ON assessment_stats.student_id = u.id AND assessment_stats.course_id = c.id
+        
+        WHERE s.is_active = 1
+        " . ($where_clause ? "AND " . $where_clause : "") . "
+        GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at, u.identifier
+        " . $having_clause . "
+        ORDER BY " . getSortClause($sort_by) . "
+    ");
+    $stmt->execute(array_merge([$_SESSION['user_id'], $selected_year_id, $_SESSION['user_id'], $selected_year_id], $params));
+}
 $course_enrollments = $stmt->fetchAll();
 
 // Get available students for enrollment (for courses in selected academic period)
@@ -431,7 +578,7 @@ function getSortClause($sort_by) {
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">Students</h1>
+                <h1 class="h3">Students from My Sections</h1>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
                     <i class="bi bi-person-plus me-2"></i>Enroll Student
                 </button>
@@ -463,6 +610,68 @@ function getSortClause($sort_by) {
         </div>
     <?php endif; ?>
 
+    <!-- Debug Information (remove in production) -->
+    <?php if (isset($_GET['debug'])): ?>
+        <div class="alert alert-info">
+            <strong>Debug Info:</strong><br>
+            Course Filter: <?php echo $course_filter ?: 'None'; ?><br>
+            Section Filter: <?php echo $section_filter ?: 'None'; ?><br>
+            Search Filter: <?php echo $search_filter ?: 'None'; ?><br>
+            Enrolled Only: <?php echo $show_enrolled_only ? 'Yes' : 'No'; ?><br>
+            Sort By: <?php echo $sort_by; ?><br>
+            Where Clause: <?php echo $where_clause ?: 'None'; ?><br>
+            Having Clause: <?php echo $having_clause ?: 'None'; ?><br>
+            Total Students Found: <?php echo count($course_enrollments); ?><br><br>
+            
+            <strong>Student Status Breakdown:</strong><br>
+            <?php 
+            $regular_count = 0;
+            $irregular_count = 0;
+            foreach ($course_enrollments as $student) {
+                if ($student['student_status'] === 'Regular') {
+                    $regular_count++;
+                } else {
+                    $irregular_count++;
+                }
+            }
+            echo "Regular: $regular_count students<br>";
+            echo "Irregular: $irregular_count students<br><br>";
+            ?>
+            
+            <strong>Sample Student Data:</strong><br>
+            <?php 
+            $sample_count = 0;
+            foreach ($course_enrollments as $student) {
+                if ($sample_count >= 3) break;
+                echo "Student: " . $student['first_name'] . " " . $student['last_name'] . 
+                     " | Enrolled: " . $student['enrolled_courses'] . 
+                     " | Total: " . $student['total_courses'] . 
+                     " | Status: " . $student['student_status'] . "<br>";
+                $sample_count++;
+            }
+            ?>
+            <br>
+            
+            <strong>Available Sections (assigned to your courses):</strong><br>
+            <?php foreach ($sections as $section): ?>
+                <?php 
+                // Count students in this section for debug
+                $debug_stmt = $db->prepare("
+                    SELECT COUNT(*) as count
+                    FROM sections s
+                    JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+                    JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
+                        AND c.teacher_id = ? AND c.academic_period_id = ?
+                    WHERE s.is_active = 1 AND s.id = ?
+                ");
+                $debug_stmt->execute([$_SESSION['user_id'], $selected_year_id, $section['id']]);
+                $debug_count = $debug_stmt->fetch()['count'];
+                ?>
+                BSIT-<?php echo $section['year_level'] . $section['section_name']; ?> (ID: <?php echo $section['id']; ?>) - <?php echo $debug_count; ?> students<br>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
@@ -470,9 +679,9 @@ function getSortClause($sort_by) {
                 <div class="card-body">
                     <form method="get" class="row g-3">
                         <input type="hidden" name="academic_period_id" value="<?= $selected_year_id ?>">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="course" class="form-label">Filter by Course</label>
-                            <select class="form-select" id="course" name="course" onchange="this.form.submit()">
+                            <select class="form-select" id="course" name="course" onchange="updateSectionsAndSubmit()">
                                 <option value="">All Courses</option>
                                 <?php foreach ($courses as $course): ?>
                                     <option value="<?php echo $course['id']; ?>" 
@@ -482,18 +691,46 @@ function getSortClause($sort_by) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="status" class="form-label">Filter by Status</label>
-                            <select class="form-select" id="status" name="status" onchange="this.form.submit()">
-                                <option value="">All Status</option>
-                                <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
-                                <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                        <div class="col-md-3">
+                            <label for="section" class="form-label">Filter by Section</label>
+                            <select class="form-select" id="section" name="section" onchange="updateCoursesAndSubmit()">
+                                <option value="">All Sections</option>
+                                <?php foreach ($sections as $section): ?>
+                                    <option value="<?php echo $section['id']; ?>" 
+                                            <?php echo $section_filter == $section['id'] ? 'selected' : ''; ?>>
+                                        BSIT-<?php echo htmlspecialchars($section['year_level'] . $section['section_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">Search Student</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       placeholder="Name or Student ID..." 
+                                       value="<?php echo htmlspecialchars($search_filter); ?>"
+                                       onkeyup="handleSearchInput()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>
                             <div class="d-grid">
-                                <a href="students.php?academic_period_id=<?= $selected_year_id ?>" class="btn btn-outline-secondary">Clear Filters</a>
+                                <a href="students.php?academic_period_id=<?= $selected_year_id ?>&enrolled_only=0" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">View Options</label>
+                            <div class="d-grid">
+                                <a href="?<?php echo http_build_query(array_merge($_GET, ['enrolled_only' => $show_enrolled_only ? '0' : '1'])); ?>" 
+                                   class="btn <?php echo $show_enrolled_only ? 'btn-success' : 'btn-outline-success'; ?>">
+                                    <i class="bi bi-<?php echo $show_enrolled_only ? 'eye-fill' : 'eye'; ?> me-1"></i>
+                                    <?php echo $show_enrolled_only ? 'Show All' : 'Enrolled Only'; ?>
+                                </a>
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -598,7 +835,19 @@ function getSortClause($sort_by) {
         <div class="col-12">
             <div class="card students-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Enrolled Students (<?php echo count($course_enrollments); ?>)</h5>
+                    <h5 class="mb-0">
+                        Students from My Sections (<?php echo count($course_enrollments); ?>)
+                        <?php if (!empty($search_filter)): ?>
+                            <span class="badge bg-info ms-2">
+                                <i class="bi bi-search me-1"></i>Search: "<?php echo htmlspecialchars($search_filter); ?>"
+                            </span>
+                        <?php endif; ?>
+                        <?php if ($show_enrolled_only): ?>
+                            <span class="badge bg-success ms-2">
+                                <i class="bi bi-eye-fill me-1"></i>Enrolled Only
+                            </span>
+                        <?php endif; ?>
+                    </h5>
                     <div class="d-flex align-items-center">
                         <div id="updateIndicator" class="me-2" style="display: none;">
                             <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
@@ -607,8 +856,17 @@ function getSortClause($sort_by) {
                         <small class="text-muted" id="lastUpdate">
                             <i class="bi bi-clock me-1"></i>Last updated: Just now
                         </small>
+                        <small class="text-success ms-2" id="realtimeStatus" style="display: none;">
+                            <i class="bi bi-broadcast me-1"></i>Live Updates Active
+                        </small>
                         <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="updateProgressData()" title="Refresh Progress">
                             <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success ms-2" id="exportStatsBtn" onclick="exportStudentStats()" title="Export Student Statistics">
+                            <i class="bi bi-download me-1"></i>Export Stats
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info ms-2" id="exportAssessmentsBtn" onclick="exportAssessmentDetails()" title="Export Detailed Assessment Data">
+                            <i class="bi bi-file-earmark-text me-1"></i>Export Assessments
                         </button>
                     </div>
                 </div>
@@ -617,9 +875,9 @@ function getSortClause($sort_by) {
                         <div class="text-center py-4">
                             <i class="bi bi-people fs-1 text-muted mb-3"></i>
                             <h6>No Students Found</h6>
-                            <p class="text-muted">No students enrolled in your courses for the selected academic year. Enroll students to start tracking their progress.</p>
+                            <p class="text-muted">No students assigned to your sections for the selected academic year. Students will appear here once they are assigned to your sections.</p>
                             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
-                                <i class="bi bi-person-plus me-1"></i>Enroll First Student
+                                <i class="bi bi-person-plus me-1"></i>Enroll Student
                             </button>
                         </div>
                     <?php else: ?>
@@ -638,15 +896,10 @@ function getSortClause($sort_by) {
                                         <th>Student ID</th>
                                         <th>
                                             <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'course'])); ?>" class="text-decoration-none text-dark">
-                                                Course <i class="bi bi-arrow-down-up"></i>
+                                                Courses <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>Section</th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'enrolled'])); ?>" class="text-decoration-none text-dark">
-                                                Enrolled <i class="bi bi-arrow-down-up"></i>
-                                            </a>
-                                        </th>
+                                        <th>Sections</th>
                                         <th>
                                             <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'progress'])); ?>" class="text-decoration-none text-dark">
                                                 Progress <i class="bi bi-arrow-down-up"></i>
@@ -664,59 +917,55 @@ function getSortClause($sort_by) {
                                             </a>
                                         </th>
                                         <th>Status</th>
-                                        <th>Actions</th>
                                         <th>Kick</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($course_enrollments as $enrollment): ?>
-                                        <tr data-student-id="<?php echo $enrollment['student_id']; ?>">
+                                    <?php foreach ($course_enrollments as $student): ?>
+                                        <tr data-student-id="<?php echo $student['student_id']; ?>" class="student-row" style="cursor: pointer;" onclick="showStudentCourses(<?php echo $student['student_id']; ?>)">
                                             <td>
-                                                <input type="checkbox" class="form-check-input student-checkbox" value="<?php echo $enrollment['student_id']; ?>">
+                                                <input type="checkbox" class="form-check-input student-checkbox" value="<?php echo $student['student_id']; ?>" onclick="event.stopPropagation();">
                                             </td>
                                             <td>
-                                                <img src="<?php echo getProfilePictureUrl($enrollment['profile_picture'] ?? null, 'medium'); ?>" class="profile-picture me-2" alt="Student" style="width: 48px; height: 48px; object-fit: cover;">
+                                                <img src="<?php echo getProfilePictureUrl($student['profile_picture'] ?? null, 'medium'); ?>" class="profile-picture me-2" alt="Student" style="width: 48px; height: 48px; object-fit: cover;">
                                                 <div>
-                                                    <div class="fw-bold"><?php echo htmlspecialchars($enrollment['first_name'] . ' ' . $enrollment['last_name']); ?></div>
-                                                    <small class="text-muted"><?php echo htmlspecialchars($enrollment['email']); ?></small>
+                                                    <div class="fw-bold"><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></div>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($student['email']); ?></small>
                                                 </div>
                                             </td>
                                             <td>
-                                                <?php if (!empty($enrollment['neust_student_id'])): ?>
-                                                    <span class="badge bg-primary"><?php echo htmlspecialchars($enrollment['neust_student_id']); ?></span>
+                                                <?php if (!empty($student['neust_student_id'])): ?>
+                                                    <span class="badge bg-primary"><?php echo htmlspecialchars($student['neust_student_id']); ?></span>
                                                 <?php else: ?>
                                                     <span class="badge bg-warning">No ID</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <div class="fw-bold"><?php echo htmlspecialchars($enrollment['course_name']); ?></div>
-                                                <small class="text-muted"><?php echo htmlspecialchars($enrollment['course_code']); ?></small>
+                                                <div class="fw-bold">
+                                                    <?php echo $student['enrolled_courses']; ?> / <?php echo $student['total_courses']; ?> courses
+                                                </div>
+                                                <small class="text-muted">Click to view details</small>
                                             </td>
                                             <td>
-                                                <?php if ($enrollment['section_name'] && $enrollment['section_name'] !== 'Not Assigned'): ?>
-                                                    <span class="badge bg-light text-dark" style="font-size:0.98em; border-radius:1em; min-width:2.2em; border:1px solid #e5e7eb; color:var(--main-green);">
-                                                        <?php echo 'BSIT-' . htmlspecialchars($enrollment['section_year'] . $enrollment['section_name']); ?>
+                                                <?php if ($student['section_names'] && $student['section_names'] !== 'Not Assigned'): ?>
+                                                    <?php 
+                                                    $sections = explode(', ', $student['section_names']);
+                                                    $years = explode(', ', $student['section_years']);
+                                                    for ($i = 0; $i < count($sections); $i++): 
+                                                        $year = isset($years[$i]) ? $years[$i] : 'N/A';
+                                                    ?>
+                                                        <span class="badge bg-light text-dark me-1 mb-1" style="font-size:0.85em; border-radius:1em; border:1px solid #e5e7eb; color:var(--main-green);">
+                                                            BSIT-<?php echo htmlspecialchars($year . $sections[$i]); ?>
                                                     </span>
+                                                    <?php endfor; ?>
                                                 <?php else: ?>
                                                     <span class="badge bg-warning">Not Assigned</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <small class="text-muted">
-                                                    <?php 
-                                                    // Use actual enrollment date
-                                                    if ($enrollment['enrolled_at']) {
-                                                        echo date('M j, Y g:i A', strtotime($enrollment['enrolled_at']));
-                                                    } else {
-                                                        echo 'N/A';
-                                                    }
-                                                    ?>
-                                                </small>
-                                            </td>
-                                            <td>
                                                 <div class="d-flex align-items-center">
                                                     <?php 
-                                                    $progress_percentage = $enrollment['course_progress'] ?? 0;
+                                                    $progress_percentage = $student['avg_progress'] ?? 0;
                                                     $progress_color = $progress_percentage >= 80 ? 'bg-success' : 
                                                                      ($progress_percentage >= 60 ? 'bg-warning' : 
                                                                      ($progress_percentage >= 40 ? 'bg-info' : 'bg-danger'));
@@ -727,35 +976,40 @@ function getSortClause($sort_by) {
                                                     <small class="fw-bold progress-text"><?php echo number_format($progress_percentage, 1); ?>%</small>
                                                 </div>
                                                 <small class="text-muted">
-                                                    Course Progress
+                                                    Avg Progress
                                                 </small>
                                             </td>
                                             <td>
                                                 <?php 
-                                                $completed_assessments = $enrollment['completed_assessments'] ?? 0;
-                                                $total_assessments = $enrollment['total_assessments'] ?? 0;
+                                                $completed_assessments = $student['completed_assessments'] ?? 0;
+                                                $total_assessments = $student['total_assessments'] ?? 0;
                                                 $assessment_color = $completed_assessments == $total_assessments && $total_assessments > 0 ? 'bg-success' : 
                                                                    ($completed_assessments > 0 ? 'bg-warning' : 'bg-secondary');
                                                 ?>
                                                 <span class="badge <?php echo $assessment_color; ?> assessment-badge">
                                                     <i class="bi bi-file-text me-1"></i><?php echo $completed_assessments; ?>/<?php echo $total_assessments; ?>
                                                 </span>
-                                                <?php if ($enrollment['total_attempts'] > 0): ?>
+                                                <?php if ($student['total_attempts'] > 0): ?>
                                                     <small class="text-muted d-block">
-                                                        <?php echo $enrollment['total_attempts']; ?> attempts
+                                                        <?php echo $student['total_attempts']; ?> attempts
                                                     </small>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <?php 
-                                                $avg_score = $enrollment['avg_score'] ?? 0;
-                                                $best_score = $enrollment['best_score'] ?? 0;
+                                                $avg_score = $student['avg_score'] ?? 0;
+                                                $best_score = $student['best_score'] ?? 0;
                                                 $score_color = $avg_score >= 80 ? 'bg-success' : 
                                                               ($avg_score >= 70 ? 'bg-warning' : 
                                                               ($avg_score >= 50 ? 'bg-info' : 'bg-danger'));
                                                 ?>
-                                                <span class="badge <?php echo $score_color; ?> score-badge">
-                                                    <?php echo number_format($avg_score, 1); ?>%
+                                                <span class="badge <?php echo $score_color; ?> score-badge clickable-score" 
+                                                      data-student-id="<?php echo $student['student_id']; ?>"
+                                                      data-course-id="<?php echo $course_filter; ?>"
+                                                      data-academic-period-id="<?php echo $selected_year_id; ?>"
+                                                      style="cursor: pointer;" 
+                                                      title="Click to view detailed score breakdown">
+                                                    <i class="bi bi-info-circle me-1"></i><?php echo number_format($avg_score, 1); ?>%
                                                 </span>
                                                 <?php if ($best_score > 0): ?>
                                                     <small class="text-muted d-block">
@@ -765,7 +1019,7 @@ function getSortClause($sort_by) {
                                             </td>
                                             <td>
                                                 <?php 
-                                                $last_activity = $enrollment['last_activity'] ?? null;
+                                                $last_activity = $student['last_activity'] ?? null;
                                                 if ($last_activity) {
                                                     $time_ago = time() - strtotime($last_activity);
                                                     $days_ago = floor($time_ago / (24 * 60 * 60));
@@ -794,36 +1048,17 @@ function getSortClause($sort_by) {
                                             </td>
                                             <td>
                                                 <?php 
-                                                $status_class = $enrollment['enrollment_status'] === 'active' ? 'bg-success' : 
-                                                              ($enrollment['enrollment_status'] === 'completed' ? 'bg-primary' : 'bg-warning');
-                                                $status_text = ucfirst($enrollment['enrollment_status'] ?? 'active');
+                                                $status_class = $student['enrolled_courses'] > 0 ? 'bg-success' : 'bg-warning';
+                                                $status_text = $student['enrolled_courses'] > 0 ? 'Enrolled' : 'Not Enrolled';
                                                 ?>
                                                 <span class="badge <?php echo $status_class; ?>">
-                                                    <i class="bi bi-check-circle me-1"></i><?php echo htmlspecialchars($status_text); ?>
+                                                    <i class="bi bi-check-circle me-1"></i><?php echo $status_text; ?>
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="student_detail.php?id=<?php echo $enrollment['student_id']; ?>&course=<?php echo $enrollment['course_id']; ?>" 
-                                                       class="btn btn-outline-primary" title="View Details">
-                                                        <i class="bi bi-eye"></i>
-                                                    </a>
-                                                    <a href="student_progress.php?id=<?php echo $enrollment['student_id']; ?>&course=<?php echo $enrollment['course_id']; ?>" 
-                                                       class="btn btn-outline-info" title="Progress Report">
-                                                        <i class="bi bi-graph-up"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <form method="POST" class="d-inline" onsubmit="return confirmKickStudent('<?php echo htmlspecialchars($enrollment['first_name'] . ' ' . $enrollment['last_name']); ?>', '<?php echo htmlspecialchars($enrollment['course_name']); ?>')">
-                                                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
-                                                    <input type="hidden" name="action" value="kick_student">
-                                                    <input type="hidden" name="student_id" value="<?php echo $enrollment['student_id']; ?>">
-                                                    <input type="hidden" name="course_id" value="<?php echo $enrollment['course_id']; ?>">
-                                                    <button type="submit" class="btn btn-outline-danger kick-student-btn" title="Kick Student from Course">
+                                                <button class="btn btn-outline-danger kick-student-btn" title="Kick Student from All Courses" onclick="event.stopPropagation(); kickStudentFromAllCourses(<?php echo $student['student_id']; ?>, '<?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>')">
                                                         <i class="bi bi-person-x-fill"></i>
                                                     </button>
-                                                </form>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -832,6 +1067,58 @@ function getSortClause($sort_by) {
                         </div>
                     <?php endif; ?>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Courses Modal -->
+<div class="modal fade" id="studentCoursesModal" tabindex="-1" aria-labelledby="studentCoursesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentCoursesModalLabel">Student Course Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="studentCoursesContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading course details...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score Details Modal -->
+<div class="modal fade" id="scoreDetailsModal" tabindex="-1" aria-labelledby="scoreDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scoreDetailsModalLabel">
+                    <i class="bi bi-graph-up me-2"></i>Score Breakdown & Assessment History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="scoreDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading score details...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="refreshScoreDetails()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
             </div>
         </div>
     </div>
@@ -882,6 +1169,17 @@ function getSortClause($sort_by) {
     border-spacing: 0;
 }
 
+/* Student row hover effects */
+.student-row {
+    transition: all 0.3s ease;
+}
+
+.student-row:hover {
+    background-color: rgba(40, 167, 69, 0.05) !important;
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+
 .students-table-container .table thead th {
     position: sticky;
     top: 0;
@@ -911,7 +1209,7 @@ function getSortClause($sort_by) {
 }
 
 /* Enhanced button styling */
-.students-table-container .btn-group .btn {
+.students-table-container .btn {
     padding: 6px 12px;
     font-size: 0.875rem;
     border-radius: 6px;
@@ -919,7 +1217,7 @@ function getSortClause($sort_by) {
     margin: 0 2px;
 }
 
-.students-table-container .btn-group .btn:hover {
+.students-table-container .btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
@@ -964,6 +1262,189 @@ function getSortClause($sort_by) {
     border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+}
+
+/* Export button processing state */
+#exportStatsBtn.processing {
+    position: relative;
+    opacity: 0.8;
+}
+
+#exportStatsBtn.processing::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Clickable score styling */
+.clickable-score {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.clickable-score:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.clickable-score::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.clickable-score:hover::after {
+    left: 100%;
+}
+
+/* Score details modal styling */
+.score-breakdown-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+}
+
+.score-summary {
+    background: linear-gradient(135deg, #2E5E4E, #7DCB80);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.assessment-attempt-item {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.assessment-attempt-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.score-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.score-trend.up {
+    color: #28a745;
+}
+
+.score-trend.down {
+    color: #dc3545;
+}
+
+.score-trend.stable {
+    color: #6c757d;
+}
+
+/* Real-time score update animations */
+.score-updated {
+    animation: scorePulse 1s ease-in-out;
+}
+
+@keyframes scorePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); box-shadow: 0 0 15px rgba(0,0,0,0.3); }
+    100% { transform: scale(1); }
+}
+
+.score-change-indicator {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    animation: scoreChangeSlide 3s ease-out forwards;
+    z-index: 10;
+}
+
+@keyframes scoreChangeSlide {
+    0% { 
+        opacity: 0; 
+        transform: translateY(-50%) translateX(0); 
+    }
+    20% { 
+        opacity: 1; 
+        transform: translateY(-50%) translateX(-5px); 
+    }
+    80% { 
+        opacity: 1; 
+        transform: translateY(-50%) translateX(-5px); 
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateY(-50%) translateX(-10px); 
+    }
+}
+
+/* Enhanced clickable score for real-time updates */
+.clickable-score {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.clickable-score:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+/* Real-time update indicator */
+.realtime-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    z-index: 9999;
+    animation: realtimeIndicatorSlide 3s ease-out forwards;
+    display: none;
+}
+
+@keyframes realtimeIndicatorSlide {
+    0% { 
+        opacity: 0; 
+        transform: translateX(100%); 
+    }
+    20% { 
+        opacity: 1; 
+        transform: translateX(0); 
+    }
+    80% { 
+        opacity: 1; 
+        transform: translateX(0); 
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateX(100%); 
+    }
 }
 
 @keyframes spin {
@@ -1123,7 +1604,7 @@ function getSortClause($sort_by) {
         font-size: 0.85rem;
     }
     
-    .students-table-container .btn-group .btn {
+    .students-table-container .btn {
         padding: 4px 8px;
         font-size: 0.75rem;
     }
@@ -1192,6 +1673,56 @@ function getSortClause($sort_by) {
 .form-control:focus, .form-select:focus {
     border-color: #28a745;
     box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Filter loading states */
+.form-select.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.form-select.loading::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #28a745;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Search input styling */
+#search {
+    transition: all 0.3s ease;
+}
+
+#search:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+#search.loading {
+    opacity: 0.7;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%2328a745' d='M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
 }
 
 .btn-primary {
@@ -1325,11 +1856,12 @@ document.getElementById('bulkKickBtn').addEventListener('click', function() {
     }
 });
 
-// Real-time progress updates
+// Real-time progress and score updates
 let progressUpdateInterval;
 let isPageVisible = true;
+let lastScoreData = {};
 
-// Function to update progress data
+// Function to update progress and score data
 function updateProgressData() {
     if (!isPageVisible) return;
     
@@ -1339,14 +1871,15 @@ function updateProgressData() {
     
     if (updateIndicator) updateIndicator.style.display = 'block';
     
-    const url = 'ajax_get_student_progress.php?' + new URLSearchParams({
+    const url = 'ajax_get_realtime_scores.php?' + new URLSearchParams({
         academic_period_id: '<?php echo $selected_year_id; ?>',
         course: '<?php echo $course_filter; ?>',
-        status: '<?php echo $status_filter; ?>',
-        sort: '<?php echo $sort_by; ?>'
+        section: '<?php echo $section_filter; ?>',
+        search: '<?php echo $search_filter; ?>',
+        enrolled_only: '<?php echo $show_enrolled_only ? '1' : '0'; ?>'
     });
     
-    console.log('Fetching progress data from:', url);
+    console.log('Fetching real-time data from:', url);
     
     fetch(url)
     .then(response => {
@@ -1361,6 +1894,7 @@ function updateProgressData() {
         if (data.success) {
             updateProgressTable(data.students);
             updateSummaryStats(data.summary);
+            updateScoreData(data.students);
             
             // Update last update time
             if (lastUpdate) {
@@ -1462,6 +1996,73 @@ function updateSummaryStats(summary) {
     }
 }
 
+// Function to update score data with visual indicators
+function updateScoreData(students) {
+    console.log('Updating score data with', students.length, 'students');
+    
+    students.forEach(student => {
+        const row = document.querySelector(`tr[data-student-id="${student.student_id}"]`);
+        if (!row) return;
+        
+        const scoreBadge = row.querySelector('.clickable-score');
+        if (!scoreBadge) return;
+        
+        const currentScore = parseFloat(student.avg_score) || 0;
+        const previousScore = lastScoreData[student.student_id] || currentScore;
+        
+        // Update the score display
+        scoreBadge.innerHTML = `<i class="bi bi-info-circle me-1"></i>${currentScore.toFixed(1)}%`;
+        
+        // Update color based on score
+        const scoreColor = currentScore >= 80 ? 'bg-success' : 
+                          (currentScore >= 70 ? 'bg-warning' : 
+                          (currentScore >= 50 ? 'bg-info' : 'bg-danger'));
+        scoreBadge.className = `badge ${scoreColor} score-badge clickable-score`;
+        
+        // Add visual indicator for score changes
+        if (previousScore !== currentScore) {
+            const changeIndicator = document.createElement('span');
+            changeIndicator.className = 'score-change-indicator';
+            
+            if (currentScore > previousScore) {
+                changeIndicator.innerHTML = '<i class="bi bi-arrow-up text-success"></i>';
+                changeIndicator.style.color = '#28a745';
+            } else if (currentScore < previousScore) {
+                changeIndicator.innerHTML = '<i class="bi bi-arrow-down text-danger"></i>';
+                changeIndicator.style.color = '#dc3545';
+            }
+            
+            // Add the indicator temporarily
+            scoreBadge.appendChild(changeIndicator);
+            
+            // Remove the indicator after 3 seconds
+            setTimeout(() => {
+                if (changeIndicator.parentNode) {
+                    changeIndicator.parentNode.removeChild(changeIndicator);
+                }
+            }, 3000);
+            
+            // Add pulse animation to the score badge
+            scoreBadge.classList.add('score-updated');
+            setTimeout(() => {
+                scoreBadge.classList.remove('score-updated');
+            }, 1000);
+            
+            // Show real-time update notification
+            showRealtimeUpdateNotification(`${student.first_name} ${student.last_name}'s score updated to ${currentScore.toFixed(1)}%`);
+        }
+        
+        // Update best score if available
+        const bestScoreElement = row.querySelector('.text-muted.d-block');
+        if (bestScoreElement && student.best_score > 0) {
+            bestScoreElement.innerHTML = `Best: ${parseFloat(student.best_score).toFixed(1)}%`;
+        }
+        
+        // Store current score for next comparison
+        lastScoreData[student.student_id] = currentScore;
+    });
+}
+
 // Helper functions for color coding
 function getProgressColor(percentage) {
     if (percentage >= 80) return 'bg-success';
@@ -1525,8 +2126,14 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Start real-time updates (every 30 seconds)
-progressUpdateInterval = setInterval(updateProgressData, 30000);
+// Start real-time updates (every 15 seconds for more responsive score updates)
+progressUpdateInterval = setInterval(updateProgressData, 15000);
+
+// Show live status indicator
+const realtimeStatus = document.getElementById('realtimeStatus');
+if (realtimeStatus) {
+    realtimeStatus.style.display = 'inline';
+}
 
 // Test function to manually update progress bars
 function testProgressBars() {
@@ -1559,6 +2166,635 @@ document.querySelector('.card-header .d-flex').appendChild(testButton);
 
 // Initial update after 5 seconds
 setTimeout(updateProgressData, 5000);
+
+// Function to show student courses modal
+function showStudentCourses(studentId) {
+    // Get the course ID from the clicked row
+    const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+    if (!row) {
+        alert('Error: Could not find student information.');
+        return;
+    }
+    
+    // Get the course ID from the row data or find the first course for this student
+    const courseId = row.dataset.courseId || getFirstCourseForStudent(studentId);
+    
+    if (!courseId) {
+        // If no course ID found, redirect to a page that will show course selection
+        window.location.href = `student_course_details.php?student_id=${studentId}&academic_period_id=<?php echo $selected_year_id; ?>&select_course=1`;
+        return;
+    }
+    
+    // Redirect to the course details page
+    window.location.href = `student_course_details.php?student_id=${studentId}&course_id=${courseId}&academic_period_id=<?php echo $selected_year_id; ?>`;
+}
+
+// Helper function to get the first course for a student
+function getFirstCourseForStudent(studentId) {
+    // This would need to be implemented based on your data structure
+    // For now, we'll return null and handle it in the PHP redirect
+    return null;
+}
+
+// Function to generate student courses HTML
+function generateStudentCoursesHTML(data) {
+    const student = data.student;
+    const courses = data.courses;
+    
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <img src="${student.profile_picture ? getProfilePictureUrl(student.profile_picture, 'medium') : 'images/default-avatar.png'}" 
+                     class="img-fluid rounded-circle" alt="Student" style="width: 80px; height: 80px; object-fit: cover;">
+            </div>
+            <div class="col-md-9">
+                <h6 class="mb-1">${student.first_name} ${student.last_name}</h6>
+                <p class="text-muted mb-1">${student.email}</p>
+                <p class="text-muted mb-0">Student ID: ${student.identifier || 'N/A'}</p>
+            </div>
+        </div>
+        <hr>
+        <h6 class="mb-3">Enrolled Courses (${courses.length})</h6>
+    `;
+    
+    if (courses.length === 0) {
+        html += '<div class="alert alert-info">Student is not enrolled in any of your courses.</div>';
+    } else {
+        courses.forEach(course => {
+            const progress = parseFloat(course.progress_percentage || 0);
+            const progressColor = progress >= 80 ? 'bg-success' : 
+                                (progress >= 60 ? 'bg-warning' : 
+                                (progress >= 40 ? 'bg-info' : 'bg-danger'));
+            
+            html += `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="card-title">${course.course_name}</h6>
+                                <p class="text-muted mb-2">${course.course_code}</p>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="progress me-2" style="width: 100px; height: 8px;">
+                                        <div class="progress-bar ${progressColor}" style="width: ${Math.min(course.progress_percentage || 0, 100)}%"></div>
+                                    </div>
+                                    <small class="fw-bold">${parseFloat(course.progress_percentage || 0).toFixed(1)}%</small>
+                                </div>
+                                <small class="text-muted">
+                                    Enrolled: ${new Date(course.enrolled_at).toLocaleDateString()}
+                                    ${course.last_accessed ? ' | Last Activity: ' + new Date(course.last_accessed).toLocaleDateString() : ''}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="mb-2">
+                                    <span class="badge ${course.status === 'active' ? 'bg-success' : 'bg-warning'}">
+                                        ${course.status}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">Assessments: ${course.completed_assessments}/${course.total_assessments}</small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">Avg Score: ${parseFloat(course.avg_score || 0).toFixed(1)}%</small>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="student_detail.php?id=${student.id}&course=${course.course_id}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i> Details
+                                    </a>
+                                    <a href="student_progress.php?id=${student.id}&course=${course.course_id}" 
+                                       class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-graph-up"></i> Progress
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    return html;
+}
+
+// Function to show student progress (placeholder)
+function showStudentProgress(studentId) {
+    alert('Student progress view coming soon!');
+}
+
+// Function to kick student from all courses
+function kickStudentFromAllCourses(studentId, studentName) {
+    if (confirm(`Are you sure you want to KICK "${studentName}" from ALL courses?\n\nThis action will remove the student from all your courses and delete all their progress data.\n\nThis action CANNOT be undone!`)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+            <input type="hidden" name="action" value="bulk_kick_students">
+            <input type="hidden" name="student_ids[]" value="${studentId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Function to update sections based on selected course and submit form
+function updateSectionsAndSubmit() {
+    const courseSelect = document.getElementById('course');
+    const sectionSelect = document.getElementById('section');
+    const form = courseSelect.closest('form');
+    
+    // Add loading state
+    courseSelect.classList.add('loading');
+    sectionSelect.classList.add('loading');
+    
+    // Clear section selection when course changes
+    sectionSelect.selectedIndex = 0;
+    
+    // Submit the form to update sections
+    form.submit();
+}
+
+// Function to update courses based on selected section and submit form
+function updateCoursesAndSubmit() {
+    const courseSelect = document.getElementById('course');
+    const sectionSelect = document.getElementById('section');
+    const form = sectionSelect.closest('form');
+    
+    // Add loading state
+    courseSelect.classList.add('loading');
+    sectionSelect.classList.add('loading');
+    
+    // Clear course selection when section changes
+    courseSelect.selectedIndex = 0;
+    
+    // Submit the form to update courses
+    form.submit();
+}
+
+// Search input handling with debounce
+let searchTimeout;
+function handleSearchInput() {
+    const searchInput = document.getElementById('search');
+    const form = searchInput.closest('form');
+    
+    // Clear existing timeout
+    clearTimeout(searchTimeout);
+    
+    // Add loading state
+    searchInput.classList.add('loading');
+    
+    // Set new timeout for search (500ms delay)
+    searchTimeout = setTimeout(() => {
+        form.submit();
+    }, 500);
+}
+
+// Clear search function
+function clearSearch() {
+    const searchInput = document.getElementById('search');
+    const form = searchInput.closest('form');
+    
+    // Clear search input
+    searchInput.value = '';
+    
+    // Submit form to clear search
+    form.submit();
+}
+
+// Export student statistics function
+function exportStudentStats() {
+    // Get current filter parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const academicPeriodId = urlParams.get('academic_period_id') || '<?php echo $selected_year_id; ?>';
+    const courseFilter = urlParams.get('course') || '';
+    const sectionFilter = urlParams.get('section') || '';
+    const searchFilter = urlParams.get('search') || '';
+    const enrolledOnly = urlParams.get('enrolled_only') || '0';
+    const sortBy = urlParams.get('sort') || 'name';
+    
+    // Build export URL
+    const exportUrl = 'export_student_stats.php?' + new URLSearchParams({
+        academic_period_id: academicPeriodId,
+        course: courseFilter,
+        section: sectionFilter,
+        search: searchFilter,
+        enrolled_only: enrolledOnly,
+        sort: sortBy
+    });
+    
+    // Show loading state
+    const exportBtn = document.getElementById('exportStatsBtn');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Exporting...';
+    exportBtn.disabled = true;
+    exportBtn.classList.add('processing');
+    
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = 'student_statistics.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Add error handling
+    link.onerror = function() {
+        alert('Error exporting data. Please try again.');
+        resetExportButton();
+    };
+    
+    // Trigger download
+    link.click();
+    
+    // Show success message after a short delay
+    setTimeout(() => {
+        // Create a temporary success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        successMsg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        successMsg.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>
+            Student statistics exported successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(successMsg);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (successMsg.parentNode) {
+                successMsg.parentNode.removeChild(successMsg);
+            }
+        }, 3000);
+    }, 1000);
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(link);
+        resetExportButton();
+    }, 3000);
+    
+    function resetExportButton() {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+        exportBtn.classList.remove('processing');
+    }
+}
+
+// Export detailed assessment data function
+function exportAssessmentDetails() {
+    // Get current filter parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const academicPeriodId = urlParams.get('academic_period_id') || '<?php echo $selected_year_id; ?>';
+    const courseFilter = urlParams.get('course') || '';
+    const sectionFilter = urlParams.get('section') || '';
+    const searchFilter = urlParams.get('search') || '';
+    const enrolledOnly = urlParams.get('enrolled_only') || '0';
+    const sortBy = urlParams.get('sort') || 'name';
+    
+    // Build export URL with detailed flag
+    const exportUrl = 'export_student_stats.php?' + new URLSearchParams({
+        academic_period_id: academicPeriodId,
+        course: courseFilter,
+        section: sectionFilter,
+        search: searchFilter,
+        enrolled_only: enrolledOnly,
+        sort: sortBy,
+        detailed: '1'
+    });
+    
+    // Show loading state
+    const exportBtn = document.getElementById('exportAssessmentsBtn');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Exporting...';
+    exportBtn.disabled = true;
+    exportBtn.classList.add('processing');
+    
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = 'detailed_assessment_data.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Add error handling
+    link.onerror = function() {
+        alert('Error exporting assessment data. Please try again.');
+        resetAssessmentExportButton();
+    };
+    
+    // Trigger download
+    link.click();
+    
+    // Show success message after a short delay
+    setTimeout(() => {
+        // Create a temporary success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        successMsg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        successMsg.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>
+            Detailed assessment data exported successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(successMsg);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (successMsg.parentNode) {
+                successMsg.parentNode.removeChild(successMsg);
+            }
+        }, 3000);
+    }, 1000);
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(link);
+        resetAssessmentExportButton();
+    }, 3000);
+    
+    function resetAssessmentExportButton() {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+        exportBtn.classList.remove('processing');
+    }
+}
+
+// Score details functionality
+let currentScoreData = null;
+
+// Add click event listeners to clickable scores
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click event listeners to all clickable scores
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('clickable-score')) {
+            e.preventDefault();
+            e.stopPropagation();
+            showScoreDetails(e.target);
+        }
+    });
+});
+
+// Show score details modal
+function showScoreDetails(scoreElement) {
+    const studentId = scoreElement.getAttribute('data-student-id');
+    const courseId = scoreElement.getAttribute('data-course-id');
+    const academicPeriodId = scoreElement.getAttribute('data-academic-period-id');
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('scoreDetailsModal'));
+    modal.show();
+    
+    // Load score details
+    loadScoreDetails(studentId, courseId, academicPeriodId);
+}
+
+// Load score details via AJAX
+function loadScoreDetails(studentId, courseId, academicPeriodId) {
+    const content = document.getElementById('scoreDetailsContent');
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading score details...</p>
+        </div>
+    `;
+    
+    const url = 'ajax_get_score_details.php?' + new URLSearchParams({
+        student_id: studentId,
+        course_id: courseId,
+        academic_period_id: academicPeriodId
+    });
+    
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentScoreData = data;
+            displayScoreDetails(data);
+        } else {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Error loading score details: ${data.error || 'Unknown error'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading score details:', error);
+        content.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Error loading score details. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Display score details in modal
+function displayScoreDetails(data) {
+    const content = document.getElementById('scoreDetailsContent');
+    const student = data.student;
+    const attempts = data.attempts || [];
+    const stats = data.stats || {};
+    
+    let html = `
+        <div class="score-summary">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <img src="${student.profile_picture ? getProfilePictureUrl(student.profile_picture, 'medium') : 'images/default-avatar.png'}" 
+                         class="img-fluid rounded-circle" alt="Student" style="width: 60px; height: 60px; object-fit: cover;">
+                </div>
+                <div class="col-md-9">
+                    <h4 class="mb-1">${student.first_name} ${student.last_name}</h4>
+                    <p class="mb-0 opacity-75">${student.email}</p>
+                    ${student.identifier ? `<span class="badge bg-light text-dark me-2">${student.identifier}</span>` : ''}
+                    ${data.course ? `<span class="badge bg-info">${data.course.course_name} (${data.course.course_code})</span>` : ''}
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="score-breakdown-card text-center">
+                    <h3 class="text-primary mb-1">${stats.average_score || 0}%</h3>
+                    <p class="mb-0 text-muted">Average Score</p>
+                    <small class="text-muted">Based on ${stats.total_attempts || 0} attempts</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="score-breakdown-card text-center">
+                    <h3 class="text-success mb-1">${stats.best_score || 0}%</h3>
+                    <p class="mb-0 text-muted">Best Score</p>
+                    <small class="text-muted">Highest achieved</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="score-breakdown-card text-center">
+                    <h3 class="text-warning mb-1">${stats.worst_score || 0}%</h3>
+                    <p class="mb-0 text-muted">Lowest Score</p>
+                    <small class="text-muted">Needs improvement</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="score-breakdown-card text-center">
+                    <h3 class="text-info mb-1">${stats.total_attempts || 0}</h3>
+                    <p class="mb-0 text-muted">Total Attempts</p>
+                    <small class="text-muted">Assessment tries</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <h5 class="mb-3">
+                    <i class="bi bi-clock-history me-2"></i>Recent Assessment Attempts
+                    <span class="badge bg-primary ms-2">${attempts.length} attempts</span>
+                </h5>
+    `;
+    
+    if (attempts.length === 0) {
+        html += `
+            <div class="text-center py-4">
+                <i class="bi bi-clipboard-x fs-1 text-muted"></i>
+                <p class="text-muted mt-2">No assessment attempts found</p>
+            </div>
+        `;
+    } else {
+        html += '<div class="assessment-attempts-list">';
+        
+        attempts.forEach((attempt, index) => {
+            const scoreClass = attempt.score >= 70 ? 'success' : attempt.score >= 50 ? 'warning' : 'danger';
+            const trend = getScoreTrend(attempts, index);
+            
+            html += `
+                <div class="assessment-attempt-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h6 class="mb-1">${attempt.assessment_title || 'Assessment'}</h6>
+                            <div class="attempt-meta">
+                                <span class="badge bg-${attempt.difficulty === 'easy' ? 'success' : attempt.difficulty === 'medium' ? 'warning' : 'danger'}">
+                                    ${attempt.difficulty || 'Unknown'}
+                                </span>
+                                <span class="text-muted ms-2">Passing: ${attempt.passing_rate || 0}%</span>
+                                <span class="text-muted ms-2">Time Limit: ${attempt.time_limit || 0} min</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="score-display">
+                                <span class="badge bg-${scoreClass} fs-5">${attempt.score || 0}%</span>
+                                <div class="score-trend ${trend.class}">
+                                    <i class="bi bi-${trend.icon}"></i>
+                                    <small>${trend.text}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <div class="attempt-details">
+                                <small class="text-muted d-block">${attempt.completed_at ? new Date(attempt.completed_at).toLocaleDateString() : 'Unknown'}</small>
+                                <small class="text-muted">${attempt.time_taken ? formatTime(attempt.time_taken) : 'N/A'}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+    }
+    
+    html += `
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="score-breakdown-card">
+                    <h6 class="mb-3">
+                        <i class="bi bi-calculator me-2"></i>How the Average Score is Calculated
+                    </h6>
+                    <p class="mb-2">
+                        The average score of <strong>${stats.average_score || 0}%</strong> is calculated by:
+                    </p>
+                    <ul class="mb-0">
+                        <li>Taking all ${stats.total_attempts || 0} assessment attempts</li>
+                        <li>Summing all individual scores: ${stats.total_score || 0} points</li>
+                        <li>Dividing by the total number of attempts: ${stats.total_attempts || 1}</li>
+                        <li>Result: ${stats.total_score || 0} ÷ ${stats.total_attempts || 1} = ${stats.average_score || 0}%</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+}
+
+// Get score trend for an attempt
+function getScoreTrend(attempts, currentIndex) {
+    if (currentIndex === 0) return { class: 'stable', icon: 'minus', text: 'First attempt' };
+    
+    const current = attempts[currentIndex].score || 0;
+    const previous = attempts[currentIndex - 1].score || 0;
+    
+    if (current > previous) {
+        return { class: 'up', icon: 'arrow-up', text: `+${(current - previous).toFixed(1)}%` };
+    } else if (current < previous) {
+        return { class: 'down', icon: 'arrow-down', text: `${(current - previous).toFixed(1)}%` };
+    } else {
+        return { class: 'stable', icon: 'minus', text: 'Same as previous' };
+    }
+}
+
+// Format time in seconds to readable format
+function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+}
+
+// Refresh score details
+function refreshScoreDetails() {
+    if (currentScoreData) {
+        const studentId = currentScoreData.student.id;
+        const courseId = currentScoreData.course_id;
+        const academicPeriodId = currentScoreData.academic_period_id;
+        loadScoreDetails(studentId, courseId, academicPeriodId);
+    }
+}
+
+// Show real-time update notification
+function showRealtimeUpdateNotification(message) {
+    // Remove any existing notification
+    const existingNotification = document.querySelector('.realtime-indicator');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create new notification
+    const notification = document.createElement('div');
+    notification.className = 'realtime-indicator';
+    notification.innerHTML = `
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        ${message}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
 
 // Enhanced scrolling behavior for students table
 document.addEventListener('DOMContentLoaded', function() {

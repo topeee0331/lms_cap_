@@ -1,23 +1,23 @@
 <?php
 header('Content-Type: application/json');
+require_once '../config/config.php';
+requireRole('teacher');
 
-require_once '../config/database.php';
-
-// Get filter parameters
+// Get parameters
 $academic_period_id = (int)($_GET['academic_period_id'] ?? 0);
 $course_filter = (int)($_GET['course'] ?? 0);
-$status_filter = $_GET['status'] ?? '';
 $section_filter = (int)($_GET['section'] ?? 0);
-$sort_by = $_GET['sort'] ?? 'name';
+$search_filter = sanitizeInput($_GET['search'] ?? '');
+$show_enrolled_only = isset($_GET['enrolled_only']) && $_GET['enrolled_only'] === '1';
 
 // Validate academic period
-if ($academic_period_id <= 0) {
-    echo json_encode(['error' => 'Invalid academic period']);
+if (!$academic_period_id) {
+    echo json_encode(['success' => false, 'error' => 'Invalid academic period']);
     exit;
 }
 
 try {
-    // Build WHERE conditions
+    // Build where conditions for filtering
     $where_conditions = [];
     $params = [];
 
@@ -31,30 +31,22 @@ try {
         $params[] = $section_filter;
     }
 
-    $where_clause = !empty($where_conditions) ? implode(' AND ', $where_conditions) : '';
-
-    // Build HAVING clause for status filter
-    $having_clause = "";
-    if ($course_filter > 0) {
-        // For course filtering, use different logic
-        if ($status_filter === 'Regular') {
-            $having_clause = "HAVING COUNT(DISTINCT e.id) > 0";
-        } elseif ($status_filter === 'Irregular') {
-            $having_clause = "HAVING COUNT(DISTINCT e.id) = 0";
-        }
-    } else {
-        // For general filtering, use original logic
-        if ($status_filter === 'Regular') {
-            $having_clause = "HAVING COUNT(DISTINCT e.id) = COUNT(DISTINCT c.id)";
-        } elseif ($status_filter === 'Irregular') {
-            $having_clause = "HAVING COUNT(DISTINCT e.id) > 0 AND COUNT(DISTINCT e.id) < COUNT(DISTINCT c.id)";
-        }
+    if (!empty($search_filter)) {
+        $where_conditions[] = "(u.first_name LIKE ? OR u.last_name LIKE ? OR u.identifier LIKE ? OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?)";
+        $search_term = "%{$search_filter}%";
+        $params[] = $search_term;
+        $params[] = $search_term;
+        $params[] = $search_term;
+        $params[] = $search_term;
     }
 
-    // If filtering by course, show students from sections assigned to that course
+    $where_clause = !empty($where_conditions) ? implode(' AND ', $where_conditions) : '';
+    $having_clause = $show_enrolled_only ? "HAVING COUNT(DISTINCT e.id) > 0" : "";
+
+    // Get students with real-time score data
     if ($course_filter > 0) {
-        $stmt = $pdo->prepare("
-            SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
+        $stmt = $db->prepare("
+            SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.identifier,
                    GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as section_names,
                    GROUP_CONCAT(DISTINCT s.year_level ORDER BY s.year_level SEPARATOR ', ') as section_years,
                    1 as total_courses,
@@ -67,12 +59,13 @@ try {
                        ELSE 'Irregular'
                    END as student_status,
                    
-                   -- Assessment Statistics for this specific course
+                   -- Real-time Assessment Statistics for this specific course
                    COALESCE(SUM(assessment_stats.total_assessments), 0) as total_assessments,
                    COALESCE(SUM(assessment_stats.completed_assessments), 0) as completed_assessments,
                    COALESCE(AVG(assessment_stats.avg_score), 0) as avg_score,
                    COALESCE(MAX(assessment_stats.best_score), 0) as best_score,
-                   COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts
+                   COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts,
+                   COALESCE(SUM(assessment_stats.total_score), 0) as total_score
                    
             FROM sections s
             JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
@@ -80,7 +73,7 @@ try {
                 AND c.id = ? AND c.teacher_id = ? AND c.academic_period_id = ?
             LEFT JOIN course_enrollments e ON e.student_id = u.id AND e.course_id = c.id
             
-            -- Assessment Statistics Subquery for this specific course
+            -- Real-time Assessment Statistics Subquery for this specific course
             LEFT JOIN (
                 SELECT 
                     aa.student_id,
@@ -88,7 +81,8 @@ try {
                     COUNT(DISTINCT CASE WHEN aa.score >= 70 THEN aa.assessment_id END) as completed_assessments,
                     ROUND(AVG(aa.score), 2) as avg_score,
                     MAX(aa.score) as best_score,
-                    COUNT(*) as total_attempts
+                    COUNT(*) as total_attempts,
+                    SUM(aa.score) as total_score
                 FROM assessment_attempts aa
                 WHERE aa.assessment_id IN (
                     SELECT JSON_UNQUOTE(JSON_EXTRACT(c.modules, CONCAT('$[', numbers.n, ']')))
@@ -102,15 +96,14 @@ try {
             ) assessment_stats ON assessment_stats.student_id = u.id
             
             WHERE s.is_active = 1
-            GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at, u.identifier
+            GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.identifier
             " . $having_clause . "
-            ORDER BY " . getSortClause($sort_by) . "
+            ORDER BY u.last_name ASC, u.first_name ASC
         ");
         $stmt->execute([$course_filter, $_SESSION['user_id'], $academic_period_id, $course_filter]);
     } else {
-        // Original query for when not filtering by course
-        $stmt = $pdo->prepare("
-            SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
+        $stmt = $db->prepare("
+            SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.identifier,
                    GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as section_names,
                    GROUP_CONCAT(DISTINCT s.year_level ORDER BY s.year_level SEPARATOR ', ') as section_years,
                    COUNT(DISTINCT c.id) as total_courses,
@@ -124,12 +117,13 @@ try {
                        ELSE 'Irregular'
                    END as student_status,
                    
-                   -- Overall Assessment Statistics
+                   -- Real-time Overall Assessment Statistics
                    COALESCE(SUM(assessment_stats.total_assessments), 0) as total_assessments,
                    COALESCE(SUM(assessment_stats.completed_assessments), 0) as completed_assessments,
                    COALESCE(AVG(assessment_stats.avg_score), 0) as avg_score,
                    COALESCE(MAX(assessment_stats.best_score), 0) as best_score,
-                   COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts
+                   COALESCE(SUM(assessment_stats.total_attempts), 0) as total_attempts,
+                   COALESCE(SUM(assessment_stats.total_score), 0) as total_score
                    
             FROM sections s
             JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
@@ -137,7 +131,7 @@ try {
                 AND c.teacher_id = ? AND c.academic_period_id = ?
             LEFT JOIN course_enrollments e ON e.student_id = u.id AND e.course_id = c.id
             
-            -- Assessment Statistics Subquery
+            -- Real-time Assessment Statistics Subquery
             LEFT JOIN (
                 SELECT 
                     aa.student_id,
@@ -146,7 +140,8 @@ try {
                     COUNT(DISTINCT CASE WHEN aa.score >= 70 THEN aa.assessment_id END) as completed_assessments,
                     ROUND(AVG(aa.score), 2) as avg_score,
                     MAX(aa.score) as best_score,
-                    COUNT(*) as total_attempts
+                    COUNT(*) as total_attempts,
+                    SUM(aa.score) as total_score
                 FROM assessment_attempts aa
                 JOIN courses c ON JSON_SEARCH(c.modules, 'one', aa.assessment_id) IS NOT NULL
                 WHERE c.teacher_id = ? AND c.academic_period_id = ?
@@ -155,52 +150,38 @@ try {
             
             WHERE s.is_active = 1
             " . ($where_clause ? "AND " . $where_clause : "") . "
-            GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at, u.identifier
+            GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.identifier
             " . $having_clause . "
-            ORDER BY " . getSortClause($sort_by) . "
+            ORDER BY u.last_name ASC, u.first_name ASC
         ");
         $stmt->execute(array_merge([$_SESSION['user_id'], $academic_period_id, $_SESSION['user_id'], $academic_period_id], $params));
     }
-
-    $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    
+    $students = $stmt->fetchAll();
+    
     // Calculate summary statistics
     $total_students = count($students);
-    $regular_students = count(array_filter($students, function($s) { return $s['student_status'] === 'Regular'; }));
-    $irregular_students = count(array_filter($students, function($s) { return $s['student_status'] === 'Irregular'; }));
-    $avg_progress = $total_students > 0 ? round(array_sum(array_column($students, 'avg_progress')) / $total_students, 1) : 0;
-    $avg_score = $total_students > 0 ? round(array_sum(array_column($students, 'avg_score')) / $total_students, 1) : 0;
-
-    echo json_encode([
+    $enrolled_students = array_filter($students, function($s) { return $s['enrolled_courses'] > 0; });
+    $avg_progress = $total_students > 0 ? array_sum(array_column($students, 'avg_progress')) / $total_students : 0;
+    $avg_score = $total_students > 0 ? array_sum(array_column($students, 'avg_score')) / $total_students : 0;
+    
+    // Prepare response
+    $response = [
+        'success' => true,
+        'timestamp' => time(),
         'students' => $students,
         'summary' => [
             'total_students' => $total_students,
-            'regular_students' => $regular_students,
-            'irregular_students' => $irregular_students,
-            'avg_progress' => $avg_progress,
-            'avg_score' => $avg_score
+            'enrolled_students' => count($enrolled_students),
+            'avg_progress' => round($avg_progress, 2),
+            'avg_score' => round($avg_score, 2)
         ]
-    ]);
-
+    ];
+    
+    echo json_encode($response);
+    
 } catch (Exception $e) {
-    error_log("Error in ajax_get_student_progress.php: " . $e->getMessage());
-    echo json_encode(['error' => 'Database error occurred']);
-}
-
-function getSortClause($sort_by) {
-    switch ($sort_by) {
-        case 'name':
-            return 'u.first_name, u.last_name';
-        case 'email':
-            return 'u.email';
-        case 'progress':
-            return 'avg_progress DESC';
-        case 'score':
-            return 'avg_score DESC';
-        case 'enrollment':
-            return 'latest_enrollment DESC';
-        default:
-            return 'u.first_name, u.last_name';
-    }
+    error_log("Error in ajax_get_realtime_scores.php: " . $e->getMessage());
+    echo json_encode(['success' => false, 'error' => 'An error occurred while loading real-time scores']);
 }
 ?>

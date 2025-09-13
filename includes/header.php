@@ -3573,7 +3573,30 @@ class TutorialSystem {
     }
 
     addTutorialTrigger() {
-        console.log('Adding tutorial trigger button');
+        // Only add tutorial button on dashboard pages
+        const currentPath = window.location.pathname;
+        const isDashboard = currentPath.includes('dashboard.php') || 
+                          currentPath.includes('index.php') || 
+                          currentPath.endsWith('/') || 
+                          currentPath.endsWith('/student/') ||
+                          currentPath.endsWith('/teacher/') ||
+                          currentPath.endsWith('/admin/');
+        
+        // Don't add tutorial button on assessment pages, result pages, or other non-dashboard pages
+        if (currentPath.includes('assessment') || 
+            currentPath.includes('result') || 
+            currentPath.includes('course.php') ||
+            currentPath.includes('module') ||
+            currentPath.includes('progress') ||
+            currentPath.includes('badges') ||
+            currentPath.includes('profile') ||
+            currentPath.includes('enrollment') ||
+            !isDashboard) {
+            console.log('Skipping tutorial trigger on non-dashboard page:', currentPath);
+            return;
+        }
+        
+        console.log('Adding tutorial trigger button to dashboard');
         const trigger = document.createElement('button');
         trigger.className = 'tutorial-trigger';
         trigger.innerHTML = '<i class="bi bi-question-circle"></i> Tutorial';
@@ -3586,7 +3609,7 @@ class TutorialSystem {
         };
         
         document.body.appendChild(trigger);
-        console.log('Tutorial trigger button added to page');
+        console.log('Tutorial trigger button added to dashboard');
     }
 
     // Method to reset tutorial for testing (kept for compatibility)

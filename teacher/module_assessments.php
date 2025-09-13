@@ -1360,10 +1360,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         <i class="bi bi-arrow-left me-1"></i>Back to Course
                     </a>
                     <?php if ($can_modify_content): ?>
+                        <button class="btn btn-outline-info me-2" onclick="updateAllQuestionCounts()" title="Refresh Question Counts">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Counts
+                        </button>
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssessmentModal">
                             <i class="bi bi-plus-circle me-2"></i>Create Assessment
                         </button>
                     <?php else: ?>
+                        <button class="btn btn-outline-info me-2" onclick="updateAllQuestionCounts()" title="Refresh Question Counts">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Counts
+                        </button>
                         <button class="btn btn-secondary" disabled title="Cannot create assessments in inactive academic period">
                             <i class="bi bi-eye me-2"></i>View Only
                         </button>
@@ -1490,7 +1496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                         $actual_question_count = $stmt->fetchColumn();
                                     ?>
                                 <div class="col-md-6 col-lg-4 mb-4">
-                                    <div class="card h-100 border-0 shadow-sm hover-shadow">
+                                    <div class="card h-100 border-0 shadow-sm hover-shadow" data-assessment-id="<?php echo $assessment['id']; ?>">
                                         <div class="card-header bg-<?php echo $assessment['status'] === 'active' ? 'success' : 'secondary'; ?> text-white">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div class="d-flex align-items-center">
@@ -1522,8 +1528,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                                 <div class="col-6">
                                                     <div class="d-flex align-items-center">
                                                         <i class="bi bi-question-circle text-warning me-2"></i>
-                                                        <small class="text-muted">
-                                                            <?php echo $actual_question_count; ?> questions
+                                                        <small class="text-muted question-count" data-assessment-id="<?php echo $assessment['id']; ?>">
+                                                            <span class="question-number"><?php echo $actual_question_count; ?></span> questions
+                                                            <span class="question-loading" style="display: none;">
+                                                                <i class="bi bi-arrow-clockwise spin"></i>
+                                                            </span>
                                                         </small>
                                                     </div>
                                                 </div>
@@ -2179,6 +2188,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 #stats_description {
     font-style: italic;
     line-height: 1.5;
+}
+
+/* Question count loading animation */
+.question-loading .spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.question-count {
+    position: relative;
+}
+
+.question-count.updating {
+    opacity: 0.7;
+}
+
+.question-count .question-number {
+    transition: all 0.3s ease;
+}
+
+.question-count.updating .question-number {
+    opacity: 0.5;
 }
 </style>
 
@@ -3401,6 +3436,7 @@ function showEditQuestionModal(question) {
                     showNotification('Question updated successfully!', 'success');
                     loadQuestions(currentAssessmentId);
                     modal.hide();
+                    refreshQuestionCount(currentAssessmentId); // Update question count
                 } else {
                     showNotification('Error: ' + response.message, 'error');
                 }
@@ -3498,6 +3534,7 @@ function deleteQuestion(questionId) {
         .then(data => {
             // Reload questions
             loadQuestions(currentAssessmentId);
+            refreshQuestionCount(currentAssessmentId); // Update question count
         })
         .catch(error => {
             console.error('Error:', error);
@@ -3549,6 +3586,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showNotification(data.message, 'success');
                     hideSingleQuestionForm();
                     loadQuestions(currentAssessmentId); // Reload questions list
+                    refreshQuestionCount(currentAssessmentId); // Update question count
                 } else {
                     showNotification(data.message, 'error');
                 }
@@ -3588,6 +3626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showNotification(data.message, 'success');
                     hideBulkQuestionForm();
                     loadQuestions(currentAssessmentId); // Reload questions list
+                    refreshQuestionCount(currentAssessmentId); // Update question count
                 } else {
                     showNotification(data.message, 'error');
                 }
@@ -3713,6 +3752,7 @@ document.getElementById('bulkQuestionForm').addEventListener('submit', function(
                 showNotification(`Successfully created ${response.created_count} new question(s)! Total: ${totalCount} questions.`, 'success');
                 loadQuestions(currentAssessmentId);
                 hideQuestionForm();
+                refreshQuestionCount(currentAssessmentId); // Update question count
             } else {
                 showNotification('Error: ' + response.message, 'error');
             }
@@ -3885,6 +3925,95 @@ editAssessment = function(assessment) {
         showAvailableOrders('edit_assessment_order');
     });
 };
+
+// Real-time question count updates
+let questionCountInterval;
+let isPageVisible = true;
+
+// Function to update question counts for all assessments
+function updateAllQuestionCounts() {
+    if (!isPageVisible) return;
+    
+    const questionCountElements = document.querySelectorAll('.question-count[data-assessment-id]');
+    
+    questionCountElements.forEach(element => {
+        const assessmentId = element.getAttribute('data-assessment-id');
+        updateQuestionCount(assessmentId, element);
+    });
+}
+
+// Function to update question count for a specific assessment
+function updateQuestionCount(assessmentId, element) {
+    if (!element) {
+        element = document.querySelector(`.question-count[data-assessment-id="${assessmentId}"]`);
+    }
+    
+    if (!element) return;
+    
+    // Show loading state
+    element.classList.add('updating');
+    const loadingSpan = element.querySelector('.question-loading');
+    const numberSpan = element.querySelector('.question-number');
+    
+    if (loadingSpan) loadingSpan.style.display = 'inline';
+    
+    // Make AJAX request
+    fetch('ajax_get_question_count.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `assessment_id=${assessmentId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (numberSpan) {
+                numberSpan.textContent = data.count;
+            }
+        } else {
+            console.error('Error updating question count:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating question count:', error);
+    })
+    .finally(() => {
+        // Hide loading state
+        element.classList.remove('updating');
+        if (loadingSpan) loadingSpan.style.display = 'none';
+    });
+}
+
+// Function to update question count for a specific assessment (called after question operations)
+function refreshQuestionCount(assessmentId) {
+    updateQuestionCount(assessmentId);
+}
+
+// Start real-time updates when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Start updating question counts every 10 seconds
+    questionCountInterval = setInterval(updateAllQuestionCounts, 10000);
+    
+    // Initial update after 2 seconds
+    setTimeout(updateAllQuestionCounts, 2000);
+});
+
+// Pause updates when page is not visible
+document.addEventListener('visibilitychange', function() {
+    isPageVisible = !document.hidden;
+    if (isPageVisible) {
+        // Resume updates when page becomes visible
+        updateAllQuestionCounts();
+    }
+});
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (questionCountInterval) {
+        clearInterval(questionCountInterval);
+    }
+});
 
 </script>
 

@@ -1062,5 +1062,41 @@ $is_view_only = !$assessment_status['is_active'];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <script>
+        // Prevent back navigation after assessment completion
+        (function() {
+            // Clear the browser history to prevent back navigation
+            if (window.history && window.history.pushState) {
+                // Replace current history entry with a new one
+                window.history.replaceState(null, null, window.location.href);
+                
+                // Add a new history entry that redirects to assessments
+                window.history.pushState(null, null, 'assessments.php');
+                
+                // Listen for back button attempts
+                window.addEventListener('popstate', function(event) {
+                    // Redirect to assessments page if user tries to go back
+                    window.location.href = 'assessments.php';
+                });
+            }
+            
+            // Additional protection: disable back button
+            document.addEventListener('keydown', function(event) {
+                // Disable Alt+Left Arrow (back button shortcut)
+                if (event.altKey && event.keyCode === 37) {
+                    event.preventDefault();
+                    window.location.href = 'assessments.php';
+                }
+            });
+            
+            // Show warning if user tries to navigate away
+            window.addEventListener('beforeunload', function(event) {
+                event.preventDefault();
+                event.returnValue = 'Assessment has been completed. You cannot return to change answers.';
+                return 'Assessment has been completed. You cannot return to change answers.';
+            });
+        })();
+    </script>
+    
 </body>
 </html> 

@@ -329,6 +329,19 @@ if ($attempt_info && $attempt_info['attempt_limit'] > 0 && $attempt_info['curren
     exit();
 }
 
+// Check if assessment was recently completed to prevent back navigation
+if (isset($_SESSION['assessment_completed']) && $_SESSION['assessment_completed'] && 
+    isset($_SESSION['completed_assessment_id']) && $_SESSION['completed_assessment_id'] == $assessment_id) {
+    // Clear the session flags
+    unset($_SESSION['assessment_completed']);
+    unset($_SESSION['completed_assessment_id']);
+    
+    // Redirect to assessments page with a message
+    $_SESSION['error'] = "Assessment has been completed. You cannot return to change your answers.";
+    header('Location: assessments.php');
+    exit();
+}
+
 // Handle assessment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment']) || isset($_POST['auto_submit']))) {
     // SECURITY CHECK: Prevent submission for inactive semesters
@@ -601,6 +614,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
         // Normal redirect for first attempts
         $redirect_url = 'assessment_result.php?attempt_id=' . $attempt_id;
     }
+    
+    // Set session flag to prevent back navigation
+    $_SESSION['assessment_completed'] = true;
+    $_SESSION['completed_assessment_id'] = $assessment_id;
     
     // Check and award badges
     require_once '../includes/badge_system.php';
@@ -1247,7 +1264,7 @@ $previous_attempts = $stmt->fetchAll();
                                                 Next <i class="fas fa-arrow-right"></i>
                                             </button>
                                         <?php else: ?>
-                                            <button type="submit" name="submit_assessment" class="btn btn-success" onclick="return confirm('Are you sure you want to submit this assessment?')">
+                                            <button type="submit" name="submit_assessment" class="btn btn-success" onclick="return validateAndSubmitAssessment()">
                                                 <i class="fas fa-paper-plane"></i> Submit Assessment
                                             </button>
                                         <?php endif; ?>
@@ -1488,7 +1505,39 @@ $previous_attempts = $stmt->fetchAll();
             
             // Start assessment immediately (no pre-countdown)
             beginAssessment();
+            
+            // Prevent back navigation during assessment
+            preventBackNavigation();
         });
+        
+        // Function to prevent back navigation
+        function preventBackNavigation() {
+            // Add a history entry to prevent back navigation
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, null, window.location.href);
+                
+                // Listen for back button attempts
+                window.addEventListener('popstate', function(event) {
+                    // Show warning and prevent navigation
+                    if (confirm('You are in the middle of an assessment. Are you sure you want to leave? Your progress will be lost.')) {
+                        window.location.href = 'assessments.php';
+                    } else {
+                        // Push state again to prevent back navigation
+                        window.history.pushState(null, null, window.location.href);
+                    }
+                });
+            }
+            
+            // Disable back button keyboard shortcut
+            document.addEventListener('keydown', function(event) {
+                if (event.altKey && event.keyCode === 37) { // Alt + Left Arrow
+                    event.preventDefault();
+                    if (confirm('You are in the middle of an assessment. Are you sure you want to leave? Your progress will be lost.')) {
+                        window.location.href = 'assessments.php';
+                    }
+                }
+            });
+        }
 
         // Update time taken when form is submitted
         const assessmentForm = document.getElementById('assessment-form');
@@ -1569,6 +1618,13 @@ $previous_attempts = $stmt->fetchAll();
             
             // Remove the beforeunload warning
             window.removeEventListener('beforeunload', window.beforeUnloadHandler);
+            
+            // Clear browser history to prevent back navigation after submission
+            if (window.history && window.history.pushState) {
+                // Replace current history entry to prevent back navigation
+                window.history.replaceState(null, null, window.location.href);
+            }
+            
             console.log('Form submission completed');
         });
         }
@@ -1684,6 +1740,62 @@ $previous_attempts = $stmt->fetchAll();
             
         }
 
+        // Validate and submit assessment
+        function validateAndSubmitAssessment() {
+            // Get current question ID
+            const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+            let answer = '';
+            
+            // Get answer based on question type
+            if (questionId) {
+                // For identification questions (text input)
+                const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
+                if (textInput) {
+                    answer = textInput.value.trim();
+                } else {
+                    // Check if this is a multiple choice question with checkboxes
+                    const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                    if (checkboxes.length > 0) {
+                        // Multiple choice with checkboxes - collect all selected values
+                        const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                        answer = selectedValues.join(',');
+                    } else {
+                        // For true/false questions (radio button)
+                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
+                        if (radioButton) {
+                            answer = radioButton.value;
+                        }
+                    }
+                }
+                
+                // Check if answer is provided before allowing submission
+                if (!answer || answer.trim() === '') {
+                    showNotification('⚠️ Please select an answer before submitting the assessment.', 'warning');
+                    return false;
+                }
+            }
+            
+            // Check if all questions have been answered
+            const totalQuestions = <?php echo count($questions); ?>;
+            const questionIds = <?php echo json_encode(array_column($questions, 'id')); ?>;
+            let unansweredQuestions = [];
+            
+            questionIds.forEach(qId => {
+                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + qId);
+                if (!savedAnswer || savedAnswer.trim() === '') {
+                    unansweredQuestions.push(qId);
+                }
+            });
+            
+            if (unansweredQuestions.length > 0) {
+                showNotification(`⚠️ Please answer all questions before submitting. You have ${unansweredQuestions.length} unanswered question(s).`, 'warning');
+                return false;
+            }
+            
+            // If all validations pass, show confirmation dialog
+            return confirm('Are you sure you want to submit this assessment?');
+        }
+
         // Save answer and navigate to next question
         function saveAndNext() {
             // Get current question ID
@@ -1710,6 +1822,12 @@ $previous_attempts = $stmt->fetchAll();
                             answer = radioButton.value;
                         }
                     }
+                }
+                
+                // Check if answer is provided before allowing navigation
+                if (!answer || answer.trim() === '') {
+                    showNotification('⚠️ Please select an answer before proceeding to the next question.', 'warning');
+                    return false;
                 }
                 
                 // Always save answer to localStorage (even if empty, to track that question was visited)

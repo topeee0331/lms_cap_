@@ -23,13 +23,15 @@ $stmt->execute([$user_id]);
 $student_info = $stmt->fetch();
 $is_irregular = $student_info['is_irregular'] ?? 0;
 
-// Get student's section ID first
-$stmt = $pdo->prepare("SELECT id FROM sections WHERE JSON_SEARCH(students, 'one', ?) IS NOT NULL");
+// Get student's section ID and year level first
+$stmt = $pdo->prepare("SELECT id, year_level FROM sections WHERE JSON_SEARCH(students, 'one', ?) IS NOT NULL");
 $stmt->execute([$user_id]);
-$student_section_id = $stmt->fetchColumn();
+$student_section = $stmt->fetch();
+$student_section_id = $student_section['id'] ?? null;
+$student_year_level = $student_section['year_level'] ?? null;
 
 // 1. Fetch all academic years for the dropdown
-$ay_stmt = $pdo->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name');
+$ay_stmt = $pdo->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY is_active DESC, academic_year DESC, semester_name');
 $ay_stmt->execute();
 $all_years = $ay_stmt->fetchAll();
 
@@ -189,51 +191,55 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id]);
 $section_courses = $stmt->fetchAll();
 
-// Get courses not assigned to student's section (available for enrollment requests)
-$stmt = $pdo->prepare("
-    SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, 
-           (SELECT JSON_LENGTH(modules) FROM courses WHERE id = c.id) as module_count,
-           (SELECT COUNT(*) FROM course_enrollments e WHERE e.course_id = c.id AND e.status = 'active') as enrolled_students,
-           CASE WHEN e2.student_id IS NOT NULL THEN 1 ELSE 0 END as is_enrolled,
-           CASE WHEN er.student_id IS NOT NULL AND er.status = 'pending' THEN 1 ELSE 0 END as has_pending_request,
-           CASE WHEN er.student_id IS NOT NULL AND er.status = 'rejected' THEN 1 ELSE 0 END as has_rejected_request,
-           er.rejection_reason,
-           er.approved_at,
-           0 as is_section_assigned,
-           ay.is_active as academic_period_active,
-           ay.is_active as semester_active,
-           ay.is_active as academic_year_active,
-           ay.academic_year,
-           ay.semester_name,
-           c.created_at,
-           c.updated_at,
-           c.year_level,
-           (SELECT 
-               COALESCE((
-                   SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].assessments')))
-                   FROM courses 
-                   WHERE id = c.id
-               ), 0)
-           ) as assessment_count,
-           (SELECT 
-               COALESCE((
-                   SELECT COUNT(DISTINCT aa.assessment_id)
-                   FROM assessment_attempts aa
-                   JOIN assessments a ON aa.assessment_id = a.id
-                   WHERE a.course_id = c.id AND aa.student_id = ? AND aa.status = 'completed'
-               ), 0)
-           ) as finished_assessments
-    FROM courses c
-    JOIN users u ON c.teacher_id = u.id
-    JOIN academic_periods ay ON c.academic_period_id = ay.id
-    LEFT JOIN course_enrollments e2 ON c.id = e2.course_id AND e2.student_id = ? AND e2.status = 'active'
-    LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
-    WHERE c.is_archived = 0 AND c.academic_period_id = ? 
-    AND (c.sections IS NULL OR JSON_SEARCH(c.sections, 'one', ?) IS NULL)
-    ORDER BY c.created_at DESC
-");
-$stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id]);
-$non_section_courses = $stmt->fetchAll();
+// Get courses not assigned to student's section but matching student's year level (available for enrollment requests)
+$non_section_courses = [];
+if ($student_year_level !== null) {
+    $stmt = $pdo->prepare("
+        SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, 
+               (SELECT JSON_LENGTH(modules) FROM courses WHERE id = c.id) as module_count,
+               (SELECT COUNT(*) FROM course_enrollments e WHERE e.course_id = c.id AND e.status = 'active') as enrolled_students,
+               CASE WHEN e2.student_id IS NOT NULL THEN 1 ELSE 0 END as is_enrolled,
+               CASE WHEN er.student_id IS NOT NULL AND er.status = 'pending' THEN 1 ELSE 0 END as has_pending_request,
+               CASE WHEN er.student_id IS NOT NULL AND er.status = 'rejected' THEN 1 ELSE 0 END as has_rejected_request,
+               er.rejection_reason,
+               er.approved_at,
+               0 as is_section_assigned,
+               ay.is_active as academic_period_active,
+               ay.is_active as semester_active,
+               ay.is_active as academic_year_active,
+               ay.academic_year,
+               ay.semester_name,
+               c.created_at,
+               c.updated_at,
+               c.year_level,
+               (SELECT 
+                   COALESCE((
+                       SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].assessments')))
+                       FROM courses 
+                       WHERE id = c.id
+                   ), 0)
+               ) as assessment_count,
+               (SELECT 
+                   COALESCE((
+                       SELECT COUNT(DISTINCT aa.assessment_id)
+                       FROM assessment_attempts aa
+                       JOIN assessments a ON aa.assessment_id = a.id
+                       WHERE a.course_id = c.id AND aa.student_id = ? AND aa.status = 'completed'
+                   ), 0)
+               ) as finished_assessments
+        FROM courses c
+        JOIN users u ON c.teacher_id = u.id
+        JOIN academic_periods ay ON c.academic_period_id = ay.id
+        LEFT JOIN course_enrollments e2 ON c.id = e2.course_id AND e2.student_id = ? AND e2.status = 'active'
+        LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
+        WHERE c.is_archived = 0 AND c.academic_period_id = ? 
+        AND (c.sections IS NULL OR JSON_SEARCH(c.sections, 'one', ?) IS NULL)
+        AND c.year_level = ?
+        ORDER BY c.created_at DESC
+    ");
+    $stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id, $student_year_level]);
+    $non_section_courses = $stmt->fetchAll();
+}
 
 // Combine both course lists
 $courses = array_merge($section_courses, $non_section_courses);
@@ -943,7 +949,7 @@ $course_themes = [
                         </button>
                     </div>
                     <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
-                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections. Click "Browse All Courses" to see all available courses outside your assigned section.
+                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). Click "Browse All Courses" to see all available courses outside your assigned section.
                     </div>
                 </div>
 
@@ -1130,19 +1136,25 @@ $course_themes = [
                                                 
                                                 <!-- Course Details -->
                                                 <div class="row text-center mb-3">
-                                                    <div class="col-4">
+                                                    <div class="col-3">
                                                         <small class="text-muted">
                                                             <i class="fas fa-calendar-alt"></i><br>
                                                             <?php echo htmlspecialchars($course['academic_year'] ?? 'N/A'); ?>
                                                         </small>
                                                     </div>
-                                                    <div class="col-4">
+                                                    <div class="col-3">
                                                         <small class="text-muted">
                                                             <i class="fas fa-clock"></i><br>
                                                             <?php echo htmlspecialchars($course['semester_name'] ?? 'N/A'); ?>
                                                         </small>
                                                     </div>
-                                                    <div class="col-4">
+                                                    <div class="col-3">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-graduation-cap"></i><br>
+                                                            <?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?> Year
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-3">
                                                         <small class="text-muted">
                                                             <i class="fas fa-layer-group"></i><br>
                                                             <?php echo $course['module_count']; ?> modules
@@ -1265,7 +1277,7 @@ $course_themes = [
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle"></i> These are courses from other sections. All enrollments require teacher verification to prevent assessment leaks.
+                            <i class="fas fa-info-circle"></i> These are courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). All enrollments require teacher verification to prevent assessment leaks.
                         </div>
                         <input type="text" id="modalCourseFilter" class="form-control mb-3" placeholder="Filter by course name or teacher...">
                         <div class="row" id="modalCourseList">
@@ -1325,13 +1337,19 @@ $course_themes = [
                                             <p class="card-text text-muted small teacher-name">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
                                             <p class="card-text small"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 80)); ?>...</p>
                                             <div class="row text-center mb-2">
-                                                <div class="col-6">
+                                                <div class="col-4">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-graduation-cap"></i><br>
+                                                        <?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?> Year
+                                                    </small>
+                                                </div>
+                                                <div class="col-4">
                                                     <small class="text-muted">
                                                         <i class="fas fa-layer-group"></i><br>
                                                         <?php echo $course['module_count']; ?> modules
                                                     </small>
                                                 </div>
-                                                <div class="col-6">
+                                                <div class="col-4">
                                                     <small class="text-muted">
                                                         <i class="fas fa-users"></i><br>
                                                         <?php echo $course['enrolled_students']; ?> students

@@ -243,17 +243,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
     $academic_period_id = isset($_POST['academic_period_id']) ? intval($_POST['academic_period_id']) : null;
     $selected_year_level = $_POST['year_level'] ?? null;
     
-    if ($course_name && $course_code && $academic_period_id && $selected_year_level) {
-        $stmt = $db->prepare('INSERT INTO courses (course_name, course_code, description, teacher_id, academic_period_id, year_level) VALUES (?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $selected_year_level]);
-        $course_id = $db->lastInsertId();
-        // Assign selected year levels to this course
-        // The following line was removed as per the edit hint
-        // $db->prepare("UPDATE sections SET course_id = ? WHERE year = ?")->execute([$course_id, $year_level]);
-        echo "<script>alert('Course created successfully!'); window.location.href='courses.php?academic_period_id=" . $academic_period_id . "';</script>";
-        exit;
-    } else {
-        echo '<div class="alert alert-danger">All fields are required.</div>';
+    // Validation messages
+    $errors = [];
+    
+    if (!$course_name) {
+        $errors[] = "Course name is required.";
+    }
+    if (!$course_code) {
+        $errors[] = "Course code is required.";
+    }
+    if (!$academic_period_id) {
+        $errors[] = "Academic period is required.";
+    }
+    if (!$selected_year_level) {
+        $errors[] = "Year level is required.";
+    }
+    
+    // Check for duplicate course code (globally unique)
+    if ($course_code) {
+        $check_code_stmt = $db->prepare('SELECT id FROM courses WHERE course_code = ?');
+        $check_code_stmt->execute([$course_code]);
+        if ($check_code_stmt->fetch()) {
+            $errors[] = "Course code '{$course_code}' already exists. Please choose a different code.";
+        }
+    }
+    
+    // Check for duplicate course name within the same academic period
+    if ($course_name && $academic_period_id) {
+        $check_name_stmt = $db->prepare('SELECT id FROM courses WHERE course_name = ? AND academic_period_id = ?');
+        $check_name_stmt->execute([$course_name, $academic_period_id]);
+        if ($check_name_stmt->fetch()) {
+            $errors[] = "Course name '{$course_name}' already exists for this academic period. Please choose a different name.";
+        }
+    }
+    
+    if (empty($errors)) {
+        try {
+            $stmt = $db->prepare('INSERT INTO courses (course_name, course_code, description, teacher_id, academic_period_id, year_level) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $selected_year_level]);
+            $course_id = $db->lastInsertId();
+            
+            echo "<script>alert('Course created successfully!'); window.location.href='courses.php?academic_period_id=" . $academic_period_id . "';</script>";
+            exit;
+        } catch (PDOException $e) {
+            // Handle any other database errors
+            if ($e->getCode() == 23000) {
+                $errors[] = "A course with this information already exists. Please check your input and try again.";
+            } else {
+                $errors[] = "Database error occurred. Please try again.";
+                error_log("Course creation error: " . $e->getMessage());
+            }
+        }
+    }
+    
+    // Display errors if any
+    if (!empty($errors)) {
+        echo '<div class="alert alert-danger"><strong>Please fix the following errors:</strong><ul class="mb-0 mt-2">';
+        foreach ($errors as $error) {
+            echo '<li>' . htmlspecialchars($error) . '</li>';
+        }
+        echo '</ul></div>';
     }
 }
 ?>
@@ -532,10 +581,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                         <div class="col-md-6 mb-3">
                             <label for="course_name" class="form-label">Course Name</label>
                             <input type="text" class="form-control" id="course_name" name="course_name" required>
+                            <div id="course_name_feedback" class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="course_code" class="form-label">Course Code</label>
                             <input type="text" class="form-control" id="course_code" name="course_code" required>
+                            <div id="course_code_feedback" class="invalid-feedback"></div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -640,6 +691,114 @@ function viewStudents(courseId, sectionId, sectionName, courseName) {
             console.error('Error fetching students:', error);
         });
 }
+
+// Course validation functions
+let courseCodeTimeout;
+let courseNameTimeout;
+
+// Validate course code uniqueness
+function validateCourseCode() {
+    const courseCode = document.getElementById('course_code').value.trim();
+    const feedback = document.getElementById('course_code_feedback');
+    const input = document.getElementById('course_code');
+    
+    if (courseCode.length === 0) {
+        input.classList.remove('is-valid', 'is-invalid');
+        feedback.textContent = '';
+        return;
+    }
+    
+    // Clear previous timeout
+    clearTimeout(courseCodeTimeout);
+    
+    // Set new timeout for debouncing
+    courseCodeTimeout = setTimeout(() => {
+        fetch('check_course_code.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'course_code=' + encodeURIComponent(courseCode)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                input.classList.remove('is-valid');
+                input.classList.add('is-invalid');
+                feedback.textContent = 'Course code already exists. Please choose a different code.';
+            } else {
+                input.classList.remove('is-invalid');
+                input.classList.add('is-valid');
+                feedback.textContent = 'Course code is available.';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking course code:', error);
+        });
+    }, 500); // 500ms delay
+}
+
+// Validate course name uniqueness within academic period
+function validateCourseName() {
+    const courseName = document.getElementById('course_name').value.trim();
+    const academicPeriodId = document.getElementById('academic_period_id').value;
+    const feedback = document.getElementById('course_name_feedback');
+    const input = document.getElementById('course_name');
+    
+    if (courseName.length === 0 || !academicPeriodId) {
+        input.classList.remove('is-valid', 'is-invalid');
+        feedback.textContent = '';
+        return;
+    }
+    
+    // Clear previous timeout
+    clearTimeout(courseNameTimeout);
+    
+    // Set new timeout for debouncing
+    courseNameTimeout = setTimeout(() => {
+        fetch('check_course_name.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'course_name=' + encodeURIComponent(courseName) + '&academic_period_id=' + encodeURIComponent(academicPeriodId)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                input.classList.remove('is-valid');
+                input.classList.add('is-invalid');
+                feedback.textContent = 'Course name already exists for this academic period. Please choose a different name.';
+            } else {
+                input.classList.remove('is-invalid');
+                input.classList.add('is-valid');
+                feedback.textContent = 'Course name is available.';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking course name:', error);
+        });
+    }, 500); // 500ms delay
+}
+
+// Add event listeners when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const courseCodeInput = document.getElementById('course_code');
+    const courseNameInput = document.getElementById('course_name');
+    const academicPeriodSelect = document.getElementById('academic_period_id');
+    
+    if (courseCodeInput) {
+        courseCodeInput.addEventListener('input', validateCourseCode);
+    }
+    
+    if (courseNameInput) {
+        courseNameInput.addEventListener('input', validateCourseName);
+    }
+    
+    if (academicPeriodSelect) {
+        academicPeriodSelect.addEventListener('change', validateCourseName);
+    }
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?> 

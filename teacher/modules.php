@@ -883,19 +883,6 @@ usort($all_modules, function($a, $b) {
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary" onclick="showBulkActions()" id="bulkActionsBtn" style="display: none;">
-                        <i class="bi bi-gear me-1"></i>Bulk Actions
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportModules()">
-                        <i class="bi bi-download me-1"></i>Export
-                    </button>
-                </div>
-        <div>
-                    <button class="btn btn-success btn-lg px-4" data-bs-toggle="modal" data-bs-target="#createModuleModal" <?php echo empty($courses) ? 'disabled' : ''; ?>>
-                        <i class="bi bi-plus-circle me-2"></i>Create New Module
-            </button>
-                </div>
             </div>
         </div>
     </div>
@@ -915,127 +902,133 @@ usort($all_modules, function($a, $b) {
                             </div>
                         </div>
                     <?php else: ?>
-                <!-- Bulk Actions Bar -->
-                <div class="bulk-actions-bar" id="bulkActionsBar" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <span class="me-3">
-                                <span id="selectedCount">0</span> modules selected
-                            </span>
-                            <button class="btn btn-sm btn-outline-danger me-2" onclick="bulkDelete()">
-                                <i class="bi bi-trash me-1"></i>Delete Selected
-                            </button>
-                            <button class="btn btn-sm btn-outline-success me-2" onclick="bulkUnlock()">
-                                <i class="bi bi-unlock me-1"></i>Unlock Selected
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="bulkLock()">
-                                <i class="bi bi-lock me-1"></i>Lock Selected
-                            </button>
-                                            </div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
-                            <i class="bi bi-x me-1"></i>Clear Selection
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Modules Grid -->
-                <div class="modules-grid">
+                <!-- Scrollable Modules Table Container -->
+                <div class="modules-table-scrollable-container">
+                    <!-- Modules Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover modules-table">
+                        <thead class="table-dark">
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="25%">Module Details</th>
+                                <th width="15%">Course Info</th>
+                                <th width="8%">Order</th>
+                                <th width="8%">Videos</th>
+                                <th width="10%">Assessments</th>
+                                <th width="8%">Status</th>
+                                <th width="10%">Created</th>
+                                <th width="10%">Updated</th>
+                                <th width="8%">Files</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                     <?php 
-                    // Define green color variations for module cards
-                    $module_colors = [
-                        '#2ecc71', // Emerald Green
-                        '#27ae60', // Nephritis Green
-                        '#16a085', // Turquoise Green
-                        '#1abc9c', // Green Sea
-                        '#00b894', // Mint Green
-                        '#26de81', // Light Green
-                        '#20bf6b', // Medium Green
-                        '#0fb9b1', // Teal Green
-                        '#45b7d1', // Blue Green
-                        '#96ceb4', // Pale Green
-                        '#6ab04c', // Forest Green
-                        '#badc58'  // Lime Green
-                    ];
-                    $color_index = 0;
+                    $module_count = 0;
+                    foreach ($all_modules as $module): 
+                        $module_count++;
                     ?>
-                    <?php foreach ($all_modules as $module): ?>
-                        <?php 
-                        $card_color = $module_colors[$color_index % count($module_colors)];
-                        $color_index++;
-                        ?>
-                        <div class="module-card" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
-                            <!-- Module Status Badge -->
-                            <div class="module-status <?php echo $module['is_locked'] ? 'status-locked' : 'status-unlocked'; ?>">
-                                <?php echo $module['is_locked'] ? 'Locked' : 'Unlocked'; ?>
-                            </div>
-                            
-                            <!-- Module Preview -->
-                            <div class="module-card-preview" style="background-color: <?php echo $card_color; ?>;">
-                                <i class="bi bi-folder module-icon"></i>
-                            </div>
-                            
-                            <!-- Module Content -->
-                            <div class="module-card-body">
-                                <h6 class="module-title"><?php echo htmlspecialchars($module['module_title'] ?? 'Untitled Module'); ?></h6>
-                                
+                                <tr class="module-row" data-module-id="<?php echo $module['id']; ?>">
+                                    <td>
+                                        <span class="badge bg-secondary fs-6"><?php echo $module_count; ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="module-info">
+                                            <h6 class="mb-1 fw-bold text-primary"><?php echo htmlspecialchars($module['module_title'] ?? 'Untitled Module'); ?></h6>
                                 <?php if (!empty($module['module_description'])): ?>
-                                    <p class="module-description"><?php echo htmlspecialchars(substr($module['module_description'], 0, 120)) . (strlen($module['module_description']) > 120 ? '...' : ''); ?></p>
+                                                <small class="text-muted d-block"><?php echo htmlspecialchars(substr($module['module_description'], 0, 100)) . (strlen($module['module_description']) > 100 ? '...' : ''); ?></small>
                                 <?php endif; ?>
-                                
-                                <!-- Module Meta -->
-                                <div class="module-meta">
-                                    <div class="module-stats">
-                                        <div class="module-stat">
-                                            <span class="module-stat-number"><?php echo $module['video_count'] ?? 0; ?></span>
-                                            <span class="module-stat-label">Videos</span>
+                                            <?php if (isset($module['unlock_score']) && $module['is_locked']): ?>
+                                                <small class="text-warning d-block">
+                                                    <i class="bi bi-lock-fill me-1"></i>Requires <?php echo $module['unlock_score']; ?>% to unlock
+                                                </small>
+                                            <?php endif; ?>
                                         </div>
-                                        <div class="module-stat">
-                                            <span class="module-stat-number"><?php echo $module['assessment_count'] ?? 0; ?></span>
-                                            <span class="module-stat-label">Assessments</span>
+                                    </td>
+                                    <td>
+                                        <div class="course-info">
+                                            <span class="badge bg-primary mb-1 d-block"><?php echo htmlspecialchars($module['course_title'] ?? 'Unknown Course'); ?></span>
+                                            <?php if (!empty($module['course_code'])): ?>
+                                                <small class="text-muted d-block"><?php echo htmlspecialchars($module['course_code']); ?></small>
+                                            <?php endif; ?>
                                         </div>
-                                        <div class="module-stat">
-                                            <span class="module-stat-number"><?php echo $module['module_order'] ?? 1; ?></span>
-                                            <span class="module-stat-label">Order</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary fs-6"><?php echo $module['module_order'] ?? 1; ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <span class="badge bg-info fs-6"><?php echo $module['video_count'] ?? 0; ?></span>
+                                            <?php if (($module['video_count'] ?? 0) > 0): ?>
+                                                <small class="text-muted d-block">videos</small>
+                                            <?php endif; ?>
                                         </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <span class="badge bg-warning text-dark fs-6"><?php echo $module['assessment_count'] ?? 0; ?></span>
+                                            <?php if (($module['assessment_count'] ?? 0) > 0): ?>
+                                                <small class="text-muted d-block">quizzes</small>
+                                            <?php endif; ?>
                                     </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <span class="badge <?php echo $module['is_locked'] ? 'bg-danger' : 'bg-success'; ?> fs-6">
+                                                <i class="bi bi-<?php echo $module['is_locked'] ? 'lock-fill' : 'unlock-fill'; ?> me-1"></i>
+                                                <?php echo $module['is_locked'] ? 'Locked' : 'Unlocked'; ?>
+                                            </span>
                                 </div>
-                                
-                                <!-- Module Actions -->
-                                <div class="module-actions">
-                                    <a href="javascript:void(0)" onclick="viewModule(<?php echo $module['id']; ?>)" class="module-action-btn btn-view" title="View Details">
-                                        <i class="bi bi-eye"></i>
-                                        <span>View</span>
-                                    </a>
-                                    <a href="javascript:void(0)" onclick="editModule(<?php echo $module['id']; ?>)" class="module-action-btn btn-edit" title="Edit Module">
-                                        <i class="bi bi-pencil"></i>
-                                        <span>Edit</span>
-                                    </a>
-                                    <a href="module_videos.php?module_id=<?php echo $module['id']; ?>" class="module-action-btn btn-videos" title="Manage Videos">
-                                        <i class="bi bi-camera-video"></i>
-                                        <span>Videos</span>
-                                    </a>
-                                    <a href="javascript:void(0)" onclick="toggleModuleStatus(<?php echo $module['id']; ?>, <?php echo $module['is_locked'] ? 'false' : 'true'; ?>)" class="module-action-btn btn-toggle" title="<?php echo $module['is_locked'] ? 'Unlock' : 'Lock'; ?> Module">
-                                        <i class="bi bi-<?php echo $module['is_locked'] ? 'unlock' : 'lock'; ?>"></i>
-                                        <span><?php echo $module['is_locked'] ? 'Unlock' : 'Lock'; ?></span>
-                                    </a>
-                                    <a href="javascript:void(0)" onclick="deleteModule(<?php echo $module['id']; ?>)" class="module-action-btn btn-delete" title="Delete Module">
-                                        <i class="bi bi-trash"></i>
-                                        <span>Delete</span>
-                                    </a>
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <small class="text-muted">
+                                                <?php 
+                                                $created_at = $module['created_at'] ?? date('Y-m-d H:i:s');
+                                                echo date('M d, Y', strtotime($created_at)); 
+                                                ?>
+                                            </small>
+                                            <br>
+                                            <small class="text-muted">
+                                                <?php echo date('H:i', strtotime($created_at)); ?>
+                                            </small>
                                 </div>
-                                
-                                <!-- Module Info -->
-                                <div class="mt-2">
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <?php if (isset($module['updated_at']) && $module['updated_at']): ?>
                                     <small class="text-muted">
-                                        <i class="bi bi-book me-1"></i><?php echo htmlspecialchars($module['course_title'] ?? 'Unknown Course'); ?>
-                                        <span class="ms-2">
-                                            <i class="bi bi-calendar me-1"></i><?php echo date('M d, Y', strtotime($module['created_at'])); ?>
-                                        </span>
+                                                    <?php echo date('M d, Y', strtotime($module['updated_at'])); ?>
                                     </small>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <?php echo date('H:i', strtotime($module['updated_at'])); ?>
+                                                </small>
+                                            <?php else: ?>
+                                                <small class="text-muted">Never</small>
+                                            <?php endif; ?>
                                 </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <?php if (isset($module['file']) && !empty($module['file']['filename'])): ?>
+                                                <span class="badge bg-success fs-6">
+                                                    <i class="bi bi-paperclip me-1"></i>1
+                                                </span>
+                                                <br>
+                                                <small class="text-muted"><?php echo htmlspecialchars(substr($module['file']['original_name'] ?? 'file', 0, 10)) . '...'; ?></small>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted fs-6">
+                                                    <i class="bi bi-file-x me-1"></i>0
+                                                </span>
+                                            <?php endif; ?>
                             </div>
-                        </div>
+                                    </td>
+                                </tr>
                     <?php endforeach; ?>
+                        </tbody>
+                        </table>
+                    </div>
                 </div>
             <?php endif; ?>
     </div>
@@ -1279,57 +1272,6 @@ usort($all_modules, function($a, $b) {
     </div>
 </div>
 
-<!-- Download Options Modal -->
-<div class="modal fade" id="downloadOptionsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-download me-2"></i>Download Options
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">Choose how you want to download the selected modules:</p>
-                
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="fas fa-file-archive fa-3x text-primary mb-3"></i>
-                                <h6 class="card-title">Download as ZIP</h6>
-                                <p class="card-text small">All module files will be compressed into a single ZIP file for easy download.</p>
-                                <button class="btn btn-primary btn-sm" onclick="downloadModulesAsZip()">
-                                    <i class="fas fa-download me-1"></i>Download ZIP
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <i class="fas fa-folder-open fa-3x text-success mb-3"></i>
-                                <h6 class="card-title">Organized Structure</h6>
-                                <p class="card-text small">Files will be organized by module with proper folder structure and metadata.</p>
-                                <button class="btn btn-success btn-sm" onclick="downloadModulesAsZip()">
-                                    <i class="fas fa-download me-1"></i>Download Organized
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Note:</strong> Large downloads may take a few moments to prepare. Please be patient.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script>
 // JavaScript is loading...
@@ -1486,9 +1428,6 @@ function showContentDetails(moduleId, moduleTitle, videoCount, assessmentCount, 
                     <h6 class="mb-1">${fileName}</h6>
                     <small class="text-muted">Module file attached</small>
                 </div>
-                <button class="btn btn-sm btn-outline-primary" onclick="downloadModuleFile('${moduleId}', '${fileName}', '${fileName}', event)">
-                    <i class="fas fa-download me-1"></i>Download
-                </button>
             </div>
         `;
     } else {
@@ -1506,80 +1445,14 @@ function showContentDetails(moduleId, moduleTitle, videoCount, assessmentCount, 
 }
 
 // Module management functions - Global scope
-function viewModule(moduleId) {
+
+// Table functionality
+function updateModuleCount() {
+    const moduleRows = document.querySelectorAll('.module-row');
+    const countBadges = document.querySelectorAll('.module-row td:first-child .badge');
     
-    // Find the module data
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
-    const module = allModules.find(m => m.id == moduleId);
-    
-    // View module function
-    
-    if (!module) {
-        showErrorMessage('Module not found');
-        return;
-    }
-    
-    // Create modal content
-    const modalContent = `
-        <div class="modal fade" id="viewModuleModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content border-0 shadow">
-                    <div class="modal-header border-0" style="background-color: var(--primary-color); color: white;">
-                        <h5 class="modal-title">
-                            <i class="bi bi-eye me-2"></i>Module Details
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-8">
-                                <h6 class="fw-bold text-primary">${module.module_title || 'Untitled Module'}</h6>
-                                <p class="text-muted mb-3">${module.module_description || 'No description available'}</p>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title">Module Information</h6>
-                                        <p class="mb-2"><strong>Course:</strong> ${module.course_title || 'Unknown'}</p>
-                                        <p class="mb-2"><strong>Order:</strong> ${module.module_order || 'N/A'}</p>
-                                        <p class="mb-2"><strong>Status:</strong> 
-                                            <span class="badge ${(!module.is_locked || module.is_locked == 0) ? 'bg-success' : 'bg-danger'}">
-                                                ${(!module.is_locked || module.is_locked == 0) ? 'Unlocked' : 'Locked'}
-                                            </span>
-                                        </p>
-                                        <p class="mb-0"><strong>Files:</strong> ${module.video_count || 0} videos, ${module.assessment_count || 0} assessments</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary" onclick="editModule(${moduleId})" data-bs-dismiss="modal">
-                            <i class="bi bi-pencil me-1"></i>Edit Module
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    const existingModal = document.getElementById('viewModuleModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalContent);
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('viewModuleModal'));
-    modal.show();
-    
-    // Clean up when modal is hidden
-    document.getElementById('viewModuleModal').addEventListener('hidden.bs.modal', function() {
-        this.remove();
+    countBadges.forEach((badge, index) => {
+        badge.textContent = index + 1;
     });
 }
 
@@ -1819,8 +1692,7 @@ function deleteModuleOld(moduleId, moduleTitle, courseId, event) {
             // Remove the row from the table
             const moduleRows = document.querySelectorAll('.module-row');
             moduleRows.forEach(row => {
-                const checkbox = row.querySelector('.module-checkbox');
-                if (checkbox && checkbox.value === moduleId) {
+                if (row.dataset.moduleId === moduleId) {
                     row.style.transition = 'all 0.3s ease';
                     row.style.opacity = '0';
                     row.style.transform = 'translateX(-100%)';
@@ -1846,22 +1718,6 @@ function deleteModuleOld(moduleId, moduleTitle, courseId, event) {
     }
 }
 
-function downloadModuleFile(moduleId, filename, originalName, event) {
-    // Prevent event bubbling and default behavior
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
-    // Create a temporary link to download the file
-    const link = document.createElement('a');
-    link.href = `download_module_file.php?module_id=${moduleId}&filename=${encodeURIComponent(filename)}&original_name=${encodeURIComponent(originalName)}`;
-    link.download = originalName;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
 
 // Global scope functions
 function editModule(moduleId) {
@@ -2053,8 +1909,7 @@ function updateModuleRowInTable(formData) {
     let targetRow = null;
     
     moduleRows.forEach(row => {
-        const checkbox = row.querySelector('.module-checkbox');
-        if (checkbox && checkbox.value === moduleId) {
+        if (row.dataset.moduleId === moduleId) {
             targetRow = row;
         }
     });
@@ -2170,7 +2025,7 @@ function showBulkActions() {
         return;
     }
     
-    const action = prompt('Choose action: delete, lock, unlock, or export');
+    const action = prompt('Choose action: delete, lock, or unlock');
     if (!action) return;
     
     const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
@@ -2185,85 +2040,11 @@ function showBulkActions() {
         case 'unlock':
             bulkUnlock();
             break;
-        case 'export':
-            exportSelectedModules(selectedIds);
-            break;
         default:
-            showErrorMessage('Invalid action. Please choose: delete, lock, unlock, or export');
+            showErrorMessage('Invalid action. Please choose: delete, lock, or unlock');
     }
 }
 
-function exportModules() {
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
-    exportModulesData(allModules, 'all_modules');
-}
-
-function exportSelectedModules(moduleIds) {
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
-    const selectedModules = allModules.filter(m => moduleIds.includes(m.id));
-    exportModulesData(selectedModules, 'selected_modules');
-}
-
-function exportModulesData(modules, filename) {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Module Title,Description,Course,Order,Status\n";
-    
-    modules.forEach(module => {
-        const row = [
-            module.module_title,
-            module.module_description || '',
-            module.course_title,
-            module.module_order || 'N/A',
-            module.is_locked ? 'Locked' : 'Unlocked'
-        ].map(field => `"${field}"`).join(',');
-        csvContent += row + "\n";
-    });
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function downloadModulesAsZip() {
-    // Get all modules with files
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
-    const modulesWithFiles = allModules.filter(module => module.file && module.file.filename);
-    
-    if (modulesWithFiles.length === 0) {
-        showErrorMessage('No modules with files found to download.');
-        return;
-    }
-    
-    // Create a form to submit to a PHP script that will create the ZIP
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'download_modules_zip.php';
-    form.target = '_blank';
-    
-    // Add CSRF token
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = '<?php echo CSRF_TOKEN_NAME; ?>';
-    csrfInput.value = '<?php echo generateCSRFToken(); ?>';
-    form.appendChild(csrfInput);
-    
-    // Add module IDs
-    modulesWithFiles.forEach(module => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'module_ids[]';
-        input.value = module.id;
-        form.appendChild(input);
-    });
-    
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-}
 
 function manageModuleVideos(moduleId) {
     // Navigate to the module videos management page
@@ -2923,12 +2704,14 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 2.5rem;
     font-weight: 800;
     line-height: 1;
+    color: white;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .module-stat-label {
     display: block;
     font-size: 0.875rem;
+    color: white;
     opacity: 0.95;
     margin-top: 0.5rem;
     font-weight: 500;
@@ -3103,7 +2886,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: block;
     font-size: 1.2rem;
     font-weight: bold;
-    color: var(--main-green);
+    color: white;
 }
 
 .module-stat-label {
@@ -3139,11 +2922,6 @@ document.addEventListener('DOMContentLoaded', function() {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     opacity: 0.9;
-}
-
-.btn-view {
-    background: #27ae60;
-    color: white;
 }
 
 .btn-edit {
@@ -3313,6 +3091,172 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .module-actions .btn-group-sm .btn {
         margin-bottom: 0.25rem;
+    }
+}
+
+/* Scrollable Modules Table Container */
+.modules-table-scrollable-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    background: white;
+}
+
+/* Custom scrollbar for modules table */
+.modules-table-scrollable-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modules-table-scrollable-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modules-table-scrollable-container::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.modules-table-scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: #1e3d32;
+}
+
+/* Firefox scrollbar styling */
+.modules-table-scrollable-container {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
+
+/* Sticky header for scrollable table */
+.modules-table-scrollable-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--main-green) !important;
+    z-index: 10;
+    border-bottom: 2px solid #1e3d32;
+}
+
+/* Modules Table */
+.modules-table {
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.modules-table thead th {
+    background: var(--main-green) !important;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.modules-table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modules-table tbody tr:hover {
+    background-color: rgba(46, 94, 78, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modules-table tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.module-info h6 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.module-info small {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+/* Enhanced table styling for detailed data */
+.modules-table .module-info h6 {
+    color: var(--main-green);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.modules-table .course-info .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+}
+
+.modules-table .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+    color: white;
+}
+
+
+/* Table responsive adjustments */
+@media (max-width: 1200px) {
+    .modules-table thead th:nth-child(8),
+    .modules-table tbody td:nth-child(8),
+    .modules-table thead th:nth-child(9),
+    .modules-table tbody td:nth-child(9) {
+        display: none;
+    }
+}
+
+@media (max-width: 992px) {
+    .modules-table thead th:nth-child(10),
+    .modules-table tbody td:nth-child(10) {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .modules-table-scrollable-container {
+        max-height: 500px;
+    }
+    
+    .modules-table {
+        font-size: 0.875rem;
+    }
+    
+    .modules-table thead th,
+    .modules-table tbody td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .modules-table thead th:nth-child(3),
+    .modules-table tbody td:nth-child(3),
+    .modules-table thead th:nth-child(4),
+    .modules-table tbody td:nth-child(4) {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .modules-table-scrollable-container {
+        max-height: 400px;
+    }
+    
+    .modules-table thead th:nth-child(5),
+    .modules-table tbody td:nth-child(5),
+    .modules-table thead th:nth-child(6),
+    .modules-table tbody td:nth-child(6) {
+        display: none;
     }
 }
 
@@ -3792,13 +3736,6 @@ document.addEventListener('DOMContentLoaded', function() {
 #contentDetailsModal .badge {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
-}
-
-/* File Download Button */
-#contentDetailsModal .btn-outline-primary:hover {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
 }
 
 /* Video Link Button */

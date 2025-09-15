@@ -3,6 +3,107 @@ $page_title = 'Manage Teachers';
 require_once '../includes/header.php';
 require_once '../includes/student_id_generator.php';
 requireRole('admin');
+?>
+
+<style>
+/* Statistics Cards Styling */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: #0d6efd !important;
+    border-left: 4px solid #0a58ca !important;
+    color: white !important;
+}
+
+.stats-success {
+    background: #198754 !important;
+    border-left: 4px solid #146c43 !important;
+    color: white !important;
+}
+
+.stats-info {
+    background: #0dcaf0 !important;
+    border-left: 4px solid #0aa2c0 !important;
+    color: white !important;
+}
+
+.stats-warning {
+    background: #ffc107 !important;
+    border-left: 4px solid #ffca2c !important;
+    color: #000 !important;
+}
+
+.stats-secondary {
+    background: #6c757d !important;
+    border-left: 4px solid #5c636a !important;
+    color: white !important;
+}
+
+.stats-danger {
+    background: #dc3545 !important;
+    border-left: 4px solid #b02a37 !important;
+    color: white !important;
+}
+
+.stats-danger-alt {
+    background: #e91e63 !important;
+    border-left: 4px solid #d81b60 !important;
+    color: white !important;
+}
+
+.stats-purple {
+    background: #9c27b0 !important;
+    border-left: 4px solid #7b1fa2 !important;
+    color: white !important;
+}
+
+/* Scrollable Table Container */
+.table-scrollable {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.table-scrollable::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+
+<?php
 
 $message = '';
 $message_type = '';
@@ -157,28 +258,44 @@ foreach ($teachers as $teacher) {
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
-            <div class="row mb-3">
-                <div class="col-md-4 mb-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="mb-1">Total Teachers</h6>
-                            <h2 class="fw-bold mb-0"><?= $total_teachers ?></h2>
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-people-fill fs-4"></i>
+                                </div>
+                            </div>
+                            <h3 class="fw-bold mb-1 text-white"><?= $total_teachers ?></h3>
+                            <p class="text-white mb-0 small fw-medium">Total Teachers</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="mb-1">Active Teachers</h6>
-                            <h2 class="fw-bold mb-0 text-success"><?= $active_teachers ?></h2>
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card stats-success border-0 shadow-sm h-100">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-person-check-fill fs-4"></i>
+                                </div>
+                            </div>
+                            <h3 class="fw-bold mb-1 text-white"><?= $active_teachers ?></h3>
+                            <p class="text-white mb-0 small fw-medium">Active Teachers</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="mb-1">Archived Teachers</h6>
-                            <h2 class="fw-bold mb-0 text-secondary"><?= $inactive_teachers ?></h2>
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card stats-secondary border-0 shadow-sm h-100">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="stats-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-archive-fill fs-4"></i>
+                                </div>
+                            </div>
+                            <h3 class="fw-bold mb-1 text-white"><?= $inactive_teachers ?></h3>
+                            <p class="text-white mb-0 small fw-medium">Archived Teachers</p>
                         </div>
                     </div>
                 </div>
@@ -190,9 +307,9 @@ foreach ($teachers as $teacher) {
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Teachers List</h5>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                <div class="card-body p-0">
+                    <div class="table-scrollable">
+                        <table class="table table-bordered align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th>Teacher ID</th>

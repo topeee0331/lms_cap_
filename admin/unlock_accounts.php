@@ -9,6 +9,76 @@ require_once '../config/database.php';
 ?>
 
 <style>
+/* Statistics Cards Styling */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: #0d6efd !important;
+    border-left: 4px solid #0a58ca !important;
+    color: white !important;
+}
+
+.stats-success {
+    background: #198754 !important;
+    border-left: 4px solid #146c43 !important;
+    color: white !important;
+}
+
+.stats-info {
+    background: #0dcaf0 !important;
+    border-left: 4px solid #0aa2c0 !important;
+    color: white !important;
+}
+
+.stats-warning {
+    background: #ffc107 !important;
+    border-left: 4px solid #ffca2c !important;
+    color: #000 !important;
+}
+
+.stats-secondary {
+    background: #6c757d !important;
+    border-left: 4px solid #5c636a !important;
+    color: white !important;
+}
+
+.stats-danger {
+    background: #dc3545 !important;
+    border-left: 4px solid #b02a37 !important;
+    color: white !important;
+}
+
+.stats-danger-alt {
+    background: #e91e63 !important;
+    border-left: 4px solid #d81b60 !important;
+    color: white !important;
+}
+
+.stats-purple {
+    background: #9c27b0 !important;
+    border-left: 4px solid #7b1fa2 !important;
+    color: white !important;
+}
+
 /* Scrollable Table Container */
 .table-scrollable {
     max-height: 500px;
@@ -207,46 +277,54 @@ function getRemainingLockout($seconds_ago) {
                 <!-- Statistics Cards -->
                 <div class="row mb-4">
                     <div class="col-md-3 mb-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-4">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle mb-3" style="width: 60px; height: 60px;">
-                                    <i class="bi bi-envelope-fill text-primary" style="font-size: 1.5rem;"></i>
+                        <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                            <div class="card-body text-center p-3">
+                                <div class="d-flex align-items-center justify-content-center mb-3">
+                                    <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-envelope-fill fs-4"></i>
+                                    </div>
                                 </div>
-                                <h3 class="fw-bold text-dark mb-1"><?php echo count($locked_emails); ?></h3>
-                                <p class="text-muted mb-0 fw-medium">Locked Emails</p>
+                                <h3 class="fw-bold mb-1 text-white"><?php echo count($locked_emails); ?></h3>
+                                <p class="text-white mb-0 small fw-medium">Locked Emails</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-4">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 rounded-circle mb-3" style="width: 60px; height: 60px;">
-                                    <i class="bi bi-network-wired text-warning" style="font-size: 1.5rem;"></i>
+                        <div class="card stats-card stats-warning border-0 shadow-sm h-100">
+                            <div class="card-body text-center p-3">
+                                <div class="d-flex align-items-center justify-content-center mb-3">
+                                    <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-network-wired fs-4"></i>
+                                    </div>
                                 </div>
-                                <h3 class="fw-bold text-dark mb-1"><?php echo count($locked_ips); ?></h3>
-                                <p class="text-muted mb-0 fw-medium">Locked IPs</p>
+                                <h3 class="fw-bold mb-1 text-white"><?php echo count($locked_ips); ?></h3>
+                                <p class="text-white mb-0 small fw-medium">Locked IPs</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-4">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-danger bg-opacity-10 rounded-circle mb-3" style="width: 60px; height: 60px;">
-                                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 1.5rem;"></i>
+                        <div class="card stats-card stats-danger border-0 shadow-sm h-100">
+                            <div class="card-body text-center p-3">
+                                <div class="d-flex align-items-center justify-content-center mb-3">
+                                    <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                                    </div>
                                 </div>
-                                <h3 class="fw-bold text-dark mb-1"><?php echo MAX_LOGIN_ATTEMPTS; ?></h3>
-                                <p class="text-muted mb-0 fw-medium">Max Attempts</p>
+                                <h3 class="fw-bold mb-1 text-white"><?php echo MAX_LOGIN_ATTEMPTS; ?></h3>
+                                <p class="text-white mb-0 small fw-medium">Max Attempts</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-4">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-info bg-opacity-10 rounded-circle mb-3" style="width: 60px; height: 60px;">
-                                    <i class="bi bi-clock-fill text-info" style="font-size: 1.5rem;"></i>
+                        <div class="card stats-card stats-info border-0 shadow-sm h-100">
+                            <div class="card-body text-center p-3">
+                                <div class="d-flex align-items-center justify-content-center mb-3">
+                                    <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-clock-fill fs-4"></i>
+                                    </div>
                                 </div>
-                                <h3 class="fw-bold text-dark mb-1"><?php echo floor(LOGIN_LOCKOUT_DURATION / 60); ?>m</h3>
-                                <p class="text-muted mb-0 fw-medium">Lockout Duration</p>
+                                <h3 class="fw-bold mb-1 text-white"><?php echo floor(LOGIN_LOCKOUT_DURATION / 60); ?>m</h3>
+                                <p class="text-white mb-0 small fw-medium">Lockout Duration</p>
                             </div>
                         </div>
                     </div>

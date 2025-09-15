@@ -1292,17 +1292,29 @@ $previous_attempts = $stmt->fetchAll();
 
             <!-- Main content -->
             <main class="col-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <div>
-                        <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="assessments.php">Assessments</a></li>
-                                <li class="breadcrumb-item active"><?php echo htmlspecialchars($assessment['assessment_title']); ?></li>
-                            </ol>
-                        </nav>
-                        <h1 class="h2"><?php echo htmlspecialchars($assessment['assessment_title']); ?></h1>
-                        <p class="text-muted">
+                <!-- Assessment Header with Warning Background -->
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 class="mb-1">
+                                    <i class="fas fa-question-circle me-2"></i>
+                                    <?php echo htmlspecialchars($assessment['assessment_title']); ?>
+                                </h4>
+                                <nav aria-label="breadcrumb" class="mb-0">
+                                    <ol class="breadcrumb mb-0">
+                                        <li class="breadcrumb-item"><a href="assessments.php" class="text-dark">Assessments</a></li>
+                                        <li class="breadcrumb-item active text-dark"><?php echo htmlspecialchars($assessment['assessment_title']); ?></li>
+                                    </ol>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-book me-1"></i>
                             <?php echo htmlspecialchars($assessment['course_name']); ?> - 
+                            <i class="fas fa-folder me-1"></i>
                             <?php echo htmlspecialchars($assessment['module_title']); ?>
                         </p>
                     </div>

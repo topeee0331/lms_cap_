@@ -131,62 +131,74 @@ function getRandomBgClass($userId) {
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
+/* Statistics Cards Styling */
 .stats-card {
-    background: #fff;
-    border-radius: 1.2rem;
-    box-shadow: 0 2px 16px rgba(46,94,78,0.08);
-    border: 1.5px solid #e0e0e0;
-    padding: 2.2rem 1.2rem 1.5rem 1.2rem;
-    text-align: center;
-    transition: box-shadow 0.2s, transform 0.2s;
-    min-height: 260px;
-    position: relative;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
 }
+
 .stats-card:hover {
-    box-shadow: 0 8px 32px rgba(46,94,78,0.13), 0 2px 8px rgba(24,119,242,0.10);
-    transform: translateY(-2px) scale(1.03);
-    z-index: 2;
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
 }
-.stats-card .stats-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
 }
-.stats-card .stats-users { color: #2E5E4E; }
-.stats-card .stats-courses { color: #7DCB80; }
-.stats-card .stats-assess { color: #FFE066; }
-.stats-card .stats-enroll { color: #1877f2; }
-.stats-card .stats-trend {
-    font-size: 1.1rem;
-    margin-left: 0.3rem;
-    vertical-align: middle;
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
 }
-.stats-card .stats-trend.up { color: #388e3c; }
-.stats-card .stats-trend.down { color: #e57373; }
-.stats-card .stats-tooltip {
-    margin-left: 0.3rem;
-    color: #888;
-    cursor: pointer;
+
+.stats-primary {
+    background: #0d6efd;
+    border-left: 4px solid #0a58ca;
+    color: white;
 }
-.stats-card .progress {
-    height: 0.7rem;
-    border-radius: 0.5rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.2rem;
+
+.stats-success {
+    background: #198754;
+    border-left: 4px solid #146c43;
+    color: white;
 }
-.stats-card .view-details-btn {
-    margin-top: 0.7rem;
-    border-radius: 2rem;
-    font-size: 0.98rem;
-    font-weight: 600;
-    padding: 0.4rem 1.2rem;
+
+.stats-info {
+    background: #0dcaf0;
+    border-left: 4px solid #0aa2c0;
+    color: white;
 }
-@media (max-width: 991.98px) {
-    .stats-card { min-height: 180px; padding: 1.2rem 0.7rem; }
+
+.stats-warning {
+    background: #ffc107;
+    border-left: 4px solid #ffca2c;
+    color: #000;
+}
+
+.stats-secondary {
+    background: #6c757d;
+    border-left: 4px solid #5c636a;
+    color: white;
+}
+
+.stats-danger {
+    background: #dc3545;
+    border-left: 4px solid #b02a37;
+    color: white;
+}
+
+.stats-danger-alt {
+    background: #e91e63;
+    border-left: 4px solid #d81b60;
+    color: white;
+}
+
+.stats-purple {
+    background: #9c27b0;
+    border-left: 4px solid #7b1fa2;
+    color: white;
 }
 .quickaction-btn {
     border-color: var(--main-green) !important;
@@ -272,87 +284,64 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-4">
             <a href="users.php" class="text-decoration-none" tabindex="0" aria-label="View all users">
-            <div class="stats-card hoverable" tabindex="0">
-                <div class="d-flex justify-content-center align-items-center mb-2">
-                    <i class="bi bi-people stats-icon stats-users"></i>
-                    <span data-bs-toggle="tooltip" title="All registered users including students, teachers, and admins.">
-                        <i class="bi bi-info-circle stats-tooltip"></i>
-                    </span>
-                    <span class="stats-trend <?php echo $user_trend >= 0 ? 'up' : 'down'; ?>" title="<?php echo $user_trend >= 0 ? 'Up' : 'Down'; ?> <?php echo abs($user_trend); ?> this week">
-                        <i class="bi bi-arrow-<?php echo $user_trend >= 0 ? 'up' : 'down'; ?>"></i><?php echo $user_trend >= 0 ? '+' : ''; ?><?php echo $user_trend; ?>
-                    </span>
-                </div>
-                <h3 class="display-6 fw-bold mb-1" aria-label="Total Users"><?php echo $stats['total_users']; ?></h3>
-                <div class="text-muted mb-1">Total Users</div>
-                <small class="text-secondary"><?php echo $stats['total_students']; ?> Students, <?php echo $stats['total_teachers']; ?> Teachers</small>
-                <div class="mt-2">
-                    <button class="btn btn-outline-success btn-sm view-details-btn" tabindex="-1">View Details</button>
+            <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-people fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1 text-white"><?php echo $stats['total_users']; ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Total Users</p>
+                    <small class="text-white-50"><?php echo $stats['total_students']; ?> Students, <?php echo $stats['total_teachers']; ?> Teachers</small>
                 </div>
             </div>
             </a>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <a href="courses.php" class="text-decoration-none" tabindex="0" aria-label="View all courses">
-            <div class="stats-card hoverable" tabindex="0">
-                <div class="d-flex justify-content-center align-items-center mb-2">
-                    <i class="bi bi-book stats-icon stats-courses"></i>
-                    <span data-bs-toggle="tooltip" title="All courses created by teachers.">
-                        <i class="bi bi-info-circle stats-tooltip"></i>
-                    </span>
-                    <span class="stats-trend <?php echo $course_trend >= 0 ? 'up' : 'down'; ?>" title="<?php echo $course_trend >= 0 ? 'Up' : 'Down'; ?> <?php echo abs($course_trend); ?> this week">
-                        <i class="bi bi-arrow-<?php echo $course_trend >= 0 ? 'up' : 'down'; ?>"></i><?php echo $course_trend >= 0 ? '+' : ''; ?><?php echo $course_trend; ?>
-                    </span>
-                </div>
-                <h3 class="display-6 fw-bold mb-1" aria-label="Total Courses"><?php echo $stats['total_courses']; ?></h3>
-                <div class="text-muted mb-1">Total Courses</div>
-                <small class="text-secondary"><?php echo $stats['total_enrollments']; ?> Enrollments</small>
-                <div class="mt-2">
-                    <button class="btn btn-outline-success btn-sm view-details-btn" tabindex="-1">View Details</button>
+            <div class="card stats-card stats-success border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-book fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1 text-white"><?php echo $stats['total_courses']; ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Total Courses</p>
+                    <small class="text-white-50"><?php echo $stats['total_enrollments']; ?> Enrollments</small>
                 </div>
             </div>
             </a>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <a href="assessments.php" class="text-decoration-none" tabindex="0" aria-label="View all assessments">
-            <div class="stats-card hoverable" tabindex="0">
-                <div class="d-flex justify-content-center align-items-center mb-2">
-                    <i class="bi bi-clipboard-check stats-icon stats-assess"></i>
-                    <span data-bs-toggle="tooltip" title="Total number of assessments taken by students.">
-                        <i class="bi bi-info-circle stats-tooltip"></i>
-                    </span>
-                    <span class="stats-trend <?php echo $assessment_trend >= 0 ? 'up' : 'down'; ?>" title="<?php echo $assessment_trend >= 0 ? 'Up' : 'Down'; ?> <?php echo abs($assessment_trend); ?> this week">
-                        <i class="bi bi-arrow-<?php echo $assessment_trend >= 0 ? 'up' : 'down'; ?>"></i><?php echo $assessment_trend >= 0 ? '+' : ''; ?><?php echo $assessment_trend; ?>
-                    </span>
-                </div>
-                <h3 class="display-6 fw-bold mb-1" aria-label="Assessments Taken"><?php echo $stats['total_assessments_taken']; ?></h3>
-                <div class="text-muted mb-1">Assessments Taken</div>
-                <small class="text-secondary">Avg Score: <?php echo number_format($stats['average_score'] ?? 0, 1); ?>%</small>
-                <div class="progress mt-2" aria-label="Average Score Progress">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo min(100, max(0, round($stats['average_score'] ?? 0))); ?>%;" aria-valuenow="<?php echo min(100, max(0, round($stats['average_score'] ?? 0))); ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <div class="mt-2">
-                    <button class="btn btn-outline-success btn-sm view-details-btn" tabindex="-1">View Details</button>
+            <div class="card stats-card stats-info border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-clipboard-check fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1 text-white"><?php echo $stats['total_assessments_taken']; ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Assessments Taken</p>
+                    <small class="text-white-50">Avg Score: <?php echo number_format($stats['average_score'] ?? 0, 1); ?>%</small>
                 </div>
             </div>
             </a>
         </div>
         <div class="col-xl-3 col-md-6 mb-4">
             <a href="enrollments.php" class="text-decoration-none" tabindex="0" aria-label="View all enrollments">
-            <div class="stats-card hoverable" tabindex="0">
-                <div class="d-flex justify-content-center align-items-center mb-2">
-                    <i class="bi bi-graph-up stats-icon stats-enroll"></i>
-                    <span data-bs-toggle="tooltip" title="Number of active enrollments.">
-                        <i class="bi bi-info-circle stats-tooltip"></i>
-                    </span>
-                    <span class="stats-trend <?php echo $enrollment_trend >= 0 ? 'up' : 'down'; ?>" title="<?php echo $enrollment_trend >= 0 ? 'Up' : 'Down'; ?> <?php echo abs($enrollment_trend); ?> this week">
-                        <i class="bi bi-arrow-<?php echo $enrollment_trend >= 0 ? 'up' : 'down'; ?>"></i><?php echo $enrollment_trend >= 0 ? '+' : ''; ?><?php echo $enrollment_trend; ?>
-                    </span>
-                </div>
-                <h3 class="display-6 fw-bold mb-1" aria-label="Active Enrollments"><?php echo $stats['total_enrollments']; ?></h3>
-                <div class="text-muted mb-1">Active Enrollments</div>
-                <small class="text-secondary">Active Students</small>
-                <div class="mt-2">
-                    <button class="btn btn-outline-success btn-sm view-details-btn" tabindex="-1">View Details</button>
+            <div class="card stats-card stats-warning border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-graph-up fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1 text-white"><?php echo $stats['total_enrollments']; ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Active Enrollments</p>
+                    <small class="text-white-50">Active Students</small>
                 </div>
             </div>
             </a>

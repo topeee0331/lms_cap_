@@ -5,35 +5,30 @@ requireRole('admin');
 ?>
 
 <style>
-/* Scrollable Announcements Container */
-.announcements-scrollable {
-    max-height: 600px;
+/* Scrollable Table Container */
+.table-scrollable {
+    max-height: 500px;
     overflow-y: auto;
-    padding-right: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
 }
 
-.announcements-scrollable::-webkit-scrollbar {
+.table-scrollable::-webkit-scrollbar {
     width: 8px;
 }
 
-.announcements-scrollable::-webkit-scrollbar-track {
+.table-scrollable::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.announcements-scrollable::-webkit-scrollbar-thumb {
-    background: #2E5E4E;
+.table-scrollable::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
     border-radius: 4px;
 }
 
-.announcements-scrollable::-webkit-scrollbar-thumb:hover {
-    background: #7DCB80;
-}
-
-/* Firefox scrollbar styling */
-.announcements-scrollable {
-    scrollbar-width: thin;
-    scrollbar-color: #2E5E4E #f1f1f1;
+.table-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 </style>
 
@@ -230,11 +225,13 @@ $courses = $stmt->fetchAll();
                 <div class="card-header">
                     <h5 class="mb-0">Announcements (<?php echo count($announcements); ?>)</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <?php if (empty($announcements)): ?>
-                        <p class="text-muted">No announcements found.</p>
+                        <div class="p-3">
+                            <p class="text-muted">No announcements found.</p>
+                        </div>
                     <?php else: ?>
-                        <div class="announcements-scrollable">
+                        <div class="table-scrollable p-3">
                             <?php foreach ($announcements as $announcement): ?>
                                 <div class="card mb-3">
                                     <div class="card-body">

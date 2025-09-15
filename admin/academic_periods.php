@@ -5,6 +5,76 @@ requireRole('admin');
 ?>
 
 <style>
+/* Statistics Cards Styling */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: #0d6efd;
+    border-left: 4px solid #0a58ca;
+    color: white;
+}
+
+.stats-success {
+    background: #198754;
+    border-left: 4px solid #146c43;
+    color: white;
+}
+
+.stats-info {
+    background: #0dcaf0;
+    border-left: 4px solid #0aa2c0;
+    color: white;
+}
+
+.stats-warning {
+    background: #ffc107;
+    border-left: 4px solid #ffca2c;
+    color: #000;
+}
+
+.stats-secondary {
+    background: #6c757d;
+    border-left: 4px solid #5c636a;
+    color: white;
+}
+
+.stats-danger {
+    background: #dc3545;
+    border-left: 4px solid #b02a37;
+    color: white;
+}
+
+.stats-danger-alt {
+    background: #e91e63;
+    border-left: 4px solid #d81b60;
+    color: white;
+}
+
+.stats-purple {
+    background: #9c27b0;
+    border-left: 4px solid #7b1fa2;
+    color: white;
+}
+
 /* Scrollable Table Container */
 .table-scrollable {
     max-height: 500px;
@@ -161,46 +231,54 @@ $stats = $stats_stmt->fetch();
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-calendar-event fs-1 text-primary"></i>
+            <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-calendar-event fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="mb-0 fw-bold"><?= $stats['total_periods'] ?></h3>
-                    <p class="text-muted mb-0">Total Periods</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_periods'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Total Periods</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-check-circle fs-1 text-success"></i>
+            <div class="card stats-card stats-success border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-check-circle fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="mb-0 fw-bold"><?= $stats['active_periods'] ?></h3>
-                    <p class="text-muted mb-0">Active Periods</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['active_periods'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Active Periods</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-x-circle fs-1 text-danger"></i>
+            <div class="card stats-card stats-danger border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-x-circle fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="mb-0 fw-bold"><?= $stats['inactive_periods'] ?></h3>
-                    <p class="text-muted mb-0">Inactive Periods</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['inactive_periods'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Inactive Periods</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-book fs-1 text-info"></i>
+            <div class="card stats-card stats-info border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-book fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="mb-0 fw-bold"><?= $stats['total_courses'] ?></h3>
-                    <p class="text-muted mb-0">Total Courses</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_courses'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Total Courses</p>
                 </div>
             </div>
         </div>

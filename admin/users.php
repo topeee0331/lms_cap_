@@ -4,6 +4,81 @@ require_once '../config/config.php';
 require_once '../includes/student_id_generator.php';
 requireRole('admin');
 require_once '../includes/header.php';
+?>
+
+<style>
+/* Statistics Cards Styling */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: #0d6efd;
+    border-left: 4px solid #0a58ca;
+    color: white;
+}
+
+.stats-success {
+    background: #198754;
+    border-left: 4px solid #146c43;
+    color: white;
+}
+
+.stats-info {
+    background: #0dcaf0;
+    border-left: 4px solid #0aa2c0;
+    color: white;
+}
+
+.stats-warning {
+    background: #ffc107;
+    border-left: 4px solid #ffca2c;
+    color: #000;
+}
+
+.stats-secondary {
+    background: #6c757d;
+    border-left: 4px solid #5c636a;
+    color: white;
+}
+
+.stats-danger {
+    background: #dc3545;
+    border-left: 4px solid #b02a37;
+    color: white;
+}
+
+.stats-danger-alt {
+    background: #e91e63;
+    border-left: 4px solid #d81b60;
+    color: white;
+}
+
+.stats-purple {
+    background: #9c27b0;
+    border-left: 4px solid #7b1fa2;
+    color: white;
+}
+</style>
+
+<?php
 
 $message = '';
 $message_type = '';
@@ -303,68 +378,80 @@ function get_user_sections($db, $user_id, $role, $sections) {
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-people-fill fs-1 text-primary"></i>
+            <div class="card stats-card stats-primary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-people-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_users'] ?></h3>
-                    <p class="text-muted mb-0 small">Total Users</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_users'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Total Users</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-shield-fill-check fs-1 text-success"></i>
+            <div class="card stats-card stats-success border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-shield-fill-check fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_admins'] ?></h3>
-                    <p class="text-muted mb-0 small">Administrators</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_admins'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Administrators</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-person-badge-fill fs-1 text-info"></i>
+            <div class="card stats-card stats-info border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-person-badge-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_teachers'] ?></h3>
-                    <p class="text-muted mb-0 small">Teachers</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_teachers'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Teachers</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-mortarboard-fill fs-1 text-warning"></i>
+            <div class="card stats-card stats-warning border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-mortarboard-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['total_students'] ?></h3>
-                    <p class="text-muted mb-0 small">Students</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_students'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Students</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-exclamation-triangle-fill fs-1 text-danger"></i>
+            <div class="card stats-card stats-danger border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['irregular_students'] ?></h3>
-                    <p class="text-muted mb-0 small">Irregular Students</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['irregular_students'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Irregular Students</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="d-flex align-items-center justify-content-center mb-2">
-                        <i class="bi bi-person-x-fill fs-1 text-secondary"></i>
+            <div class="card stats-card stats-secondary border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="stats-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="bi bi-person-x-fill fs-4"></i>
+                        </div>
                     </div>
-                    <h3 class="fw-bold mb-1"><?= $stats['inactive_teachers'] ?></h3>
-                    <p class="text-muted mb-0 small">Inactive Teachers</p>
+                    <h3 class="fw-bold mb-1 text-white"><?= $stats['inactive_teachers'] ?></h3>
+                    <p class="text-white mb-0 small fw-medium">Inactive Teachers</p>
                 </div>
             </div>
         </div>

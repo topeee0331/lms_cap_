@@ -26,9 +26,11 @@ function formatSectionName($section) {
 }
 
 // Fetch all sections for the same year as the course (standalone sections)
+// Check if academic_year_id exists, otherwise use a default value
+$academic_year_id = $course['academic_year_id'] ?? 1; // Default to 1 if not set
 $section_sql = "SELECT id, section_name as name, year_level as year FROM sections WHERE year_level = ? ORDER BY year_level, section_name";
 $section_stmt = $db->prepare($section_sql);
-$section_stmt->execute([$course['academic_year_id']]);
+$section_stmt->execute([$academic_year_id]);
 $sections = $section_stmt->fetchAll();
 
 // Assigned sections logic: no longer by course_id, so leave empty or implement new logic if needed
@@ -197,7 +199,224 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     flex-wrap: wrap;
 }
 
+/* Modern Course Edit Styles - Matching Design System */
+
+/* Course Edit Header */
+.course-edit-header {
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.course-edit-header h1 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.course-edit-header .opacity-90 {
+    opacity: 0.9;
+}
+
+/* Back Button Icon Only - Left Corner */
+.btn-back-icon {
+    width: 45px !important;
+    height: 45px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.2rem !important;
+    position: absolute !important;
+    top: 20px !important;
+    left: 20px !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-back-icon:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+}
+
+/* Course Statistics */
+.course-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.course-stat-item {
+    text-align: center;
+}
+
+.course-stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+.course-stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Course Edit Container */
+.course-edit-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    border: none;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+/* Form Section */
+.form-section {
+    padding: 2rem;
+}
+
+/* Form Labels */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Form Controls */
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #1e3a2e;
+    box-shadow: 0 0 0 0.2rem rgba(30, 58, 46, 0.25);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
+    border: none;
+    border-radius: 25px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(30, 58, 46, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0f2a1f 0%, #1e3a2e 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(30, 58, 46, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    border: none;
+    border-radius: 25px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.required-field::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Course Edit Cards */
+.course-edit-card {
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.course-edit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+.course-edit-card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.course-edit-card .card-body {
+    padding: 1.5rem;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
+    .course-edit-header {
+        padding: 1.5rem 0;
+    }
+    
+    .course-stats {
+        gap: 1rem;
+    }
+    
+    .course-stat-number {
+        font-size: 1.25rem;
+    }
+    
+    .course-stat-label {
+        font-size: 0.75rem;
+    }
+    
+    .btn-back-icon {
+        top: 15px;
+        left: 15px;
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1rem !important;
+    }
+    
     .action-buttons {
         flex-direction: column;
     }
@@ -205,125 +424,156 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .action-buttons .btn {
         width: 100%;
     }
+    
+    .course-edit-card {
+        margin-bottom: 1rem;
+    }
+    
+    .course-edit-card-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .course-edit-card .card-body {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .course-edit-header {
+        padding: 1rem 0;
+    }
+    
+    .course-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-back-icon {
+        top: 10px;
+        left: 10px;
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 0.9rem !important;
+    }
 }
 </style>
-<div class="container" style="margin-bottom: 340px;">
-    <!-- Navigation Back Button -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <a href="courses.php" class="btn back-btn">
-                <i class="bi bi-arrow-left me-2"></i>Back to Courses
-            </a>
-        </div>
-    </div>
-
-    <!-- Course Edit Card -->
-    <div class="course-edit-container">
-        <!-- Course Header -->
-        <div class="course-header">
-            <h1><i class="bi bi-pencil-square me-3"></i>Edit Course</h1>
-            <div class="course-code">
-                <i class="bi bi-book me-2"></i><?= htmlspecialchars($course['course_name']) ?>
-            </div>
-        </div>
-
-        <!-- Course Information -->
-        <div class="form-section">
-            <div class="course-info">
-                <h6><i class="bi bi-info-circle me-2"></i>Course Details</h6>
-                <p><strong>Course Code:</strong> <?= htmlspecialchars($course['course_code']) ?></p>
-                <p><strong>Academic Year:</strong> <?= $course['academic_year_id'] ?? 'N/A' ?></p>
-                <p><strong>Created:</strong> <?= $course['created_at'] ? date('M j, Y', strtotime($course['created_at'])) : 'N/A' ?></p>
-            </div>
-
-            <form method="post" action="course_edit.php?id=<?= $course_id ?>">
-                <div class="form-group">
-                    <label for="course_name" class="form-label required-field">
-                        <i class="bi bi-book me-2"></i>Course Name
-                    </label>
-                    <input type="text" class="form-control" id="course_name" name="course_name" 
-                           required value="<?= htmlspecialchars($course['course_name']) ?>"
-                           placeholder="Enter course name">
-                </div>
-
-                <div class="form-group">
-                    <label for="course_code" class="form-label required-field">
-                        <i class="bi bi-tag me-2"></i>Course Code
-                    </label>
-                    <input type="text" class="form-control" id="course_code" name="course_code" 
-                           required value="<?= htmlspecialchars($course['course_code']) ?>"
-                           placeholder="Enter course code">
-                </div>
-
-                <div class="form-group">
-                    <label for="description" class="form-label">
-                        <i class="bi bi-text-paragraph me-2"></i>Description
-                    </label>
-                    <textarea class="form-control" id="description" name="description" rows="4"
-                              placeholder="Enter course description"><?= htmlspecialchars($course['description']) ?></textarea>
-                </div>
-
-                <div class="action-buttons">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle me-2"></i>Save Changes
-                    </button>
-                    <a href="courses.php" class="btn btn-secondary">
-                        <i class="bi bi-x-circle me-2"></i>Cancel
+<!-- Modern Course Edit Header with Back Button -->
+<div class="course-edit-header">
+    <div class="container">
+        <!-- Back Button Row -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-start">
+                    <a href="courses.php" class="btn btn-outline-light btn-back-icon" title="Back to Courses">
+                        <i class="bi bi-arrow-left"></i>
                     </a>
                 </div>
-            </form>
+            </div>
         </div>
-    </div>
-</div>
-<?php if (!empty($assigned_section_ids)): ?>
-    <hr>
-    <h4>Sections Assigned to this Subject</h4>
-    <div class="mb-3">
-        <?php foreach ($sections as $section): ?>
-            <?php if (in_array($section['id'], $assigned_section_ids)): ?>
-                <span class="badge bg-info text-dark me-1 mb-1">
-                    <?= htmlspecialchars(formatSectionName($section)) ?>
-                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-bs-toggle="modal" data-bs-target="#studentsModal<?= $course_id ?>_<?= $section['id'] ?>">View Students</button>
-                </span>
-                <!-- Modal for students in this section -->
-                <div class="modal fade" id="studentsModal<?= $course_id ?>_<?= $section['id'] ?>" tabindex="-1" aria-labelledby="studentsModalLabel<?= $course_id ?>_<?= $section['id'] ?>" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="studentsModalLabel<?= $course_id ?>_<?= $section['id'] ?>">
-                                    Students in <?= htmlspecialchars(formatSectionName($section)) ?> (<?= htmlspecialchars($course['course_name']) ?>)
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <?php
-                                // Reuse the get_section_students function
-                                $students = get_section_students($db, $section['id']);
-                                if ($students) {
-                                    echo '<ul class="list-group">';
-                                    foreach ($students as $stu) {
-                                        $status_badge = ($stu['is_irregular'] ?? 0)
-                                            ? "<span class='badge bg-danger ms-2'>Irregular</span>"
-                                            : "<span class='badge bg-success ms-2'>Regular</span>";
-                                        echo '<li class="list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between">';
-                                        echo '<div><strong>' . htmlspecialchars($stu['last_name'] . ', ' . $stu['first_name']) . '</strong> '; 
-                                        echo '<span class="text-muted">(' . htmlspecialchars($stu['username']) . ')</span> ';
-                                        echo $status_badge;
-                                        echo '</div>';
-                                        echo '<div class="small text-muted">' . htmlspecialchars($stu['email']) . '</div>';
-                                        echo '</li>';
-                                    }
-                                    echo '</ul>';
-                                } else {
-                                    echo '<p>No students assigned.</p>';
-                                }
-                                ?>
-                            </div>
+        
+        <!-- Main Header Content -->
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-3">
+                    <i class="bi bi-pencil-square me-3"></i>Edit Course
+                </h1>
+                <p class="mb-0 opacity-90">
+                    <strong><?= htmlspecialchars($course['course_name']) ?></strong> • 
+                    <?= htmlspecialchars($course['course_code']) ?> • 
+                    Academic Year <?= $academic_year_id ?? 'N/A' ?>
+                </p>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="course-stats">
+                        <div class="course-stat-item">
+                            <span class="course-stat-number"><?= $academic_year_id ?? 'N/A' ?></span>
+                            <span class="course-stat-label">Academic Year</span>
+                        </div>
+                        <div class="course-stat-item">
+                            <span class="course-stat-number"><?= $course['created_at'] ? date('M j', strtotime($course['created_at'])) : 'N/A' ?></span>
+                            <span class="course-stat-label">Created</span>
                         </div>
                     </div>
                 </div>
-            <?php endif; ?>
-        <?php endforeach; ?>
+            </div>
+        </div>
     </div>
-<?php endif; ?>
+</div>
+
+<div class="container" style="margin-bottom: 340px;">
+    <!-- Course Edit Cards -->
+    <div class="row">
+        <!-- Course Name Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card course-edit-card border-0 shadow-sm h-100">
+                <div class="card-header course-edit-card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-book me-2"></i>Course Name
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="course_edit.php?id=<?= $course_id ?>">
+                        <div class="form-group">
+                            <input type="text" class="form-control" id="course_name" name="course_name" 
+                                   required value="<?= htmlspecialchars($course['course_name']) ?>"
+                                   placeholder="Enter course name">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Code Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card course-edit-card border-0 shadow-sm h-100">
+                <div class="card-header course-edit-card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-tag me-2"></i>Course Code
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="course_code" name="course_code" 
+                               required value="<?= htmlspecialchars($course['course_code']) ?>"
+                               placeholder="Enter course code">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description Card -->
+        <div class="col-12 mb-4">
+            <div class="card course-edit-card border-0 shadow-sm">
+                <div class="card-header course-edit-card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-text-paragraph me-2"></i>Course Description
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <textarea class="form-control" id="description" name="description" rows="4"
+                                  placeholder="Enter course description"><?= htmlspecialchars($course['description']) ?></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons Card -->
+        <div class="col-12">
+            <div class="card course-edit-card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="action-buttons">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Save Changes
+                        </button>
+                        <a href="courses.php" class="btn btn-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+                    </form>
+    </div>
+</div>
 <?php include '../includes/footer.php'; ?> 

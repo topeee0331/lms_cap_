@@ -574,23 +574,49 @@ function getSortClause($sort_by) {
 }
 ?>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">Students from My Sections</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
-                    <i class="bi bi-person-plus me-2"></i>Enroll Student
-                </button>
+<!-- Modern Students Management Header -->
+<div class="students-management-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-3">
+                    <i class="bi bi-people me-3"></i>Students Management
+                </h1>
+                <p class="mb-0 opacity-90">Manage and monitor your students across all courses and sections.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="student-stats">
+                        <div class="student-stat-item">
+                            <span class="student-stat-number"><?php echo count($course_enrollments); ?></span>
+                            <span class="student-stat-label">Total Students</span>
+                        </div>
+                        <div class="student-stat-item">
+                            <span class="student-stat-number"><?php echo count($courses); ?></span>
+                            <span class="student-stat-label">Courses</span>
+                        </div>
+                        <div class="student-stat-item">
+                            <span class="student-stat-number"><?php echo count($sections); ?></span>
+                            <span class="student-stat-label">Sections</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+        </div>
     </div>
+
+<div class="container-fluid">
 
     <!-- Academic Year Selection -->
     <div class="row mb-3">
         <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body py-3">
             <form method="get" class="d-flex align-items-center">
-                <label for="academic_period_id" class="me-2 fw-bold">Academic Period:</label>
+                        <label for="academic_period_id" class="me-3 fw-semibold text-primary">
+                            <i class="bi bi-calendar3 me-1"></i>Academic Period:
+                        </label>
                 <select name="academic_period_id" id="academic_period_id" class="form-select w-auto me-2" onchange="this.form.submit()">
                     <?php foreach ($all_years as $year): ?>
                         <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
@@ -600,6 +626,8 @@ function getSortClause($sort_by) {
                 </select>
                 <noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
             </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -672,15 +700,22 @@ function getSortClause($sort_by) {
         </div>
     <?php endif; ?>
 
-    <!-- Filters -->
+    <!-- Enhanced Filters -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
+            <div class="card filter-card border-0">
+                <div class="card-header filter-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filter & Search
+                    </h6>
+                </div>
                 <div class="card-body">
                     <form method="get" class="row g-3">
                         <input type="hidden" name="academic_period_id" value="<?= $selected_year_id ?>">
-                        <div class="col-md-4">
-                            <label for="course" class="form-label">Filter by Course</label>
+                        <div class="col-md-3">
+                            <label for="course" class="form-label fw-semibold">
+                                <i class="bi bi-book me-1"></i>Filter by Course
+                            </label>
                             <select class="form-select" id="course" name="course" onchange="updateSectionsAndSubmit()">
                                 <option value="">All Courses</option>
                                 <?php foreach ($courses as $course): ?>
@@ -692,7 +727,9 @@ function getSortClause($sort_by) {
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="section" class="form-label">Filter by Section</label>
+                            <label for="section" class="form-label fw-semibold">
+                                <i class="bi bi-collection me-1"></i>Filter by Section
+                            </label>
                             <select class="form-select" id="section" name="section" onchange="updateCoursesAndSubmit()">
                                 <option value="">All Sections</option>
                                 <?php foreach ($sections as $section): ?>
@@ -704,125 +741,148 @@ function getSortClause($sort_by) {
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="search" class="form-label">Search Student</label>
-                            <div class="input-group">
+                            <label for="search" class="form-label fw-semibold">
+                                <i class="bi bi-search me-1"></i>Search Students
+                            </label>
                                 <input type="text" class="form-control" id="search" name="search" 
                                        placeholder="Name or Student ID..." 
                                        value="<?php echo htmlspecialchars($search_filter); ?>"
                                        onkeyup="handleSearchInput()">
-                                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
-                                    <i class="bi bi-x"></i>
-                                </button>
                             </div>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
-                                <a href="students.php?academic_period_id=<?= $selected_year_id ?>&enrolled_only=0" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">View Options</label>
-                            <div class="d-grid">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-eye me-1"></i>View Options
+                            </label>
+                            <div class="d-grid gap-2">
                                 <a href="?<?php echo http_build_query(array_merge($_GET, ['enrolled_only' => $show_enrolled_only ? '0' : '1'])); ?>" 
                                    class="btn <?php echo $show_enrolled_only ? 'btn-success' : 'btn-outline-success'; ?>">
                                     <i class="bi bi-<?php echo $show_enrolled_only ? 'eye-fill' : 'eye'; ?> me-1"></i>
                                     <?php echo $show_enrolled_only ? 'Show All' : 'Enrolled Only'; ?>
                                 </a>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Bulk Actions</label>
-                            <div class="d-grid">
-                                <button type="button" class="btn btn-danger" id="bulkKickBtn" disabled>
-                                    <i class="bi bi-person-x-fill"></i> Kick Selected
-                                </button>
+                                <a href="students.php?academic_period_id=<?= $selected_year_id ?>&enrolled_only=0" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                                </a>
                             </div>
                         </div>
                     </form>
+                            </div>
+                        </div>
+                </div>
+            </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="row mb-3" id="bulkActionsBar" style="display: none;">
+        <div class="col-12">
+            <div class="bulk-actions-bar">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="me-3 fw-semibold">
+                            <i class="bi bi-check-square me-1"></i>
+                            <span id="selectedCount">0</span> students selected
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light btn-sm" id="selectAllBtn">
+                            <i class="bi bi-check-all me-1"></i>Select All
+                        </button>
+                        <button type="button" class="btn btn-light btn-sm" id="deselectAllBtn">
+                            <i class="bi bi-x-square me-1"></i>Deselect All
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" id="bulkKickBtn">
+                            <i class="bi bi-person-x-fill me-1"></i>Kick Selected
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Summary Statistics -->
+    <!-- Enhanced Statistics Cards -->
     <div class="row mb-4 students-stats">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card stats-card stats-primary">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0 total-students"><?php echo count($course_enrollments); ?></h4>
-                            <p class="mb-0">Total Students</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="stats-content">
+                            <h3 class="stats-number total-students"><?php echo count($course_enrollments); ?></h3>
+                            <p class="stats-label mb-0">Total Students</p>
+                            <small class="stats-subtitle">All enrolled students</small>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-people fs-1"></i>
+                        <div class="stats-icon">
+                            <i class="bi bi-people"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card stats-card stats-success">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0 active-students">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="stats-content">
+                            <h3 class="stats-number active-students">
                                 <?php 
                                 $active_students = array_filter($course_enrollments, function($e) { 
-                                    return ($e['enrollment_status'] ?? 'active') === 'active'; 
+                                    return ($e['enrolled_courses'] ?? 0) > 0; 
                                 });
                                 echo count($active_students);
                                 ?>
-                            </h4>
-                            <p class="mb-0">Active Students</p>
+                            </h3>
+                            <p class="stats-label mb-0">Active Students</p>
+                            <small class="stats-subtitle">Currently enrolled</small>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-person-check fs-1"></i>
+                        <div class="stats-icon">
+                            <i class="bi bi-person-check"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card stats-card stats-warning">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0 avg-progress">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="stats-content">
+                            <h3 class="stats-number avg-progress">
                                 <?php 
-                                $avg_progress = count($course_enrollments) > 0 ? 
-                                    array_sum(array_column($course_enrollments, 'course_progress')) / count($course_enrollments) : 0;
+                                $progress_values = array_filter(array_column($course_enrollments, 'avg_progress'), function($val) {
+                                    return $val !== null && $val !== '';
+                                });
+                                $avg_progress = count($progress_values) > 0 ? 
+                                    array_sum($progress_values) / count($progress_values) : 0;
                                 echo number_format($avg_progress, 1);
                                 ?>%
-                            </h4>
-                            <p class="mb-0">Avg Progress</p>
+                            </h3>
+                            <p class="stats-label mb-0">Avg Progress</p>
+                            <small class="stats-subtitle">Course completion</small>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-graph-up fs-1"></i>
+                        <div class="stats-icon">
+                            <i class="bi bi-graph-up"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card stats-card stats-info">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0 avg-score">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="stats-content">
+                            <h3 class="stats-number avg-score">
                                 <?php 
-                                $avg_score = count($course_enrollments) > 0 ? 
-                                    array_sum(array_column($course_enrollments, 'avg_score')) / count($course_enrollments) : 0;
+                                $score_values = array_filter(array_column($course_enrollments, 'avg_score'), function($val) {
+                                    return $val !== null && $val !== '' && $val > 0;
+                                });
+                                $avg_score = count($score_values) > 0 ? 
+                                    array_sum($score_values) / count($score_values) : 0;
                                 echo number_format($avg_score, 1);
                                 ?>%
-                            </h4>
-                            <p class="mb-0">Avg Score</p>
+                            </h3>
+                            <p class="stats-label mb-0">Avg Score</p>
+                            <small class="stats-subtitle">Assessment performance</small>
                         </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-trophy fs-1"></i>
+                        <div class="stats-icon">
+                            <i class="bi bi-award"></i>
                         </div>
                     </div>
                 </div>
@@ -833,22 +893,26 @@ function getSortClause($sort_by) {
     <!-- Students List -->
     <div class="row">
         <div class="col-12">
-            <div class="card students-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card students-card border-0 shadow-sm">
+                <div class="card-header students-table-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
                     <h5 class="mb-0">
-                        Students from My Sections (<?php echo count($course_enrollments); ?>)
+                                <i class="bi bi-people me-2"></i>Students from My Sections
+                                <span class="badge bg-primary ms-2"><?php echo count($course_enrollments); ?></span>
+                            </h5>
                         <?php if (!empty($search_filter)): ?>
-                            <span class="badge bg-info ms-2">
+                                <span class="badge bg-info mt-1">
                                 <i class="bi bi-search me-1"></i>Search: "<?php echo htmlspecialchars($search_filter); ?>"
                             </span>
                         <?php endif; ?>
                         <?php if ($show_enrolled_only): ?>
-                            <span class="badge bg-success ms-2">
+                                <span class="badge bg-success mt-1">
                                 <i class="bi bi-eye-fill me-1"></i>Enrolled Only
                             </span>
                         <?php endif; ?>
-                    </h5>
-                    <div class="d-flex align-items-center">
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
                         <div id="updateIndicator" class="me-2" style="display: none;">
                             <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
                             <small class="text-muted ms-1">Updating...</small>
@@ -859,65 +923,70 @@ function getSortClause($sort_by) {
                         <small class="text-success ms-2" id="realtimeStatus" style="display: none;">
                             <i class="bi bi-broadcast me-1"></i>Live Updates Active
                         </small>
-                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="updateProgressData()" title="Refresh Progress">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateProgressData()" title="Refresh Progress">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-success ms-2" id="exportStatsBtn" onclick="exportStudentStats()" title="Export Student Statistics">
+                            <button type="button" class="btn btn-sm btn-success" id="exportStatsBtn" onclick="exportStudentStats()" title="Export Student Statistics">
                             <i class="bi bi-download me-1"></i>Export Stats
                         </button>
-                        <button type="button" class="btn btn-sm btn-info ms-2" id="exportAssessmentsBtn" onclick="exportAssessmentDetails()" title="Export Detailed Assessment Data">
+                            <button type="button" class="btn btn-sm btn-info" id="exportAssessmentsBtn" onclick="exportAssessmentDetails()" title="Export Detailed Assessment Data">
                             <i class="bi bi-file-earmark-text me-1"></i>Export Assessments
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
+                </div>
+                <div class="card-body p-0">
                     <?php if (empty($course_enrollments)): ?>
-                        <div class="text-center py-4">
-                            <i class="bi bi-people fs-1 text-muted mb-3"></i>
-                            <h6>No Students Found</h6>
-                            <p class="text-muted">No students assigned to your sections for the selected academic year. Students will appear here once they are assigned to your sections.</p>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
-                                <i class="bi bi-person-plus me-1"></i>Enroll Student
+                        <div class="empty-state text-center py-5">
+                            <div class="empty-state-content">
+                                <i class="bi bi-people display-1 text-muted mb-4"></i>
+                                <h4 class="text-muted mb-3">No Students Found</h4>
+                                <p class="text-muted mb-4">No students assigned to your sections for the selected academic year. Students will appear here once they are assigned to your sections.</p>
+                                <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
+                                    <i class="bi bi-person-plus me-2"></i>Enroll Student
                             </button>
+                            </div>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive students-table-container">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>
+                        <!-- Scrollable Students Table Container -->
+                        <div class="students-table-scrollable-container">
+                            <div class="table-responsive">
+                                <table class="table table-hover students-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th width="5%">
                                             <input type="checkbox" id="selectAll" class="form-check-input">
                                         </th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'name'])); ?>" class="text-decoration-none text-dark">
-                                                Student <i class="bi bi-arrow-down-up"></i>
+                                            <th width="20%">
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'name'])); ?>" class="text-decoration-none text-white">
+                                                    <i class="bi bi-person me-1"></i>Student <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>Student ID</th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'course'])); ?>" class="text-decoration-none text-dark">
-                                                Courses <i class="bi bi-arrow-down-up"></i>
+                                            <th width="10%">Student ID</th>
+                                            <th width="15%">
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'course'])); ?>" class="text-decoration-none text-white">
+                                                    <i class="bi bi-book me-1"></i>Courses <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>Sections</th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'progress'])); ?>" class="text-decoration-none text-dark">
-                                                Progress <i class="bi bi-arrow-down-up"></i>
+                                            <th width="10%">Sections</th>
+                                            <th width="10%">
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'progress'])); ?>" class="text-decoration-none text-white">
+                                                    <i class="bi bi-graph-up me-1"></i>Progress <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>Assessments</th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'score'])); ?>" class="text-decoration-none text-dark">
-                                                Avg % <i class="bi bi-arrow-down-up"></i>
+                                            <th width="8%">Assessments</th>
+                                            <th width="8%">
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'score'])); ?>" class="text-decoration-none text-white">
+                                                    <i class="bi bi-award me-1"></i>Avg % <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'activity'])); ?>" class="text-decoration-none text-dark">
-                                                Last Activity <i class="bi bi-arrow-down-up"></i>
+                                            <th width="10%">
+                                                <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'activity'])); ?>" class="text-decoration-none text-white">
+                                                    <i class="bi bi-clock me-1"></i>Last Activity <i class="bi bi-arrow-down-up"></i>
                                             </a>
                                         </th>
-                                        <th>Status</th>
-                                        <th>Kick</th>
+                                            <th width="8%">Status</th>
+                                            <th width="6%">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -966,12 +1035,13 @@ function getSortClause($sort_by) {
                                                 <div class="d-flex align-items-center">
                                                     <?php 
                                                     $progress_percentage = $student['avg_progress'] ?? 0;
+                                                    $progress_percentage = max(0, min(100, $progress_percentage)); // Ensure between 0-100
                                                     $progress_color = $progress_percentage >= 80 ? 'bg-success' : 
                                                                      ($progress_percentage >= 60 ? 'bg-warning' : 
                                                                      ($progress_percentage >= 40 ? 'bg-info' : 'bg-danger'));
                                                     ?>
                                                     <div class="progress me-2" style="width: 60px; height: 6px;">
-                                                        <div class="progress-bar <?php echo $progress_color; ?>" style="width: <?php echo min($progress_percentage, 100); ?>%"></div>
+                                                        <div class="progress-bar <?php echo $progress_color; ?>" style="width: <?php echo $progress_percentage; ?>%"></div>
                                                     </div>
                                                     <small class="fw-bold progress-text"><?php echo number_format($progress_percentage, 1); ?>%</small>
                                                 </div>
@@ -981,8 +1051,8 @@ function getSortClause($sort_by) {
                                             </td>
                                             <td>
                                                 <?php 
-                                                $completed_assessments = $student['completed_assessments'] ?? 0;
-                                                $total_assessments = $student['total_assessments'] ?? 0;
+                                                $completed_assessments = (int)($student['completed_assessments'] ?? 0);
+                                                $total_assessments = (int)($student['total_assessments'] ?? 0);
                                                 $assessment_color = $completed_assessments == $total_assessments && $total_assessments > 0 ? 'bg-success' : 
                                                                    ($completed_assessments > 0 ? 'bg-warning' : 'bg-secondary');
                                                 ?>
@@ -998,7 +1068,9 @@ function getSortClause($sort_by) {
                                             <td>
                                                 <?php 
                                                 $avg_score = $student['avg_score'] ?? 0;
+                                                $avg_score = max(0, min(100, $avg_score)); // Ensure between 0-100
                                                 $best_score = $student['best_score'] ?? 0;
+                                                $best_score = max(0, min(100, $best_score)); // Ensure between 0-100
                                                 $score_color = $avg_score >= 80 ? 'bg-success' : 
                                                               ($avg_score >= 70 ? 'bg-warning' : 
                                                               ($avg_score >= 50 ? 'bg-info' : 'bg-danger'));
@@ -1020,7 +1092,7 @@ function getSortClause($sort_by) {
                                             <td>
                                                 <?php 
                                                 $last_activity = $student['last_activity'] ?? null;
-                                                if ($last_activity) {
+                                                if ($last_activity && $last_activity !== '0000-00-00 00:00:00') {
                                                     $time_ago = time() - strtotime($last_activity);
                                                     $days_ago = floor($time_ago / (24 * 60 * 60));
                                                     
@@ -1048,11 +1120,25 @@ function getSortClause($sort_by) {
                                             </td>
                                             <td>
                                                 <?php 
-                                                $status_class = $student['enrolled_courses'] > 0 ? 'bg-success' : 'bg-warning';
-                                                $status_text = $student['enrolled_courses'] > 0 ? 'Enrolled' : 'Not Enrolled';
+                                                $enrolled_courses = (int)($student['enrolled_courses'] ?? 0);
+                                                $total_courses = (int)($student['total_courses'] ?? 0);
+                                                
+                                                if ($enrolled_courses == 0) {
+                                                    $status_text = 'Not Enrolled';
+                                                    $status_class = 'bg-danger';
+                                                    $status_icon = 'bi-x-circle';
+                                                } elseif ($enrolled_courses == $total_courses) {
+                                                    $status_text = 'Regular';
+                                                    $status_class = 'bg-success';
+                                                    $status_icon = 'bi-check-circle';
+                                                } else {
+                                                    $status_text = 'Irregular';
+                                                    $status_class = 'bg-warning';
+                                                    $status_icon = 'bi-exclamation-triangle';
+                                                }
                                                 ?>
                                                 <span class="badge <?php echo $status_class; ?>">
-                                                    <i class="bi bi-check-circle me-1"></i><?php echo $status_text; ?>
+                                                    <i class="bi <?php echo $status_icon; ?> me-1"></i><?php echo $status_text; ?>
                                                 </span>
                                             </td>
                                             <td>
@@ -1735,6 +1821,321 @@ function getSortClause($sort_by) {
     background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* Modern Students Management Styles - Matching Modules Design */
+
+/* Students Management Header */
+.students-management-header {
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.students-management-header h1 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.students-management-header .opacity-90 {
+    opacity: 0.9;
+}
+
+.student-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.student-stat-item {
+    text-align: center;
+}
+
+.student-stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.student-stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filter Card Styles */
+.filter-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+
+.filter-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+    border-radius: 12px 12px 0 0;
+}
+
+.filter-card .form-label {
+    color: #495057;
+    font-weight: 600;
+}
+
+.filter-card .form-control,
+.filter-card .form-select {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.filter-card .form-control:focus,
+.filter-card .form-select:focus {
+    border-color: #2E5E4E;
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+}
+
+/* Statistics Cards */
+.stats-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stats-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+}
+
+.stats-success {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+}
+
+.stats-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #212529;
+}
+
+.stats-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+.stats-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.stats-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.stats-subtitle {
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+.stats-icon {
+    font-size: 3rem;
+    opacity: 0.3;
+}
+
+/* Students Table Styles */
+.students-table-scrollable-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    background: white;
+}
+
+.students-table-scrollable-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.students-table-scrollable-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.students-table-scrollable-container::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.students-table-scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: #1e3d32;
+}
+
+.students-table-scrollable-container {
+    scrollbar-width: thin;
+    scrollbar-color: #2E5E4E #f1f1f1;
+}
+
+.students-table-scrollable-container .table thead th {
+    position: sticky;
+    top: 0;
+    background: #2E5E4E !important;
+    z-index: 10;
+    border-bottom: 2px solid #1e3d32;
+}
+
+.students-table {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.students-table thead th {
+    background: #2E5E4E !important;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.students-table tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.students-table tbody tr:hover {
+    background-color: rgba(46, 94, 78, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.students-table tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.students-table-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    padding: 1.25rem 1.5rem;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.empty-state-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.empty-state i {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+    background: #2E5E4E;
+    color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .students-table thead th:nth-child(8),
+    .students-table tbody td:nth-child(8),
+    .students-table thead th:nth-child(9),
+    .students-table tbody td:nth-child(9) {
+        display: none;
+    }
+}
+
+@media (max-width: 992px) {
+    .students-table thead th:nth-child(10),
+    .students-table tbody td:nth-child(10) {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .students-table-scrollable-container {
+        max-height: 500px;
+    }
+    
+    .students-table {
+        font-size: 0.875rem;
+    }
+    
+    .students-table thead th,
+    .students-table tbody td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .students-table thead th:nth-child(3),
+    .students-table tbody td:nth-child(3),
+    .students-table thead th:nth-child(4),
+    .students-table tbody td:nth-child(4) {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .students-table-scrollable-container {
+        max-height: 400px;
+    }
+    
+    .students-table thead th,
+    .students-table tbody td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.8rem;
+    }
+    
+    .student-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .students-management-header {
+        padding: 1.5rem 0;
+    }
 }
 </style>
 

@@ -1342,39 +1342,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 // No separate helper function needed as questions are accessed directly from the JSON
 ?>
 
-<div class="container-fluid">
-    <div class="row">
+<!-- Modern Module Assessments Header with Back Button -->
+<div class="module-assessments-header">
+    <div class="container">
+        <!-- Back Button Row -->
+        <div class="row mb-3">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="h3 mb-1 text-primary">
-                        <i class="bi bi-clipboard-check me-2"></i>Assessments for <?php echo htmlspecialchars($module['module_title']); ?>
+                <div class="d-flex justify-content-start">
+                    <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-outline-light btn-back-icon" title="Back to Course">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Header Content -->
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-3">
+                    <i class="bi bi-clipboard-check me-3"></i>Module Assessments
                     </h1>
-                    <p class="text-muted mb-0">
-                        <i class="bi bi-book me-1"></i><?php echo htmlspecialchars($course['course_name']); ?> • 
-                        <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($course['course_code']); ?>
+                <p class="mb-0 opacity-90">
+                    <strong><?php echo htmlspecialchars($module['module_title']); ?></strong> • 
+                    <?php echo htmlspecialchars($course['course_name']); ?> • 
+                    <?php echo htmlspecialchars($course['course_code']); ?>
                     </p>
                 </div>
-                <div class="btn-group">
-                    <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-1"></i>Back to Course
-                    </a>
-                    <?php if ($can_modify_content): ?>
-                        <button class="btn btn-outline-info me-2" onclick="updateAllQuestionCounts()" title="Refresh Question Counts">
-                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Counts
-                        </button>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssessmentModal">
-                            <i class="bi bi-plus-circle me-2"></i>Create Assessment
-                        </button>
-                    <?php else: ?>
-                        <button class="btn btn-outline-info me-2" onclick="updateAllQuestionCounts()" title="Refresh Question Counts">
-                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Counts
-                        </button>
-                        <button class="btn btn-secondary" disabled title="Cannot create assessments in inactive academic period">
-                            <i class="bi bi-eye me-2"></i>View Only
-                        </button>
-                    <?php endif; ?>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="assessment-stats">
+                        <div class="assessment-stat-item">
+                            <span class="assessment-stat-number"><?php echo count($assessments); ?></span>
+                            <span class="assessment-stat-label">Assessments</span>
+                        </div>
+                        <div class="assessment-stat-item">
+                            <span class="assessment-stat-number"><?php echo $total_questions ?? 0; ?></span>
+                            <span class="assessment-stat-label">Questions</span>
+                        </div>
+                        <div class="assessment-stat-item">
+                            <span class="assessment-stat-number"><?php echo $active_assessments ?? 0; ?></span>
+                            <span class="assessment-stat-label">Active</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Refresh Button Row -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-end">
+                <button class="btn btn-outline-info" onclick="updateAllQuestionCounts()" title="Refresh Question Counts">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Counts
+                        </button>
             </div>
         </div>
     </div>
@@ -1414,46 +1437,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         </div>
     <?php endif; ?>
 
-    <!-- Module Info Card -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-info-circle me-2"></i>Module Information
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h6 class="card-title text-primary"><?php echo htmlspecialchars($module['module_title']); ?></h6>
-                            <p class="card-text"><?php echo nl2br(htmlspecialchars($module['module_description'])); ?></p>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-end">
-                                <span class="badge bg-secondary fs-6">
-                                    <i class="bi bi-sort-numeric-up me-1"></i>Module <?php echo $module['module_order']; ?>
-                                </span>
-                                <?php if ($module['is_locked']): ?>
-                                    <span class="badge bg-warning ms-2 fs-6">
-                                        <i class="bi bi-lock me-1"></i>Locked (<?php echo $module['unlock_score']; ?>% required)
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Assessments Grid -->
+    <!-- Assessments Grid with Header Background -->
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
+            <div class="card assessments-grid-card border-0 shadow-sm" style="background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%); position: relative;">
+                <div class="card-header assessments-grid-header" style="background: transparent; border: none;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 text-dark">
+                        <h5 class="mb-0 text-white">
                             <i class="bi bi-list-check me-2"></i>Assessments (<?php echo count($assessments); ?>)
                         </h5>
                         <div class="text-end">
@@ -1474,7 +1465,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="background: white; border-radius: 0 0 15px 15px;">
                     <?php if (empty($assessments)): ?>
                         <div class="text-center py-5">
                             <div class="mb-4">
@@ -1487,7 +1478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             </button>
                         </div>
                     <?php else: ?>
-
+                        <div class="assessments-scrollable-container">
                         <div class="row">
                                     <?php foreach ($assessments as $assessment): 
                                         // Count actual questions for this assessment
@@ -1586,6 +1577,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                                 </div>
                                     <?php endforeach; ?>
                         </div>
+                        </div>
+                        
+                        <!-- Floating Create Assessment Button - Inside Assessments Grid -->
+                        <?php if ($can_modify_content): ?>
+                            <div class="floating-create-assessment-btn-inside">
+                                <button class="btn btn-primary btn-floating" data-bs-toggle="modal" data-bs-target="#createAssessmentModal" title="Create Assessment">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -2214,6 +2215,289 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 
 .question-count.updating .question-number {
     opacity: 0.5;
+}
+
+/* Modern Module Assessments Styles - Matching Videos Management Design */
+
+/* Module Assessments Header */
+.module-assessments-header {
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.module-assessments-header h1 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.module-assessments-header .opacity-90 {
+    opacity: 0.9;
+}
+
+/* Back Button Icon Only - Left Corner */
+.btn-back-icon {
+    width: 45px !important;
+    height: 45px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.2rem !important;
+    position: absolute !important;
+    top: 20px !important;
+    left: 20px !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-back-icon:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+}
+
+/* Assessment Statistics */
+.assessment-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.assessment-stat-item {
+    text-align: center;
+}
+
+.assessment-stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+.assessment-stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Assessments Grid Card */
+.assessments-grid-card {
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Scrollable Assessments Container */
+.assessments-scrollable-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Custom Scrollbar for Assessments Container */
+.assessments-scrollable-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.assessments-scrollable-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.assessments-scrollable-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.assessments-scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Floating Create Assessment Button - Inside Assessments Grid */
+.floating-create-assessment-btn-inside {
+    position: absolute;
+    bottom: 40px;
+    right: 20px;
+    z-index: 10;
+}
+
+.btn-floating {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-floating:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.assessments-grid-header {
+    background: transparent;
+    border: none;
+    padding: 1.25rem 1.5rem;
+}
+
+.assessments-grid-header h5 {
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+/* Assessment Cards */
+.assessment-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.assessment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.assessment-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1rem 1.25rem;
+}
+
+.assessment-card .card-body {
+    padding: 1.25rem;
+}
+
+/* Status Badges */
+.badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+}
+
+/* Action Buttons */
+.btn-group-sm .btn {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-info:hover,
+.btn-outline-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Empty State */
+.text-center.py-5 {
+    padding: 3rem 0 !important;
+}
+
+.text-center.py-5 .display-1 {
+    font-size: 4rem;
+    opacity: 0.3;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .module-assessments-header {
+        padding: 1.5rem 0;
+    }
+    
+    .assessment-stats {
+        gap: 1rem;
+    }
+    
+    .assessment-stat-number {
+        font-size: 1.25rem;
+    }
+    
+    .assessment-stat-label {
+        font-size: 0.75rem;
+    }
+    
+    .btn-back-icon {
+        top: 15px;
+        left: 15px;
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1rem !important;
+    }
+    
+    .floating-create-assessment-btn-inside {
+        bottom: 30px;
+        right: 15px;
+    }
+    
+    .btn-floating {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .assessments-scrollable-container {
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 576px) {
+    .module-assessments-header {
+        padding: 1rem 0;
+    }
+    
+    .assessment-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-back-icon {
+        top: 10px;
+        left: 10px;
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .floating-create-assessment-btn-inside {
+        bottom: 25px;
+        right: 10px;
+    }
+    
+    .btn-floating {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+    
+    .assessments-scrollable-container {
+        max-height: 400px;
+    }
 }
 </style>
 

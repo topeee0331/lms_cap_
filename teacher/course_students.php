@@ -1,6 +1,8 @@
 <?php
-include '../config/database.php';
-include '../includes/header.php';
+$page_title = 'Course Students';
+require_once '../config/config.php';
+requireRole('teacher');
+require_once '../includes/header.php';
 
 $course_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if (!$course_id) {
@@ -13,142 +15,142 @@ if (!$course_id) {
 $course_stmt = $db->prepare("SELECT * FROM courses WHERE id = ?");
 $course_stmt->execute([$course_id]);
 $course = $course_stmt->fetch();
+
 if (!$course) {
     echo '<div class="alert alert-danger">Course not found.</div>';
     include '../includes/footer.php';
     exit;
 }
 
-// Helper function to format section display name
-function formatSectionName($section) {
-    return "BSIT-{$section['year']}{$section['name']}";
-}
+// Get all students enrolled in this course
+$students_stmt = $db->prepare("
+    SELECT u.id, u.first_name, u.last_name, u.username, u.email, u.is_irregular, u.created_at,
+           s.section_name, s.year_level
+    FROM users u
+    JOIN course_enrollments ce ON u.id = ce.student_id
+    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+    WHERE ce.course_id = ? AND ce.status = 'active' AND u.role = 'student'
+    ORDER BY s.year_level, s.section_name, u.last_name, u.first_name
+");
+$students_stmt->execute([$course_id]);
+$students = $students_stmt->fetchAll();
 
-// Fetch all sections assigned to this course via JSON sections field
-$section_sql = "SELECT s.id, s.section_name as name, s.year_level as year FROM sections s WHERE JSON_SEARCH((SELECT sections FROM courses WHERE id = ?), 'one', s.id) IS NOT NULL ORDER BY s.year_level, s.section_name";
-$section_stmt = $db->prepare($section_sql);
-$section_stmt->execute([$course_id]);
-$sections = $section_stmt->fetchAll();
-
-// Determine selected section
-$selected_section_id = isset($_GET['section_id']) ? intval($_GET['section_id']) : (count($sections) > 0 ? $sections[0]['id'] : 0);
-
-// Fetch students in the selected section
-$students = [];
-if ($selected_section_id) {
-    $stu_sql = "SELECT u.id, u.first_name, u.last_name, u.username, u.email 
-                 FROM users u 
-                 WHERE u.role = 'student' 
-                 AND JSON_SEARCH((SELECT students FROM sections WHERE id = ?), 'one', u.id) IS NOT NULL
-                 ORDER BY u.last_name, u.first_name";
-    $stu_stmt = $db->prepare($stu_sql);
-    $stu_stmt->execute([$selected_section_id]);
-    $students = $stu_stmt->fetchAll();
-}
-
-// Get total student count
-$total_students = 0;
-foreach ($sections as $section) {
-    $stu_sql = "SELECT JSON_LENGTH(COALESCE(students, '[]')) as student_count FROM sections WHERE id = ?";
-    $stu_stmt = $db->prepare($stu_sql);
-    $stu_stmt->execute([$section['id']]);
-    $total_students += $stu_stmt->fetchColumn();
-}
+// Get sections for this course
+$sections_stmt = $db->prepare("
+    SELECT s.id, s.section_name, s.year_level, 
+           JSON_LENGTH(COALESCE(s.students, '[]')) as student_count
+    FROM sections s
+    WHERE JSON_SEARCH((SELECT sections FROM courses WHERE id = ?), 'one', s.id) IS NOT NULL
+    ORDER BY s.year_level, s.section_name
+");
+$sections_stmt->execute([$course_id]);
+$sections = $sections_stmt->fetchAll();
 ?>
 
 <style>
-.course-header {
-    background: #2E5E4E;
+/* Modern Course Students Styles - Matching Course Edit Design */
+
+/* Course Students Header */
+.course-students-header {
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
     color: white;
-    border-radius: 15px;
-    padding: 2rem;
+    padding: 2rem 0;
     margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    position: relative;
 }
 
-.course-header h1 {
-    margin: 0;
+.course-students-header h1 {
     font-weight: 700;
-    font-size: 2.5rem;
-}
-
-.course-header .course-code {
-    font-size: 1.2rem;
-    opacity: 0.9;
-    margin-top: 0.5rem;
-}
-
-.stats-card {
-    background: white;
-    border-radius: 15px;
-    padding: 1.5rem;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-    border: none;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-}
-
-.stats-card .stat-number {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #2E5E4E;
     margin-bottom: 0.5rem;
 }
 
-.stats-card .stat-label {
-    color: #6c757d;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.course-students-header .opacity-90 {
+    opacity: 0.9;
 }
 
-.section-card {
+/* Back Button Icon Only - Left Corner */
+.btn-back-icon {
+    width: 45px !important;
+    height: 45px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.2rem !important;
+    position: absolute !important;
+    top: 20px !important;
+    left: 20px !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-back-icon:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+}
+
+/* Course Statistics */
+.course-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.course-stat-item {
+    text-align: center;
+}
+
+.course-stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+.course-stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Students Table Card */
+.students-table-card {
     background: white;
     border-radius: 15px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     border: none;
-    margin-bottom: 2rem;
     overflow: hidden;
+    margin-bottom: 2rem;
 }
 
-.section-header {
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.section-header h4 {
-    margin: 0;
-    color: #495057;
+.students-table-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem 1.25rem;
     font-weight: 600;
-    display: flex;
-    align-items: center;
+    color: #495057;
 }
 
-.section-header .section-icon {
-    background: #2E5E4E;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content-center;
-    margin-right: 1rem;
-    font-size: 1.2rem;
+.students-table-card .table {
+    margin-bottom: 0;
 }
 
-.enhanced-table {
-    border: none;
-    border-radius: 0;
-}
-
-.enhanced-table thead th {
-    background: #2E5E4E;
+.students-table-card .table thead th {
+    background: #1e3a2e;
     color: white;
     border: none;
     padding: 1rem;
@@ -158,19 +160,20 @@ foreach ($sections as $section) {
     font-size: 0.9rem;
 }
 
-.enhanced-table tbody td {
+.students-table-card .table tbody td {
     padding: 1rem;
     border: none;
     border-bottom: 1px solid #f8f9fa;
     vertical-align: middle;
 }
 
-.enhanced-table tbody tr:hover {
+.students-table-card .table tbody tr:hover {
     background: #f8f9fa;
     transform: scale(1.01);
     transition: all 0.3s ease;
 }
 
+/* Status Badges */
 .status-badge {
     padding: 0.5rem 1rem;
     border-radius: 25px;
@@ -190,24 +193,19 @@ foreach ($sections as $section) {
     color: white;
 }
 
-.back-btn {
-    background: #6c757d;
-    border: none;
-    border-radius: 25px;
-    padding: 0.75rem 1.5rem;
+/* Section Badge */
+.section-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
     font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.back-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    color: white;
-    background: #5a6268;
-}
-
+/* Empty State */
 .empty-state {
     text-align: center;
     padding: 3rem 2rem;
@@ -229,90 +227,124 @@ foreach ($sections as $section) {
     margin: 0;
     font-size: 1.1rem;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .course-students-header {
+        padding: 1.5rem 0;
+    }
+    
+    .course-stats {
+        gap: 1rem;
+    }
+    
+    .course-stat-number {
+        font-size: 1.25rem;
+    }
+    
+    .course-stat-label {
+        font-size: 0.75rem;
+    }
+    
+    .btn-back-icon {
+        top: 15px;
+        left: 15px;
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .course-students-header {
+        padding: 1rem 0;
+    }
+    
+    .course-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-back-icon {
+        top: 10px;
+        left: 10px;
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 0.9rem !important;
+    }
+}
 </style>
 
-<div class="container mt-2" style="margin-bottom: 340px;">
-    <!-- Back Button -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <a href="course.php?id=<?= $course_id ?>" class="btn back-btn">
-                <i class="bi bi-arrow-left me-2"></i> Back to Manage Course
-            </a>
-        </div>
-    </div>
-
-    <!-- Course Header -->
-    <div class="course-header">
-        <h1><i class="bi bi-book me-3"></i><?= htmlspecialchars($course['course_name']) ?></h1>
-        <div class="course-code">
-            <i class="bi bi-tag me-2"></i><?= htmlspecialchars($course['course_code']) ?>
-        </div>
-    </div>
-
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="stats-card text-center">
-                <div class="stat-number"><?= count($sections) ?></div>
-                <div class="stat-label">Total Sections</div>
+<!-- Modern Course Students Header with Back Button -->
+<div class="course-students-header">
+    <div class="container">
+        <!-- Back Button Row -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-start">
+                    <a href="course.php?id=<?= $course_id ?>" class="btn btn-outline-light btn-back-icon" title="Back to Course">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="stats-card text-center">
-                <div class="stat-number"><?= $total_students ?></div>
-                <div class="stat-label">Total Students</div>
+        
+        <!-- Main Header Content -->
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-3">
+                    <i class="bi bi-people me-3"></i>Course Students
+                </h1>
+                <p class="mb-0 opacity-90">
+                    <strong><?= htmlspecialchars($course['course_name']) ?></strong> • 
+                    <?= htmlspecialchars($course['course_code']) ?> • 
+                    <?= count($students) ?> Students
+                </p>
             </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="stats-card text-center">
-                <div class="stat-number"><?= $course['created_at'] ? date('Y', strtotime($course['created_at'])) : 'N/A' ?></div>
-                <div class="stat-label">Course Year</div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="stats-card text-center">
-                <div class="stat-number"><?= $course['is_archived'] ? 'Archived' : 'Active' ?></div>
-                <div class="stat-label">Status</div>
-            </div>
-        </div>
-    </div>
-
-    <?php if (count($sections) > 0): ?>
-        <?php foreach ($sections as $section): ?>
-            <div class="section-card">
-                <div class="section-header">
-                    <h4>
-                        <div class="section-icon">
-                            <i class="bi bi-collection"></i>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="course-stats">
+                        <div class="course-stat-item">
+                            <span class="course-stat-number"><?= count($sections) ?></span>
+                            <span class="course-stat-label">Sections</span>
                         </div>
-                        Section: <?= htmlspecialchars(formatSectionName($section)) ?>
-                    </h4>
+                        <div class="course-stat-item">
+                            <span class="course-stat-number"><?= count($students) ?></span>
+                            <span class="course-stat-label">Students</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container" style="margin-bottom: 340px;">
+    <!-- Students Table Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card students-table-card border-0 shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-table me-2"></i>Enrolled Students
+                    </h6>
                 </div>
                 <div class="card-body p-0">
-                    <?php
-                    $stu_sql = "SELECT u.id, u.first_name, u.last_name, u.username, u.email, u.is_irregular, u.created_at 
-                                 FROM users u 
-                                 WHERE u.role = 'student' 
-                                 AND JSON_SEARCH((SELECT students FROM sections WHERE id = ?), 'one', u.id) IS NOT NULL
-                                 ORDER BY u.last_name, u.first_name";
-                    $stu_stmt = $db->prepare($stu_sql);
-                    $stu_stmt->execute([$section['id']]);
-                    $students = $stu_stmt->fetchAll();
-                    ?>
                     <?php if (count($students) > 0): ?>
                         <div class="table-responsive">
-                            <table class="table enhanced-table mb-0">
+                            <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
                                         <th><i class="bi bi-person me-2"></i>Student Name</th>
                                         <th><i class="bi bi-at me-2"></i>Username</th>
                                         <th><i class="bi bi-envelope me-2"></i>Email</th>
+                                        <th><i class="bi bi-collection me-2"></i>Section</th>
                                         <th><i class="bi bi-patch-check me-2"></i>Status</th>
-                                        <th><i class="bi bi-calendar-plus me-2"></i>Date Added</th>
+                                        <th><i class="bi bi-calendar-plus me-2"></i>Date Enrolled</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($students as $stu): ?>
+                                    <?php foreach ($students as $student): ?>
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
@@ -320,14 +352,23 @@ foreach ($sections as $section) {
                                                         <i class="bi bi-person-fill"></i>
                                                     </div>
                                                     <div>
-                                                        <strong><?= htmlspecialchars($stu['last_name'] . ', ' . $stu['first_name']) ?></strong>
+                                                        <strong><?= htmlspecialchars($student['last_name'] . ', ' . $student['first_name']) ?></strong>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td><code class="bg-light px-2 py-1 rounded"><?= htmlspecialchars($stu['username']) ?></code></td>
-                                            <td><?= htmlspecialchars($stu['email']) ?></td>
+                                            <td><code class="bg-light px-2 py-1 rounded"><?= htmlspecialchars($student['username']) ?></code></td>
+                                            <td><?= htmlspecialchars($student['email']) ?></td>
                                             <td>
-                                                <?php if (($stu['is_irregular'] ?? 0)): ?>
+                                                <?php if ($student['section_name']): ?>
+                                                    <span class="section-badge">
+                                                        BSIT-<?= $student['year_level'] ?><?= $student['section_name'] ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">No Section</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if ($student['is_irregular']): ?>
                                                     <span class="status-badge irregular">
                                                         <i class="bi bi-exclamation-triangle me-1"></i>Irregular
                                                     </span>
@@ -339,7 +380,7 @@ foreach ($sections as $section) {
                                             </td>
                                             <td>
                                                 <i class="bi bi-calendar3 me-2"></i>
-                                                <?= $stu['created_at'] ? date('M j, Y', strtotime($stu['created_at'])) : '-' ?>
+                                                <?= $student['created_at'] ? date('M j, Y', strtotime($student['created_at'])) : '-' ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -349,21 +390,14 @@ foreach ($sections as $section) {
                     <?php else: ?>
                         <div class="empty-state">
                             <i class="bi bi-people"></i>
-                            <h5>No Students Assigned</h5>
-                            <p>No students are currently assigned to this section.</p>
+                            <h5>No Students Found</h5>
+                            <p>No students are currently enrolled in this course.</p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
-        <?php endforeach; ?>
-    <?php else: ?>
-        <div class="section-card">
-            <div class="empty-state">
-                <i class="bi bi-collection"></i>
-                <h5>No Sections Assigned</h5>
-                <p>No sections are currently assigned to this course.</p>
-            </div>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
-<?php include '../includes/footer.php'; ?> 
+
+<?php include '../includes/footer.php'; ?>

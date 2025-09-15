@@ -572,6 +572,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message_type = 'danger';
                 }
                 break;
+                
+            case 'toggle_module_lock':
+                $module_id = sanitizeInput($_POST['module_id'] ?? '');
+                $course_id = (int)($_POST['course_id'] ?? 0);
+                $is_locked = (int)($_POST['is_locked'] ?? 0);
+                
+                // Verify course belongs to teacher
+                $stmt = $db->prepare('SELECT id, modules FROM courses WHERE id = ? AND teacher_id = ?');
+                $stmt->execute([$course_id, $_SESSION['user_id']]);
+                $course = $stmt->fetch();
+                
+                if ($course) {
+                    $modules_data = json_decode($course['modules'] ?? '', true) ?: [];
+                    $module_found = false;
+                    
+                    // Update the module lock status
+                    foreach ($modules_data as &$module) {
+                        if ($module['id'] === $module_id) {
+                            $module['is_locked'] = $is_locked;
+                            $module_found = true;
+                            break;
+                        }
+                    }
+                    
+                    if ($module_found) {
+                        // Update course with updated modules JSON
+                        $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                        $stmt->execute([json_encode($modules_data), $course_id]);
+                        
+                        $message = $is_locked ? 'Module locked successfully.' : 'Module unlocked successfully.';
+                        $message_type = 'success';
+                    } else {
+                        $message = 'Module not found.';
+                        $message_type = 'danger';
+                    }
+                } else {
+                    $message = 'Invalid course selected.';
+                    $message_type = 'danger';
+                }
+                break;
+                
+            case 'bulk_delete_modules':
+                $module_ids = json_decode($_POST['module_ids'] ?? '[]', true);
+                
+                if (empty($module_ids)) {
+                    $message = 'No modules selected for deletion.';
+                    $message_type = 'danger';
+                } else {
+                    $deleted_count = 0;
+                    
+                    foreach ($module_ids as $module_id) {
+                        // Find which course contains this module
+                        foreach ($courses as $course) {
+                            $modules_data = json_decode($course['modules'] ?? '', true) ?: [];
+                            $module_found = false;
+                            
+                            foreach ($modules_data as $key => $module) {
+                                if ($module['id'] === $module_id) {
+                                    unset($modules_data[$key]);
+                                    $module_found = true;
+                                    break;
+                                }
+                            }
+                            
+                            if ($module_found) {
+                                // Update course with updated modules JSON
+                                $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                                $stmt->execute([json_encode(array_values($modules_data)), $course['id']]);
+                                $deleted_count++;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    $message = "Successfully deleted {$deleted_count} module(s).";
+                    $message_type = 'success';
+                }
+                break;
+                
+            case 'bulk_update_module_status':
+                $module_ids = json_decode($_POST['module_ids'] ?? '[]', true);
+                $is_locked = (int)($_POST['is_locked'] ?? 0);
+                
+                if (empty($module_ids)) {
+                    $message = 'No modules selected for status update.';
+                    $message_type = 'danger';
+                } else {
+                    $updated_count = 0;
+                    
+                    foreach ($module_ids as $module_id) {
+                        // Find which course contains this module
+                        foreach ($courses as $course) {
+                            $modules_data = json_decode($course['modules'] ?? '', true) ?: [];
+                            $module_found = false;
+                            
+                            foreach ($modules_data as &$module) {
+                                if ($module['id'] === $module_id) {
+                                    $module['is_locked'] = $is_locked;
+                                    $module_found = true;
+                                    break;
+                                }
+                            }
+                            
+                            if ($module_found) {
+                                // Update course with updated modules JSON
+                                $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                                $stmt->execute([json_encode($modules_data), $course['id']]);
+                                $updated_count++;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    $action_text = $is_locked ? 'locked' : 'unlocked';
+                    $message = "Successfully {$action_text} {$updated_count} module(s).";
+                    $message_type = 'success';
+                }
+                break;
         }
     }
 }
@@ -580,6 +698,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['success'])) {
     $message = $_GET['success'];
     $message_type = 'success';
+}
+
+// Handle AJAX requests
+if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+    // Return JSON response for AJAX requests
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => $message_type === 'success',
+        'message' => $message
+    ]);
+    exit;
 }
 
 // Sort modules by order
@@ -799,94 +928,118 @@ usort($all_modules, function($a, $b) {
                     </div>
                 </div>
 
-                <!-- Modules Grid -->
-                <div class="row g-4">
-                                    <?php foreach ($all_modules as $module): ?>
-                        <div class="col-lg-4 col-md-6">
-                            <div class="card module-card h-100">
-                                <div class="card-header module-card-header">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="module-title-section">
-                                            <h6 class="module-title mb-1"><?php echo htmlspecialchars($module['module_title'] ?? 'Untitled Module'); ?></h6>
-                                            <small class="module-course"><?php echo htmlspecialchars($module['course_title'] ?? 'Unknown Course'); ?></small>
-                                        </div>
-                                        <div class="module-actions">
+                <!-- Modules Grid Container -->
+                <div class="modules-container">
+                    <div class="row g-4">
+                        <?php 
+                        // Define solid colors for module cards
+                        $module_colors = [
+                            '#e3f2fd', // Light Blue
+                            '#f3e5f5', // Light Purple
+                            '#e8f5e8', // Light Green
+                            '#fff3e0', // Light Orange
+                            '#fce4ec', // Light Pink
+                            '#e0f2f1', // Light Teal
+                            '#f1f8e9', // Light Lime
+                            '#fff8e1', // Light Yellow
+                            '#e1f5fe', // Light Cyan
+                            '#f9fbe7', // Light Light Green
+                            '#fef7e0', // Light Amber
+                            '#f3e5f5', // Light Deep Purple
+                        ];
+                        $color_index = 0;
+                        ?>
+                        <?php foreach ($all_modules as $module): ?>
+                            <?php 
+                            $card_color = $module_colors[$color_index % count($module_colors)];
+                            $color_index++;
+                            ?>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card module-card h-100" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
+                                    <div class="card-header module-card-header" style="background-color: <?php echo $card_color; ?>; border-bottom: 1px solid rgba(0,0,0,0.1);">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="module-title-section">
+                                                <h6 class="module-title mb-1"><?php echo htmlspecialchars($module['module_title'] ?? 'Untitled Module'); ?></h6>
+                                                <small class="module-course"><?php echo htmlspecialchars($module['course_title'] ?? 'Unknown Course'); ?></small>
+                                            </div>
+                                            <div class="module-actions">
                                                 <div class="form-check">
-                                                <input type="checkbox" class="form-check-input module-checkbox" 
-                                                       value="<?php echo $module['id']; ?>" 
-                                                       onchange="updateBulkActions()">
-                                                </div>
-            </div>
-                        </div>
-                                                </div>
-                                <div class="card-body">
-                                    <div class="module-description mb-3">
-                                        <p class="text-muted small mb-0">
-                                            <?php 
-                                            $description = $module['module_description'] ?? '';
-                                            echo htmlspecialchars(substr($description, 0, 100)); 
-                                            if (strlen($description) > 100): ?>...<?php endif; ?>
-                                        </p>
-                                    </div>
-                                    
-                                    <div class="module-meta mb-3">
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <div class="meta-item">
-                                                    <i class="bi bi-sort-numeric-up text-primary me-1"></i>
-                                                    <small>Order: <?php echo $module['module_order'] ?? 'N/A'; ?></small>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="meta-item">
-                                                    <i class="bi bi-files text-info me-1"></i>
-                                                    <small>
-                                                        <?php 
-                                                        $modules_data = json_decode($module['modules'] ?? '', true) ?: [];
-                                                        echo count($modules_data); 
-                                                        ?> files
-                                                    </small>
+                                                    <input type="checkbox" class="form-check-input module-checkbox" 
+                                                           value="<?php echo $module['id']; ?>" 
+                                                           onchange="updateBulkActions()">
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="card-body">
+                                        <div class="module-description mb-3">
+                                            <p class="text-muted small mb-0">
+                                                <?php 
+                                                $description = $module['module_description'] ?? '';
+                                                echo htmlspecialchars(substr($description, 0, 100)); 
+                                                if (strlen($description) > 100): ?>...<?php endif; ?>
+                                            </p>
+                                        </div>
+                                        
+                                        <div class="module-meta mb-3">
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <div class="meta-item">
+                                                        <i class="bi bi-sort-numeric-up text-primary me-1"></i>
+                                                        <small>Order: <?php echo $module['module_order'] ?? 'N/A'; ?></small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="meta-item">
+                                                        <i class="bi bi-files text-info me-1"></i>
+                                                        <small>
+                                                            <?php 
+                                                            $modules_data = json_decode($module['modules'] ?? '', true) ?: [];
+                                                            echo count($modules_data); 
+                                                            ?> files
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    <div class="module-status mb-3">
-                                        <span class="badge status-badge <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'status-unlocked' : 'status-locked'; ?>">
-                                            <i class="bi bi-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'unlock' : 'lock'; ?> me-1"></i>
-                                            <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'Unlocked' : 'Locked'; ?>
-                                        </span>
+                                        <div class="module-status mb-3">
+                                            <span class="badge status-badge <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'status-unlocked' : 'status-locked'; ?>">
+                                                <i class="bi bi-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'unlock' : 'lock'; ?> me-1"></i>
+                                                <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'Unlocked' : 'Locked'; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer module-card-footer">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                <i class="bi bi-calendar me-1"></i>
+                                                <?php echo date('M d, Y', strtotime($module['created_at'])); ?>
+                                            </small>
+                                            <div class="module-actions">
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-primary" onclick="viewModule(<?php echo $module['id']; ?>)" title="View">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" onclick="editModule(<?php echo $module['id']; ?>)" title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'warning' : 'success'; ?>" 
+                                                            onclick="toggleModuleStatus(<?php echo $module['id']; ?>, <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'true' : 'false'; ?>)" 
+                                                            title="<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'Lock' : 'Unlock'; ?>">
+                                                        <i class="bi bi-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'lock' : 'unlock'; ?>"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" onclick="deleteModule(<?php echo $module['id']; ?>)" title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="card-footer module-card-footer">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-muted">
-                                            <i class="bi bi-calendar me-1"></i>
-                                            <?php echo date('M d, Y', strtotime($module['created_at'])); ?>
-                                        </small>
-                                        <div class="module-actions">
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button class="btn btn-outline-primary" onclick="viewModule(<?php echo $module['id']; ?>)" title="View">
-                                                    <i class="bi bi-eye"></i>
-                                                    </button>
-                                                <button class="btn btn-outline-success" onclick="editModule(<?php echo $module['id']; ?>)" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                <button class="btn btn-outline-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'warning' : 'success'; ?>" 
-                                                        onclick="toggleModuleStatus(<?php echo $module['id']; ?>, <?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'true' : 'false'; ?>)" 
-                                                        title="<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'Lock' : 'Unlock'; ?>">
-                                                    <i class="bi bi-<?php echo (!isset($module['is_locked']) || $module['is_locked'] == 0) ? 'lock' : 'unlock'; ?>"></i>
-                                                </button>
-                                                <button class="btn btn-outline-danger" onclick="deleteModule(<?php echo $module['id']; ?>)" title="Delete">
-                                                    <i class="bi bi-trash"></i>
-                                                        </button>
-                                                </div>
-                        </div>
-                </div>
-            </div>
-        </div>
-                        </div>
-                    <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             <?php endif; ?>
     </div>
@@ -2087,11 +2240,13 @@ function exportModulesData(modules, filename) {
 document.addEventListener('DOMContentLoaded', function() {
     const createCourseSelect = document.getElementById('create_course_id');
     const createOrderInput = document.getElementById('create_module_order');
+    const createModuleTitle = document.getElementById('create_module_title');
     
-    if (createCourseSelect && createOrderInput) {
+    if (createCourseSelect && createOrderInput && createModuleTitle) {
         // Set initial order when page loads
         setInitialOrder();
         
+        // Auto-set order when course is selected
         createCourseSelect.addEventListener('change', function() {
             const courseId = this.value;
             if (courseId) {
@@ -2101,6 +2256,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 createOrderInput.placeholder = 'Select a course first';
             }
         });
+        
+        // Auto-set order when modal opens
+        const createModal = document.getElementById('createModuleModal');
+        if (createModal) {
+            createModal.addEventListener('show.bs.modal', function() {
+                // Reset form
+                createModuleTitle.value = '';
+                createCourseSelect.value = '';
+                createOrderInput.value = '';
+                createOrderInput.placeholder = 'Select a course first';
+                
+                // If there's only one course, auto-select it
+                if (createCourseSelect.options.length === 2) { // 1 option + empty option
+                    createCourseSelect.value = createCourseSelect.options[1].value;
+                    setOrderForCourse(createCourseSelect.value);
+                }
+            });
+        }
+        
+        // Add form validation before submission
+        const createForm = createModal?.querySelector('form');
+        if (createForm) {
+            createForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                validateAndSubmitModule();
+            });
+        }
     }
     
     function setInitialOrder() {
@@ -2129,6 +2311,138 @@ document.addEventListener('DOMContentLoaded', function() {
             createOrderInput.value = 1;
             createOrderInput.placeholder = 'First module (Order: 1)';
         }
+    }
+    
+    function validateAndSubmitModule() {
+        const moduleTitle = createModuleTitle.value.trim();
+        const courseId = createCourseSelect.value;
+        const courseModules = <?php echo json_encode($course_modules_map); ?>;
+        
+        // Check if course is selected
+        if (!courseId) {
+            showAlert('Please select a course first.', 'warning');
+            createCourseSelect.focus();
+            return;
+        }
+        
+        // Check if module title is provided
+        if (!moduleTitle) {
+            showAlert('Please enter a module title.', 'warning');
+            createModuleTitle.focus();
+            return;
+        }
+        
+        // Check for similar module names in the selected course
+        if (courseModules[courseId]) {
+            const similarModules = courseModules[courseId].filter(module => {
+                const existingTitle = module.module_title.toLowerCase().trim();
+                const newTitle = moduleTitle.toLowerCase();
+                
+                // Check for exact match
+                if (existingTitle === newTitle) {
+                    return true;
+                }
+                
+                // Check for similar names (80% similarity)
+                const similarity = calculateSimilarity(existingTitle, newTitle);
+                return similarity > 0.8;
+            });
+            
+            if (similarModules.length > 0) {
+                const similarTitles = similarModules.map(m => m.module_title).join(', ');
+                const message = `Warning: Similar module names found in this course:\n\n${similarTitles}\n\nDo you want to continue creating this module?`;
+                
+                if (confirm(message)) {
+                    submitModuleForm();
+                }
+                return;
+            }
+        }
+        
+        // No similar modules found, proceed with submission
+        submitModuleForm();
+    }
+    
+    function calculateSimilarity(str1, str2) {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        
+        if (longer.length === 0) {
+            return 1.0;
+        }
+        
+        const editDistance = levenshteinDistance(longer, shorter);
+        return (longer.length - editDistance) / longer.length;
+    }
+    
+    function levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+            }
+        }
+        
+        return matrix[str2.length][str1.length];
+    }
+    
+    function submitModuleForm() {
+        const form = document.querySelector('#createModuleModal form');
+        if (form) {
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Creating...';
+            submitBtn.disabled = true;
+            
+            // Submit the form
+            form.submit();
+        }
+    }
+    
+    function showAlert(message, type = 'info') {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.alert-temp');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Create new alert
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show alert-temp`;
+        alertDiv.style.position = 'fixed';
+        alertDiv.style.top = '20px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.style.minWidth = '300px';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
     
     // Add fade-in effect to page elements
@@ -2541,11 +2855,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Modern Header */
 .modules-management-header {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
     color: white;
     padding: 2rem 0;
     margin-bottom: 2rem;
     border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
 .modules-management-header h1 {
@@ -2565,20 +2880,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .module-stat-item {
     text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.module-stat-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
 }
 
 .module-stat-number {
     display: block;
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 2.5rem;
+    font-weight: 800;
     line-height: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .module-stat-label {
     display: block;
     font-size: 0.875rem;
-    opacity: 0.9;
-    margin-top: 0.25rem;
+    opacity: 0.95;
+    margin-top: 0.5rem;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Enhanced Filter Card */
@@ -2613,58 +2942,115 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
 }
 
+/* Modules Container */
+.modules-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Custom scrollbar for modules container */
+.modules-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modules-container::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 4px;
+}
+
+.modules-container::-webkit-scrollbar-thumb {
+    background: #c1c8cd;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.modules-container::-webkit-scrollbar-thumb:hover {
+    background: #a8b2ba;
+}
+
+/* Firefox scrollbar styling */
+.modules-container {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c8cd #f1f3f4;
+}
+
+/* Responsive design for modules container */
+@media (max-width: 768px) {
+    .modules-container {
+        max-height: 60vh;
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .modules-container {
+        max-height: 50vh;
+        padding: 0.5rem;
+    }
+}
+
 /* Module Cards */
 .module-card {
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    transition: var(--transition);
-    box-shadow: var(--shadow);
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow: hidden;
+    position: relative;
 }
 
 .module-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--hover-shadow);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
 .module-card-header {
-    background: var(--bg-light);
-    border-bottom: 1px solid var(--border-color);
     padding: 1rem;
+    position: relative;
 }
 
 .module-title {
     font-weight: 600;
-    color: var(--text-primary);
+    color: #1a252f;
     margin-bottom: 0.25rem;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
 }
 
 .module-course {
-    color: var(--text-secondary);
+    color: #495057;
     font-size: 0.875rem;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.6);
 }
 
 .module-card-body {
     padding: 1rem;
+    background: rgba(255, 255, 255, 0.6);
 }
 
 .module-description {
-    color: var(--text-secondary);
+    color: #495057;
     font-size: 0.875rem;
     line-height: 1.5;
 }
 
 .module-meta {
-    background: var(--bg-light);
+    background: rgba(255, 255, 255, 0.7);
     border-radius: 8px;
     padding: 0.75rem;
+    border: 1px solid rgba(0,0,0,0.05);
 }
 
 .meta-item {
     display: flex;
     align-items: center;
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: #6c757d;
 }
 
 .module-status {
@@ -2689,9 +3075,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .module-card-footer {
-    background: var(--bg-light);
-    border-top: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.8);
+    border-top: 1px solid rgba(0,0,0,0.1);
     padding: 1rem;
+    backdrop-filter: blur(10px);
 }
 
 .module-actions .btn-group-sm .btn {

@@ -196,25 +196,90 @@ $stmt = $db->prepare("
 ");
 $stmt->execute([$teacher_id]);
 $processed_requests = $stmt->fetchAll();
+
+// Define filtered request arrays for statistics
+$irregular_section_requests = array_filter($pending_requests, function($req) {
+    return $req['is_irregular'] && $req['is_section_assigned'];
+});
+
+$other_requests = array_filter($pending_requests, function($req) {
+    return !($req['is_irregular'] && $req['is_section_assigned']);
+});
 ?>
 
 <div class="container-fluid">
-    <!-- Academic year selection removed for simplified system -->
-    
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3">Enrollment Requests</h1>
                 <div>
-                    <!-- <button type="button" class="btn btn-info me-2" onclick="testNewEnrollmentRequest()">
-                        <i class="bi bi-plus-circle me-1"></i>Test New Request
-                    </button> -->
-                    <!-- <button type="button" class="btn btn-primary me-2" onclick="testDynamicUpdate()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Test Dynamic Update
-                    </button> -->
-                <a href="courses.php" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-1"></i>Back to Courses
-                </a>
+                    <a href="courses.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Courses
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0"><?php echo count($irregular_section_requests); ?></h4>
+                            <p class="mb-0">Irregular Students</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-exclamation-triangle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0"><?php echo count($other_requests); ?></h4>
+                            <p class="mb-0">Pending Requests</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clock fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0"><?php echo count(array_filter($processed_requests, function($r) { return $r['status'] === 'approved'; })); ?></h4>
+                            <p class="mb-0">Approved</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-check-circle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0"><?php echo count($processed_requests); ?></h4>
+                            <p class="mb-0">Total Processed</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clock-history fs-1"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -228,15 +293,10 @@ $processed_requests = $stmt->fetchAll();
     <?php endif; ?>
 
     <!-- Irregular Students - Section Assigned Courses -->
-    <?php 
-    $irregular_section_requests = array_filter($pending_requests, function($req) {
-        return $req['is_irregular'] && $req['is_section_assigned'];
-    });
-    ?>
     <?php if (!empty($irregular_section_requests)): ?>
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card border-warning">
+                <div class="card">
                     <div class="card-header bg-warning text-dark">
                         <h5 class="mb-0">
                             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -248,7 +308,7 @@ $processed_requests = $stmt->fetchAll();
                             <i class="bi bi-info-circle me-2"></i>
                             <strong>Note:</strong> These irregular students are requesting enrollment in courses already assigned to their section.
                         </div>
-                        <div class="table-responsive table-container irregular-students-table">
+                        <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
@@ -299,11 +359,11 @@ $processed_requests = $stmt->fetchAll();
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-success" onclick="approveRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')">
-                                                        <i class="bi bi-check"></i> Approve
+                                                    <button class="btn btn-success" onclick="approveRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')" title="Approve Request">
+                                                        <i class="bi bi-check-circle me-1"></i>Approve
                                                     </button>
-                                                    <button class="btn btn-danger" onclick="rejectRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')">
-                                                        <i class="bi bi-x"></i> Reject
+                                                    <button class="btn btn-danger" onclick="rejectRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')" title="Reject Request">
+                                                        <i class="bi bi-x-circle me-1"></i>Reject
                                                     </button>
                                                 </div>
                                             </td>
@@ -319,11 +379,6 @@ $processed_requests = $stmt->fetchAll();
     <?php endif; ?>
 
     <!-- Other Pending Requests -->
-    <?php 
-    $other_requests = array_filter($pending_requests, function($req) {
-        return !($req['is_irregular'] && $req['is_section_assigned']);
-    });
-    ?>
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -341,7 +396,7 @@ $processed_requests = $stmt->fetchAll();
                             <p class="text-muted">All other enrollment requests have been processed.</p>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive table-container other-requests-table">
+                        <div class="table-responsive">
                             <table class="table table-hover" id="other-requests-table">
                                 <thead>
                                     <tr>
@@ -401,11 +456,11 @@ $processed_requests = $stmt->fetchAll();
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-success" onclick="approveRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')">
-                                                        <i class="bi bi-check"></i> Approve
+                                                    <button class="btn btn-success" onclick="approveRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')" title="Approve Request">
+                                                        <i class="bi bi-check-circle me-1"></i>Approve
                                                     </button>
-                                                    <button class="btn btn-danger" onclick="rejectRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')">
-                                                        <i class="bi bi-x"></i> Reject
+                                                    <button class="btn btn-danger" onclick="rejectRequest(<?php echo $request['id']; ?>, '<?php echo htmlspecialchars(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>')" title="Reject Request">
+                                                        <i class="bi bi-x-circle me-1"></i>Reject
                                                     </button>
                                                 </div>
                                             </td>
@@ -438,7 +493,7 @@ $processed_requests = $stmt->fetchAll();
                             <p class="text-muted">No enrollment requests have been processed yet.</p>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive table-container processed-requests-table">
+                        <div class="table-responsive">
                             <table class="table table-hover" id="processedRequestsTable">
                                 <thead>
                                     <tr>
@@ -773,11 +828,11 @@ function addNewEnrollmentRequestToTable(data) {
             </td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="approveRequest(${data.id}, '${data.student_name}')">
-                        <i class="bi bi-check"></i> Approve
+                    <button class="btn btn-success" onclick="approveRequest(${data.id}, '${data.student_name}')" title="Approve Request">
+                        <i class="bi bi-check-circle me-1"></i>Approve
                     </button>
-                    <button class="btn btn-danger" onclick="rejectRequest(${data.id}, '${data.student_name}')">
-                        <i class="bi bi-x"></i> Reject
+                    <button class="btn btn-danger" onclick="rejectRequest(${data.id}, '${data.student_name}')" title="Reject Request">
+                        <i class="bi bi-x-circle me-1"></i>Reject
                     </button>
                 </div>
             </td>
@@ -985,361 +1040,3 @@ function testNewEnrollmentRequest() {
 </script>
 
 <?php require_once '../includes/footer.php'; ?>
-
-<style>
-/* Enhanced Table Scrolling Improvements */
-.table-container {
-    max-height: 500px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    position: relative;
-}
-
-/* Custom scrollbar for all table containers */
-.table-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.table-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.table-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-    transition: background 0.3s ease;
-}
-
-.table-container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Firefox scrollbar styling */
-.table-container {
-    scrollbar-width: thin;
-    scrollbar-color: #c1c1c1 #f1f1f1;
-}
-
-/* Specific table container themes */
-.irregular-students-table {
-    max-height: 400px;
-    scrollbar-color: #ffc107 #fff3cd;
-}
-
-.irregular-students-table::-webkit-scrollbar-thumb {
-    background: #ffc107;
-}
-
-.irregular-students-table::-webkit-scrollbar-thumb:hover {
-    background: #e0a800;
-}
-
-.other-requests-table {
-    max-height: 450px;
-    scrollbar-color: #0d6efd #e7f1ff;
-}
-
-.other-requests-table::-webkit-scrollbar-thumb {
-    background: #0d6efd;
-}
-
-.other-requests-table::-webkit-scrollbar-thumb:hover {
-    background: #0b5ed7;
-}
-
-.processed-requests-table {
-    max-height: 400px;
-    scrollbar-color: #198754 #d1e7dd;
-}
-
-.processed-requests-table::-webkit-scrollbar-thumb {
-    background: #198754;
-}
-
-.processed-requests-table::-webkit-scrollbar-thumb:hover {
-    background: #157347;
-}
-
-/* Enhanced table styling */
-.table-container .table {
-    margin-bottom: 0;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.table-container .table thead th {
-    position: sticky;
-    top: 0;
-    background: #f8f9fa;
-    z-index: 10;
-    border-bottom: 2px solid #dee2e6;
-    font-weight: 600;
-    color: #495057;
-    padding: 12px 8px;
-}
-
-.table-container .table tbody tr {
-    transition: all 0.3s ease;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.table-container .table tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
-    transform: translateX(3px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.table-container .table tbody td {
-    padding: 12px 8px;
-    vertical-align: middle;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-/* Scroll indicators for tables */
-.table-scroll-indicator {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 15;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.table-scroll-indicator.show {
-    opacity: 1;
-}
-
-.table-scroll-indicator-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.table-scroll-indicator i {
-    background: rgba(0,0,0,0.7);
-    color: white;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.table-scroll-indicator-top.hide,
-.table-scroll-indicator-bottom.hide {
-    opacity: 0.3;
-}
-
-/* Card enhancements */
-.card {
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.card-header {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-bottom: 2px solid #dee2e6;
-    padding: 16px 20px;
-}
-
-.card-header h5 {
-    margin: 0;
-    font-weight: 600;
-    color: #495057;
-}
-
-/* Button group enhancements */
-.btn-group-sm .btn {
-    padding: 6px 12px;
-    font-size: 0.875rem;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-}
-
-.btn-group-sm .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-/* Badge enhancements */
-.badge {
-    font-size: 0.75rem;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.badge:hover {
-    transform: scale(1.05);
-}
-
-/* Mobile responsiveness */
-@media (max-width: 991.98px) {
-    .table-container {
-        max-height: 350px;
-    }
-    
-    .irregular-students-table {
-        max-height: 300px;
-    }
-    
-    .other-requests-table {
-        max-height: 350px;
-    }
-    
-    .processed-requests-table {
-        max-height: 300px;
-    }
-}
-
-@media (max-width: 575.98px) {
-    .table-container {
-        max-height: 250px;
-    }
-    
-    .irregular-students-table,
-    .other-requests-table,
-    .processed-requests-table {
-        max-height: 200px;
-    }
-    
-    .table-container .table thead th,
-    .table-container .table tbody td {
-        padding: 8px 4px;
-        font-size: 0.875rem;
-    }
-    
-    .btn-group-sm .btn {
-        padding: 4px 8px;
-        font-size: 0.75rem;
-    }
-}
-
-/* Loading and animation states */
-.table-loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.table-row-enter {
-    animation: tableRowEnter 0.5s ease-out;
-}
-
-@keyframes tableRowEnter {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.table-row-exit {
-    animation: tableRowExit 0.5s ease-in;
-}
-
-@keyframes tableRowExit {
-    from {
-        opacity: 1;
-        transform: translateX(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateX(-100%);
-    }
-}
-
-/* New request highlight animation */
-.new-request-highlight {
-    animation: newRequestPulse 2s ease-in-out;
-}
-
-@keyframes newRequestPulse {
-    0% {
-        background-color: rgba(255, 193, 7, 0.3);
-        transform: scale(1);
-    }
-    50% {
-        background-color: rgba(255, 193, 7, 0.6);
-        transform: scale(1.02);
-    }
-    100% {
-        background-color: transparent;
-        transform: scale(1);
-    }
-}
-
-/* Smooth row removal animation */
-#other-requests-tbody tr {
-    transition: all 0.5s ease;
-}
-
-/* Table row hover effects */
-#other-requests-tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
-    transform: translateX(5px);
-}
-
-/* Badge animations */
-.badge {
-    transition: all 0.3s ease;
-}
-
-.badge:hover {
-    transform: scale(1.1);
-}
-
-/* Count update animation */
-#other-requests-count {
-    transition: all 0.3s ease;
-    display: inline-block;
-}
-
-#other-requests-count.updated {
-    animation: countUpdate 0.5s ease-in-out;
-}
-
-@keyframes countUpdate {
-    0% {
-        transform: scale(1);
-        color: inherit;
-    }
-    50% {
-        transform: scale(1.2);
-        color: #28a745;
-    }
-    100% {
-        transform: scale(1);
-        color: inherit;
-    }
-}
-
-/* Loading state for new requests */
-.request-loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-/* Success/error states */
-.request-success {
-    background-color: rgba(40, 167, 69, 0.1) !important;
-}
-
-.request-error {
-    background-color: rgba(220, 53, 69, 0.1) !important;
-}
-</style> 

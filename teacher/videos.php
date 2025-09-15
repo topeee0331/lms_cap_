@@ -422,11 +422,12 @@ error_log("Total videos found: " . count($videos));
 
     /* Modern Video Management Styling */
     .video-management-header {
-        background: var(--primary-color);
+        background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
         color: white;
         padding: 2rem 0;
         margin-bottom: 2rem;
-        border-radius: 15px;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         position: relative;
         overflow: hidden;
     }
@@ -450,22 +451,39 @@ error_log("Total videos found: " . count($videos));
     .video-stats {
         display: flex;
         gap: 2rem;
-        margin-top: 1rem;
+        align-items: center;
     }
     
     .video-stat-item {
         text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .video-stat-item:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
     }
     
     .video-stat-number {
-        font-size: 2rem;
-        font-weight: 700;
         display: block;
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     
     .video-stat-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
+        display: block;
+        font-size: 0.875rem;
+        opacity: 0.95;
+        margin-top: 0.5rem;
+        font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     
     /* Enhanced Filter Section */
@@ -501,6 +519,59 @@ error_log("Total videos found: " . count($videos));
         font-size: 0.9rem;
     }
     
+    /* Videos Container */
+    .videos-container {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 1rem;
+        border-radius: 12px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
+
+    /* Custom scrollbar for videos container */
+    .videos-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .videos-container::-webkit-scrollbar-track {
+        background: #f1f3f4;
+        border-radius: 4px;
+    }
+
+    .videos-container::-webkit-scrollbar-thumb {
+        background: #c1c8cd;
+        border-radius: 4px;
+        transition: background 0.3s ease;
+    }
+
+    .videos-container::-webkit-scrollbar-thumb:hover {
+        background: #a8b2ba;
+    }
+
+    /* Firefox scrollbar styling */
+    .videos-container {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c8cd #f1f3f4;
+    }
+
+    /* Responsive design for videos container */
+    @media (max-width: 768px) {
+        .videos-container {
+            max-height: 60vh;
+            padding: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .videos-container {
+            max-height: 50vh;
+            padding: 0.5rem;
+        }
+    }
+
     /* Modern Video Cards */
     .video-card {
         background: var(--card-bg);
@@ -577,22 +648,24 @@ error_log("Total videos found: " . count($videos));
     
     .video-card-body {
         padding: 1.5rem;
+        background: rgba(255, 255, 255, 0.6);
     }
     
     .video-title {
         font-size: 1.1rem;
         font-weight: 600;
-        color: var(--text-primary);
+        color: #1a252f;
         margin-bottom: 0.75rem;
         line-height: 1.4;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        text-shadow: 0 1px 2px rgba(255,255,255,0.8);
     }
     
     .video-description {
-        color: var(--text-secondary);
+        color: #495057;
         font-size: 0.9rem;
         line-height: 1.5;
         margin-bottom: 1rem;
@@ -600,6 +673,7 @@ error_log("Total videos found: " . count($videos));
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        text-shadow: 0 1px 2px rgba(255,255,255,0.6);
     }
     
     .video-meta {
@@ -959,10 +1033,34 @@ error_log("Total videos found: " . count($videos));
                             <?php endif; ?>
                         </div>
                     <?php else: ?>
-                        <div class="row video-grid">
-                            <?php foreach ($videos as $video): ?>
-                                <div class="col-md-6 col-lg-4 mb-4">
-                                    <div class="card video-card h-100">
+                        <!-- Videos Container -->
+                        <div class="videos-container">
+                            <div class="row video-grid">
+                                <?php 
+                                // Define solid colors for video cards
+                                $video_colors = [
+                                    '#e3f2fd', // Light Blue
+                                    '#f3e5f5', // Light Purple
+                                    '#e8f5e8', // Light Green
+                                    '#fff3e0', // Light Orange
+                                    '#fce4ec', // Light Pink
+                                    '#e0f2f1', // Light Teal
+                                    '#f1f8e9', // Light Lime
+                                    '#fff8e1', // Light Yellow
+                                    '#e1f5fe', // Light Cyan
+                                    '#f9fbe7', // Light Light Green
+                                    '#fef7e0', // Light Amber
+                                    '#f3e5f5', // Light Deep Purple
+                                ];
+                                $color_index = 0;
+                                ?>
+                                <?php foreach ($videos as $video): ?>
+                                    <?php 
+                                    $card_color = $video_colors[$color_index % count($video_colors)];
+                                    $color_index++;
+                                    ?>
+                                    <div class="col-md-6 col-lg-4 mb-4">
+                                        <div class="card video-card h-100" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
                                         <div class="video-card-preview">
                                             <?php
                                             $video_url = $video['video_url'] ?? '';
@@ -1063,7 +1161,8 @@ error_log("Total videos found: " . count($videos));
                                         </div>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     <?php endif; ?>
                 </div>

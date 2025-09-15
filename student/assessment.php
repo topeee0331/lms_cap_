@@ -902,12 +902,104 @@ $previous_attempts = $stmt->fetchAll();
             border-radius: 15px;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            min-width: 180px;
+            min-width: 200px;
             text-align: center;
             font-size: 1rem;
             border: 2px solid rgba(255, 255, 255, 0.3);
             transition: all 0.3s ease;
             animation: timerPulse 2s ease-in-out infinite;
+        }
+        
+        .realtime-dashboard {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            min-width: 280px;
+            max-width: 350px;
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .dashboard-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .dashboard-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .progress-ring {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: conic-gradient(#007bff 0deg, #007bff var(--progress-angle, 0deg), #e9ecef var(--progress-angle, 0deg), #e9ecef 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .progress-ring::before {
+            content: '';
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+        }
+        
+        .progress-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #007bff;
+            z-index: 1;
+        }
+        
+        .auto-save-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #28a745;
+        }
+        
+        .auto-save-indicator.saving {
+            color: #ffc107;
+        }
+        
+        .auto-save-indicator.error {
+            color: #dc3545;
+        }
+        
+        .current-time {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            margin-top: 8px;
         }
         
         .timer.warning {
@@ -1048,6 +1140,81 @@ $previous_attempts = $stmt->fetchAll();
         .progress-bar {
             height: 5px;
         }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .realtime-dashboard {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                min-width: auto;
+                max-width: none;
+                padding: 15px;
+                z-index: 1001;
+            }
+            
+            .timer {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                min-width: 150px;
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+            
+            .dashboard-item {
+                margin-bottom: 8px;
+                padding: 6px 0;
+            }
+            
+            .dashboard-label {
+                font-size: 0.8rem;
+            }
+            
+            .dashboard-value {
+                font-size: 0.9rem;
+            }
+            
+            .progress-ring {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .progress-ring::before {
+                width: 25px;
+                height: 25px;
+            }
+            
+            .progress-text {
+                font-size: 0.7rem;
+            }
+            
+            .auto-save-indicator {
+                font-size: 0.7rem;
+            }
+            
+            .current-time {
+                font-size: 0.7rem;
+                margin-top: 6px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .realtime-dashboard {
+                padding: 10px;
+            }
+            
+            .dashboard-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .dashboard-value {
+                font-weight: 700;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1056,6 +1223,57 @@ $previous_attempts = $stmt->fetchAll();
     <div class="container-fluid">
         <div class="row">
             <?php if ($is_acad_year_active): ?>
+                <!-- Real-time Dashboard -->
+                <div id="realtime-dashboard" class="realtime-dashboard">
+                    <h6 class="mb-3 text-center">
+                        <i class="fas fa-tachometer-alt me-2"></i>Assessment Dashboard
+                    </h6>
+                    
+                    <div class="dashboard-item">
+                        <span class="dashboard-label">
+                            <i class="fas fa-question-circle me-1"></i>Progress
+                        </span>
+                        <div class="progress-ring" id="progress-ring">
+                            <span class="progress-text" id="progress-text">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-item">
+                        <span class="dashboard-label">
+                            <i class="fas fa-check me-1"></i>Answered
+                        </span>
+                        <span class="dashboard-value" id="answered-count">0</span>
+                    </div>
+                    
+                    <div class="dashboard-item">
+                        <span class="dashboard-label">
+                            <i class="fas fa-list me-1"></i>Total Questions
+                        </span>
+                        <span class="dashboard-value"><?php echo count($questions); ?></span>
+                    </div>
+                    
+                    <div class="dashboard-item">
+                        <span class="dashboard-label">
+                            <i class="fas fa-clock me-1"></i>Time Left
+                        </span>
+                        <span class="dashboard-value" id="time-remaining"><?php echo $assessment['time_limit']; ?>m</span>
+                    </div>
+                    
+                    <div class="dashboard-item">
+                        <span class="dashboard-label">
+                            <i class="fas fa-save me-1"></i>Auto-Save
+                        </span>
+                        <div class="auto-save-indicator" id="auto-save-status">
+                            <i class="fas fa-circle"></i>
+                            <span>Ready</span>
+                        </div>
+                    </div>
+                    
+                    <div class="current-time" id="current-time">
+                        <!-- Current time will be updated here -->
+                    </div>
+                </div>
+                
                 <!-- Timer and related JS only visible if academic year is active -->
                 <div id="timer-container">
                     <div id="timer" class="timer">
@@ -1342,6 +1560,9 @@ $previous_attempts = $stmt->fetchAll();
                 console.log('Timer display element not found!');
             }
             
+            // Update real-time dashboard
+            updateRealtimeDashboard();
+            
             // Update progress bar
             const progressPercentage = (timeLeft / timeLimit) * 100;
             document.getElementById('timer-progress-bar').style.width = progressPercentage + '%';
@@ -1411,6 +1632,79 @@ $previous_attempts = $stmt->fetchAll();
             // Save timer state every 5 seconds
             if (timeLeft % 5 === 0) {
                 saveTimerState();
+            }
+        }
+        
+        // Function to update real-time dashboard
+        function updateRealtimeDashboard() {
+            // Update current time
+            const now = new Date();
+            const currentTimeElement = document.getElementById('current-time');
+            if (currentTimeElement) {
+                currentTimeElement.textContent = now.toLocaleTimeString();
+            }
+            
+            // Update time remaining
+            const timeRemainingElement = document.getElementById('time-remaining');
+            if (timeRemainingElement) {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timeRemainingElement.textContent = `${minutes}m ${seconds}s`;
+            }
+            
+            // Update progress and answered count
+            updateProgressStats();
+        }
+        
+        // Function to update progress statistics
+        function updateProgressStats() {
+            const questionIds = <?php echo json_encode(array_column($questions, 'id')); ?>;
+            let answeredCount = 0;
+            
+            questionIds.forEach(questionId => {
+                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId);
+                if (savedAnswer && savedAnswer.trim() !== '') {
+                    answeredCount++;
+                }
+            });
+            
+            const totalQuestions = questionIds.length;
+            const progressPercentage = Math.round((answeredCount / totalQuestions) * 100);
+            
+            // Update answered count
+            const answeredCountElement = document.getElementById('answered-count');
+            if (answeredCountElement) {
+                answeredCountElement.textContent = answeredCount;
+            }
+            
+            // Update progress ring
+            const progressRing = document.getElementById('progress-ring');
+            const progressText = document.getElementById('progress-text');
+            if (progressRing && progressText) {
+                const progressAngle = (progressPercentage / 100) * 360;
+                progressRing.style.setProperty('--progress-angle', progressAngle + 'deg');
+                progressText.textContent = progressPercentage + '%';
+            }
+        }
+        
+        // Function to update auto-save status
+        function updateAutoSaveStatus(status, message) {
+            const autoSaveElement = document.getElementById('auto-save-status');
+            if (autoSaveElement) {
+                autoSaveElement.className = 'auto-save-indicator ' + status;
+                const icon = autoSaveElement.querySelector('i');
+                const text = autoSaveElement.querySelector('span');
+                
+                if (status === 'saving') {
+                    icon.className = 'fas fa-spinner fa-spin';
+                    text.textContent = message || 'Saving...';
+                } else if (status === 'error') {
+                    icon.className = 'fas fa-exclamation-circle';
+                    text.textContent = message || 'Error';
+                } else {
+                    icon.className = 'fas fa-circle';
+                    text.textContent = message || 'Ready';
+                }
             }
         }
 
@@ -1699,6 +1993,9 @@ $previous_attempts = $stmt->fetchAll();
             
             console.log('💾 saveCurrentAnswer called for question:', questionId);
             
+            // Update auto-save status to saving
+            updateAutoSaveStatus('saving', 'Saving...');
+            
             // For identification questions (text input)
             const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
             if (textInput) {
@@ -1725,10 +2022,31 @@ $previous_attempts = $stmt->fetchAll();
                 }
             }
             
+            try {
             // Save answer to localStorage
             localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
             console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
-            console.log('Question type detected:', document.querySelector(`input[name="answers[${questionId}][]"]`) ? 'multiple_choice' : 'other');
+                
+                // Update progress stats
+                updateProgressStats();
+                
+                // Update auto-save status to success
+                updateAutoSaveStatus('', 'Saved');
+                
+                // Reset to ready status after a short delay
+                setTimeout(() => {
+                    updateAutoSaveStatus('', 'Ready');
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error saving answer:', error);
+                updateAutoSaveStatus('error', 'Save Failed');
+                
+                // Reset to ready status after a short delay
+                setTimeout(() => {
+                    updateAutoSaveStatus('', 'Ready');
+                }, 2000);
+            }
             
             // Debug: Check all checkboxes for this question
             const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
@@ -1736,8 +2054,6 @@ $previous_attempts = $stmt->fetchAll();
             allCheckboxes.forEach((cb, index) => {
                 console.log(`Checkbox ${index}: value="${cb.value}", checked=${cb.checked}`);
             });
-            
-            
         }
 
         // Validate and submit assessment
@@ -1929,6 +2245,9 @@ $previous_attempts = $stmt->fetchAll();
                 // Always save answer to localStorage (even if empty, to track that question was visited)
                 localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
                 console.log('Auto-saved answer for question ' + questionId + ': "' + answer + '"');
+                
+                // Update progress stats
+                updateProgressStats();
             }
         }, 5000); // Auto-save every 5 seconds
     </script>

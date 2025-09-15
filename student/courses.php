@@ -185,7 +185,8 @@ $stmt = $pdo->prepare("
     LEFT JOIN course_enrollments e2 ON c.id = e2.course_id AND e2.student_id = ? AND e2.status = 'active'
     LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
     WHERE c.is_archived = 0 AND c.academic_period_id = ? 
-    AND (c.sections IS NULL OR JSON_SEARCH(c.sections, 'one', ?) IS NOT NULL)
+    AND c.sections IS NOT NULL 
+    AND JSON_SEARCH(c.sections, 'one', ?) IS NOT NULL
     ORDER BY c.created_at DESC
 ");
 $stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id]);
@@ -234,10 +235,16 @@ if ($student_year_level !== null) {
         LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
         WHERE c.is_archived = 0 AND c.academic_period_id = ? 
         AND (c.sections IS NULL OR JSON_SEARCH(c.sections, 'one', ?) IS NULL)
-        AND c.year_level = ?
+        AND (c.year_level = ? OR c.year_level = ? OR c.year_level = ?)
         ORDER BY c.created_at DESC
     ");
-    $stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id, $student_year_level]);
+    // Create year level variations for matching
+    $year_level_variations = [
+        $student_year_level, // e.g., "1"
+        $student_year_level . 'st Year', // e.g., "1st Year" 
+        $student_year_level . ' Year' // e.g., "1 Year"
+    ];
+    $stmt->execute([$user_id, $user_id, $user_id, $selected_year_id, $student_section_id, $year_level_variations[0], $year_level_variations[1], $year_level_variations[2]]);
     $non_section_courses = $stmt->fetchAll();
 }
 
@@ -848,39 +855,33 @@ $course_themes = [
 
                 <!-- Course Summary Statistics -->
                 <div class="row mb-4">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4 mb-3">
                         <div class="card bg-primary text-white">
                             <div class="card-body text-center">
                                 <i class="fas fa-graduation-cap fa-2x mb-2"></i>
-                                <h4 id="enrolled-courses"><?php echo count($enrolled_courses); ?></h4>
-                                <small>Enrolled Courses</small>
+                                <h3 id="enrolled-courses"><?php echo count($enrolled_courses); ?></h3>
+                                <h6>Enrolled Courses</h6>
+                                <small class="opacity-75">Courses you're currently taking</small>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4 mb-3">
                         <div class="card bg-success text-white">
                             <div class="card-body text-center">
                                 <i class="fas fa-book fa-2x mb-2"></i>
-                                <h4 id="available-section"><?php echo count($section_available_courses); ?></h4>
-                                <small>Available in Section</small>
+                                <h3 id="available-section"><?php echo count($section_available_courses); ?></h3>
+                                <h6>My Section Courses</h6>
+                                <small class="opacity-75">Available in your section</small>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4 mb-3">
                         <div class="card bg-info text-white">
                             <div class="card-body text-center">
                                 <i class="fas fa-globe fa-2x mb-2"></i>
-                                <h4 id="other-sections"><?php echo count($non_section_available_courses); ?></h4>
-                                <small>Other Sections</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="card bg-warning text-white">
-                            <div class="card-body text-center">
-                                <i class="fas fa-calendar-alt fa-2x mb-2"></i>
-                                <h4 id="inactive-periods"><?php echo count(array_filter($courses, function($c) { return !$c['semester_active'] || !$c['academic_year_active']; })); ?></h4>
-                                <small>Inactive Periods</small>
+                                <h3 id="other-sections"><?php echo count($non_section_available_courses); ?></h3>
+                                <h6>My Year Level</h6>
+                                <small class="opacity-75">Available for your year level</small>
                             </div>
                         </div>
                     </div>
@@ -943,13 +944,13 @@ $course_themes = [
                 <!-- Browse Courses from Other Sections -->
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3>Browse Courses from Other Sections</h3>
+                        <h3>Available Courses for My Year Level</h3>
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
-                            <i class="fas fa-plus"></i> Browse All Courses
+                            <i class="fas fa-graduation-cap"></i> Browse Year Level Courses
                         </button>
                     </div>
                     <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
-                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). Click "Browse All Courses" to see all available courses outside your assigned section.
+                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). These courses are designed for your year level but assigned to different sections.
                     </div>
                 </div>
 
@@ -1049,10 +1050,10 @@ $course_themes = [
                     </div>
                 <?php endif; ?>
 
-                <!-- Other Available Courses Section (Section-Assigned Only) -->
+                <!-- My Section Courses Section -->
                 <div class="mb-4">
                     <div class="section-header">
-                        <h3><?php echo empty($enrolled_courses) ? 'Available Courses' : 'Other Available Courses'; ?></h3>
+                        <h3><?php echo empty($enrolled_courses) ? 'My Section Courses' : 'Other Courses in My Section'; ?></h3>
                         <div class="slider-controls">
                             <button class="btn btn-outline-secondary btn-sm" id="available-prev">
                                 <i class="fas fa-chevron-left"></i>
@@ -1063,7 +1064,7 @@ $course_themes = [
                         </div>
                     </div>
                     <p class="text-muted mb-3">
-                        <i class="fas fa-info-circle"></i> These are courses available in your assigned section. All enrollments require teacher verification to prevent assessment leaks.
+                        <i class="fas fa-info-circle"></i> These courses are specifically assigned to your section. You can enroll directly in these courses.
                     </p>
                     <?php if (empty($section_available_courses)): ?>
                         <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
@@ -1152,6 +1153,11 @@ $course_themes = [
                                                         <small class="text-muted">
                                                             <i class="fas fa-graduation-cap"></i><br>
                                                             <?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?> Year
+                                                            <?php if ($course['is_section_assigned']): ?>
+                                                                <br><span class="badge bg-success small">My Section</span>
+                                                            <?php else: ?>
+                                                                <br><span class="badge bg-info small">Year Level</span>
+                                                            <?php endif; ?>
                                                         </small>
                                                     </div>
                                                     <div class="col-3">
@@ -1271,13 +1277,13 @@ $course_themes = [
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="enrollCourseModalLabel">
-                            <i class="fas fa-globe me-2"></i>Browse Courses from Other Sections
+                            <i class="fas fa-graduation-cap me-2"></i>Browse Courses for My Year Level
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle"></i> These are courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). All enrollments require teacher verification to prevent assessment leaks.
+                            <i class="fas fa-info-circle"></i> These courses are designed for your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>) but are assigned to different sections. You can request enrollment in any of these courses. All enrollments require teacher verification.
                         </div>
                         <input type="text" id="modalCourseFilter" class="form-control mb-3" placeholder="Filter by course name or teacher...">
                         <div class="row" id="modalCourseList">
@@ -1341,6 +1347,11 @@ $course_themes = [
                                                     <small class="text-muted">
                                                         <i class="fas fa-graduation-cap"></i><br>
                                                         <?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?> Year
+                                                        <?php if ($course['is_section_assigned']): ?>
+                                                            <br><span class="badge bg-success small">My Section</span>
+                                                        <?php else: ?>
+                                                            <br><span class="badge bg-info small">Year Level</span>
+                                                        <?php endif; ?>
                                                     </small>
                                                 </div>
                                                 <div class="col-4">

@@ -102,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $description = sanitizeInput($_POST['description'] ?? '');
                 $teacher_id = (int)($_POST['teacher_id'] ?? 0);
                 $academic_period_id = (int)($_POST['academic_period_id'] ?? 0);
-                if (empty($course_name) || empty($course_code) || !$teacher_id || !$academic_period_id) {
+                $year_level = sanitizeInput($_POST['year_level'] ?? '');
+                if (empty($course_name) || empty($course_code) || !$teacher_id || !$academic_period_id || empty($year_level)) {
                     $message = 'All fields are required.';
                     $message_type = 'danger';
                 } else {
@@ -113,8 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $message = 'Course code already exists.';
                         $message_type = 'danger';
                     } else {
-                        $stmt = $db->prepare('INSERT INTO courses (course_name, course_code, description, teacher_id, academic_period_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())');
-                        $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id]);
+                        $stmt = $db->prepare('INSERT INTO courses (course_name, course_code, description, teacher_id, academic_period_id, year_level, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())');
+                        $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $year_level]);
                         $message = 'Course created successfully.';
                         $message_type = 'success';
                     }
@@ -127,7 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $description = sanitizeInput($_POST['description'] ?? '');
                 $teacher_id = (int)($_POST['teacher_id'] ?? 0);
                 $academic_period_id = (int)($_POST['academic_period_id'] ?? 0);
-                if (empty($course_name) || empty($course_code) || !$teacher_id || !$academic_period_id) {
+                $year_level = sanitizeInput($_POST['year_level'] ?? '');
+                if (empty($course_name) || empty($course_code) || !$teacher_id || !$academic_period_id || empty($year_level)) {
                     $message = 'All fields are required.';
                     $message_type = 'danger';
                 } else {
@@ -138,8 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $message = 'Course code already exists.';
                         $message_type = 'danger';
                     } else {
-                        $stmt = $db->prepare('UPDATE courses SET course_name = ?, course_code = ?, description = ?, teacher_id = ?, academic_period_id = ? WHERE id = ?');
-                        $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $course_id]);
+                        $stmt = $db->prepare('UPDATE courses SET course_name = ?, course_code = ?, description = ?, teacher_id = ?, academic_period_id = ?, year_level = ? WHERE id = ?');
+                        $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $year_level, $course_id]);
                         $message = 'Course updated successfully.';
                         $message_type = 'success';
                     }
@@ -153,6 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $search = sanitizeInput($_GET['search'] ?? '');
 $academic_year_filter = (int)($_GET['academic_year'] ?? 0);
 $status_filter = sanitizeInput($_GET['status'] ?? '');
+$year_level_filter = sanitizeInput($_GET['year_level'] ?? '');
 
 $where_conditions = [];
 $params = [];
@@ -172,6 +175,11 @@ if ($status_filter === 'archived') {
     $where_conditions[] = "c.is_archived = 1";
 } elseif ($status_filter === 'active') {
     $where_conditions[] = "c.is_archived = 0";
+}
+
+if (!empty($year_level_filter)) {
+    $where_conditions[] = "c.year_level = ?";
+    $params[] = $year_level_filter;
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -210,6 +218,10 @@ $active_academic_periods = $stmt->fetchAll();
 $active_period_stmt = $db->prepare('SELECT * FROM academic_periods WHERE is_active = 1 ORDER BY academic_year DESC, semester_name');
 $active_period_stmt->execute();
 $active_periods = $active_period_stmt->fetchAll();
+
+// Fetch distinct year levels for the year level dropdown
+$year_level_stmt = $db->query('SELECT DISTINCT year_level FROM sections WHERE is_active = 1 ORDER BY year_level');
+$year_levels = $year_level_stmt ? $year_level_stmt->fetchAll(PDO::FETCH_COLUMN) : [];
 
 // Get statistics
 $stats_stmt = $db->prepare("
@@ -358,7 +370,7 @@ $total_stats = $total_stats_stmt->fetch();
                 </div>
                 <div class="card-body">
                     <form method="get" class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="search" class="form-label fw-semibold">
                                 <i class="bi bi-search me-2"></i>Search
                             </label>
@@ -366,7 +378,7 @@ $total_stats = $total_stats_stmt->fetch();
                                    value="<?php echo htmlspecialchars($search); ?>" 
                                    placeholder="Search by course name, code, or description">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="academic_year" class="form-label fw-semibold">
                                 <i class="bi bi-calendar-event me-2"></i>Academic Year
                             </label>
@@ -380,7 +392,21 @@ $total_stats = $total_stats_stmt->fetch();
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label for="year_level" class="form-label fw-semibold">
+                                <i class="bi bi-mortarboard me-2"></i>Year Level
+                            </label>
+                            <select class="form-select" id="year_level" name="year_level">
+                                <option value="">All Years</option>
+                                <?php foreach ($year_levels as $year): ?>
+                                    <option value="<?php echo htmlspecialchars($year); ?>" 
+                                            <?php echo $year_level_filter === $year ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($year); ?> Year
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <label for="status" class="form-label fw-semibold">
                                 <i class="bi bi-toggle-on me-2"></i>Status
                             </label>
@@ -390,12 +416,15 @@ $total_stats = $total_stats_stmt->fetch();
                                 <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
+                            <div class="d-grid gap-2 d-md-flex">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-funnel me-2"></i>Filter
                                 </button>
+                                <a href="courses.php" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle me-2"></i>Clear
+                                </a>
                             </div>
                         </div>
                     </form>
@@ -441,6 +470,9 @@ $total_stats = $total_stats_stmt->fetch();
                                             <i class="bi bi-calendar-event me-2"></i>Academic Year
                                         </th>
                                         <th class="border-0">
+                                            <i class="bi bi-mortarboard me-2"></i>Year Level
+                                        </th>
+                                        <th class="border-0">
                                             <i class="bi bi-people me-2"></i>Students
                                         </th>
                                         <th class="border-0">
@@ -468,7 +500,26 @@ $total_stats = $total_stats_stmt->fetch();
                                                         </div>
                                                     </div>
                                                     <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0 fw-semibold"><?php echo htmlspecialchars($course['course_name']); ?></h6>
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <h6 class="mb-0 fw-semibold me-2"><?php echo htmlspecialchars($course['course_name']); ?></h6>
+                                                            <?php 
+                                                            $year_level = $course['year_level'] ?? 'N/A';
+                                                            $year_colors = [
+                                                                '1' => 'success',
+                                                                '1st Year' => 'success',
+                                                                '2' => 'info', 
+                                                                '2nd Year' => 'info',
+                                                                '3' => 'warning',
+                                                                '3rd Year' => 'warning',
+                                                                '4' => 'danger',
+                                                                '4th Year' => 'danger'
+                                                            ];
+                                                            $badge_color = $year_colors[$year_level] ?? 'secondary';
+                                                            ?>
+                                                            <span class="badge bg-<?= $badge_color ?> small">
+                                                                <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
+                                                            </span>
+                                                        </div>
                                                         <small class="text-muted">
                                                             <i class="bi bi-code me-1"></i><?php echo htmlspecialchars($course['course_code']); ?>
                                                         </small>
@@ -495,6 +546,51 @@ $total_stats = $total_stats_stmt->fetch();
                                                 <small class="text-muted">
                                                     <i class="bi bi-calendar2-week me-1"></i><?= htmlspecialchars($course['semester_name']) ?>
                                                 </small>
+                                            </td>
+                                            <td>
+                                                <?php 
+                                                $year_level = $course['year_level'] ?? 'N/A';
+                                                $year_colors = [
+                                                    '1' => 'success',
+                                                    '1st Year' => 'success',
+                                                    '2' => 'info', 
+                                                    '2nd Year' => 'info',
+                                                    '3' => 'warning',
+                                                    '3rd Year' => 'warning',
+                                                    '4' => 'danger',
+                                                    '4th Year' => 'danger'
+                                                ];
+                                                $badge_color = $year_colors[$year_level] ?? 'secondary';
+                                                ?>
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <span class="badge bg-<?= $badge_color ?> fs-6 px-3 py-2">
+                                                        <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
+                                                    </span>
+                                                    <small class="text-muted mt-1">
+                                                        <?php
+                                                        switch($year_level) {
+                                                            case '1':
+                                                            case '1st Year':
+                                                                echo 'Freshman Level';
+                                                                break;
+                                                            case '2':
+                                                            case '2nd Year':
+                                                                echo 'Sophomore Level';
+                                                                break;
+                                                            case '3':
+                                                            case '3rd Year':
+                                                                echo 'Junior Level';
+                                                                break;
+                                                            case '4':
+                                                            case '4th Year':
+                                                                echo 'Senior Level';
+                                                                break;
+                                                            default:
+                                                                echo 'Undefined Level';
+                                                        }
+                                                        ?>
+                                                    </small>
+                                                </div>
                                             </td>
                                             <td>
                                                 <span class="badge bg-info">
@@ -659,6 +755,17 @@ $total_stats = $total_stats_stmt->fetch();
               <?php endforeach; ?>
             </select>
           </div>
+          <div class="mb-3">
+            <label for="year_level" class="form-label fw-semibold">
+              <i class="bi bi-mortarboard me-2"></i>Year Level
+            </label>
+            <select class="form-select" id="year_level" name="year_level" required>
+              <option value="">Select Year Level</option>
+              <?php foreach ($year_levels as $year): ?>
+                <option value="<?= htmlspecialchars($year) ?>"><?= htmlspecialchars($year) ?> Year</option>
+              <?php endforeach; ?>
+            </select>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -781,6 +888,17 @@ $total_stats = $total_stats_stmt->fetch();
               <option value="">Select Period</option>
               <?php foreach ($active_academic_periods as $period): ?>
                 <option value="<?= $period['id'] ?>" <?= $course['academic_period_id'] == $period['id'] ? 'selected' : '' ?>><?= htmlspecialchars($period['period_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="year_level_edit<?= $course['id'] ?>" class="form-label fw-semibold">
+              <i class="bi bi-mortarboard me-2"></i>Year Level
+            </label>
+            <select class="form-select" id="year_level_edit<?= $course['id'] ?>" name="year_level" required>
+              <option value="">Select Year Level</option>
+              <?php foreach ($year_levels as $year): ?>
+                <option value="<?= htmlspecialchars($year) ?>" <?= $course['year_level'] == $year ? 'selected' : '' ?>><?= htmlspecialchars($year) ?> Year</option>
               <?php endforeach; ?>
             </select>
           </div>

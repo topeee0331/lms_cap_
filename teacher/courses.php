@@ -445,7 +445,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                             </h2>
                         </div>
                         <div class="card-body">
-                            <h5 class="card-title"><?php echo htmlspecialchars($course['course_name']); ?></h5>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0"><?php echo htmlspecialchars($course['course_name']); ?></h5>
+                                <?php 
+                                $year_level = $course['year_level'] ?? 'N/A';
+                                $year_colors = [
+                                    '1' => 'success',
+                                    '1st Year' => 'success',
+                                    '2' => 'info', 
+                                    '2nd Year' => 'info',
+                                    '3' => 'warning',
+                                    '3rd Year' => 'warning',
+                                    '4' => 'danger',
+                                    '4th Year' => 'danger'
+                                ];
+                                $badge_color = $year_colors[$year_level] ?? 'secondary';
+                                ?>
+                                <span class="badge bg-<?= $badge_color ?> fs-6">
+                                    <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
+                                </span>
+                            </div>
                             <p class="card-text text-muted">
                                 <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
                             </p>

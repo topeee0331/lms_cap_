@@ -982,18 +982,15 @@ $is_view_only = !$assessment_status['is_active'];
                                                 $is_selected = in_array($order, $student_answers);
                                             }
                                             
-                                            $is_correct = $option['is_correct'];
+                                            // Don't show correct answers - only show student's selection
                                         ?>
-                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?> <?php echo $is_correct ? 'option-correct' : ''; ?>">
+                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?>">
                                                 <span class="option-label" style="font-weight:bold; margin-right:8px;">
                                                     <?php echo $letter; ?>.
                                                 </span>
                                                 <?php echo htmlspecialchars($option['text'] ?? ''); ?>
                                                 <?php if ($is_selected): ?>
                                                     <span class="badge bg-primary ms-2">Your Answer</span>
-                                                <?php endif; ?>
-                                                <?php if ($is_correct): ?>
-                                                    <span class="badge bg-success ms-2">Correct Answer</span>
                                                 <?php endif; ?>
                                             </div>
                                         <?php endforeach; ?>
@@ -1005,18 +1002,15 @@ $is_view_only = !$assessment_status['is_active'];
                                         foreach ($question['options'] as $idx => $option): 
                                             $letter = $letters[$idx] ?? ($idx + 1);
                                             $is_selected = ($option['text'] == $question['student_id_answer']);
-                                            $is_correct = $option['is_correct'];
+                                            // Don't show correct answers - only show student's selection
                                         ?>
-                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?> <?php echo $is_correct ? 'option-correct' : ''; ?>">
+                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?>">
                                                 <span class="option-label" style="font-weight:bold; margin-right:8px;">
                                                     <?php echo $letter; ?>.
                                                 </span>
                                                 <?php echo htmlspecialchars($option['text'] ?? ''); ?>
                                                 <?php if ($is_selected): ?>
                                                     <span class="badge bg-primary ms-2">Your Answer</span>
-                                                <?php endif; ?>
-                                                <?php if ($is_correct): ?>
-                                                    <span class="badge bg-success ms-2">Correct Answer</span>
                                                 <?php endif; ?>
                                             </div>
                                         <?php endforeach; ?>

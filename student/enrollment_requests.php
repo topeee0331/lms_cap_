@@ -77,38 +77,179 @@ foreach ($enrollment_requests as $request) {
 ?>
 
 <style>
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: #2E5E4E;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.request-summary-display {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+}
+
+.summary-item {
+    text-align: center;
+    color: white;
+}
+
+.summary-count {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.summary-count.pending {
+    color: white;
+}
+
+.summary-count.approved {
+    color: white;
+}
+
+.summary-count.rejected {
+    color: white;
+}
+
+.summary-label {
+    display: block;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 0.25rem;
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #7DCB80;
+    border-radius: 0 0 20px 20px;
+}
+
 .status-badge {
     font-size: 0.8rem;
     font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .status-pending {
-    background-color: #ffc107;
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
     color: #212529;
 }
 .status-approved {
-    background-color: #198754;
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
     color: white;
 }
 .status-rejected {
-    background-color: #dc3545;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
 }
 .request-card {
     border-left: 4px solid #dee2e6;
     transition: all 0.3s ease;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1rem;
 }
 .request-card.pending {
     border-left-color: #ffc107;
+    background: linear-gradient(135deg, rgba(255,193,7,0.05) 0%, rgba(255,193,7,0.02) 100%);
 }
 .request-card.approved {
-    border-left-color: #198754;
+    border-left-color: #28a745;
+    background: linear-gradient(135deg, rgba(40,167,69,0.05) 0%, rgba(40,167,69,0.02) 100%);
 }
 .request-card.rejected {
     border-left-color: #dc3545;
+    background: linear-gradient(135deg, rgba(220,53,69,0.05) 0%, rgba(220,53,69,0.02) 100%);
 }
 .request-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
 }
 
 /* Prevent modal from auto-closing and ensure text doesn't fade */
@@ -275,35 +416,65 @@ foreach ($enrollment_requests as $request) {
 </style>
 
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="h3 mb-4">My Enrollment Requests</h1>
+    <!-- Enhanced Welcome Section -->
+    <div class="welcome-section">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="welcome-title">My Enrollment Requests</h1>
+                <p class="welcome-subtitle">Track your course enrollment status and history</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="welcome-actions">
+                    <div class="request-summary-display">
+                        <div class="summary-item">
+                            <span class="summary-count pending"><?php echo $pending_count; ?></span>
+                            <span class="summary-label">Pending</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-count approved"><?php echo $approved_count; ?></span>
+                            <span class="summary-label">Approved</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-count rejected"><?php echo $rejected_count; ?></span>
+                            <span class="summary-label">Rejected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+        <div class="welcome-decoration">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div class="floating-shapes"></div>
+        <div class="accent-line"></div>
     </div>
 
-    <!-- Status Summary -->
+    <!-- Enhanced Status Summary -->
     <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card text-center">
+        <div class="col-md-4 mb-3">
+            <div class="card text-center" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                 <div class="card-body">
-                    <h5 class="card-title text-warning"><?php echo $pending_count; ?></h5>
-                    <p class="card-text">Pending Requests</p>
+                    <i class="fas fa-clock fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                    <h4 class="card-title mb-1"><?php echo $pending_count; ?></h4>
+                    <p class="card-text small">Pending Requests</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center">
+        <div class="col-md-4 mb-3">
+            <div class="card text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                 <div class="card-body">
-                    <h5 class="card-title text-success"><?php echo $approved_count; ?></h5>
-                    <p class="card-text">Approved Requests</p>
+                    <i class="fas fa-check-circle fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                    <h4 class="card-title mb-1"><?php echo $approved_count; ?></h4>
+                    <p class="card-text small">Approved Requests</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center">
+        <div class="col-md-4 mb-3">
+            <div class="card text-center" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                 <div class="card-body">
-                    <h5 class="card-title text-danger"><?php echo $rejected_count; ?></h5>
-                    <p class="card-text">Rejected Requests</p>
+                    <i class="fas fa-times-circle fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                    <h4 class="card-title mb-1"><?php echo $rejected_count; ?></h4>
+                    <p class="card-text small">Rejected Requests</p>
                 </div>
             </div>
         </div>
@@ -312,17 +483,25 @@ foreach ($enrollment_requests as $request) {
     <!-- Enrollment Requests List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Enrollment Request History</h5>
+            <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                <div class="card-header" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                    <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                        <i class="fas fa-history me-2"></i>
+                        Enrollment Request History
+                    </h5>
                 </div>
                 <div class="card-body">
                     <?php if (empty($enrollment_requests)): ?>
-                        <div class="text-center py-4">
-                            <i class="bi bi-inbox fs-1 text-muted"></i>
-                            <h5 class="mt-3 text-muted">No Enrollment Requests</h5>
-                            <p class="text-muted">You haven't made any enrollment requests yet.</p>
-                            <a href="courses.php" class="btn btn-primary">Browse Courses</a>
+                        <div class="text-center py-5">
+                            <div class="empty-state-icon mb-4">
+                                <i class="fas fa-clipboard-list" style="font-size: 4rem; color: #2E5E4E; opacity: 0.3;"></i>
+                            </div>
+                            <h4 class="text-muted mb-3">No Enrollment Requests</h4>
+                            <p class="text-muted mb-4">You haven't made any enrollment requests yet. Start exploring courses to begin your learning journey!</p>
+                            <a href="courses.php" class="btn" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 25px; padding: 0.75rem 2rem; font-weight: 600;">
+                                <i class="fas fa-search me-2"></i>
+                                Browse Courses
+                            </a>
                         </div>
                     <?php else: ?>
                         <div class="scrollable-container">

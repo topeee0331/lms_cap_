@@ -161,25 +161,387 @@ $stmt->execute([$_SESSION['user_id']]);
 $badge_stats = $stmt->fetch();
 ?>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<style>
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: #2E5E4E;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.quick-stats {
+    display: flex;
+    gap: 2rem;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+    width: fit-content;
+}
+
+.stat-item {
+    text-align: center;
+    color: white;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 0.25rem;
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #7DCB80;
+    border-radius: 0 0 20px 20px;
+}
+
+/* Enhanced Statistics Cards */
+.stats-card {
+    background: #F7FAF7;
+    border: 1px solid #7DCB80;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stats-card .card-title {
+    color: #2E5E4E;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card .display-4 {
+    color: #7DCB80;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Enhanced Section Headers */
+.section-header {
+    background: #2E5E4E;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.section-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-weight: 700;
+    position: relative;
+    z-index: 1;
+}
+
+.section-header .badge {
+    background: #7DCB80;
+    color: #2E5E4E;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+}
+
+/* Enhanced Badge Cards */
+.badge-card {
+    background: white;
+    border: 1px solid #E8F5E8;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    height: 100%;
+}
+
+.badge-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-color: #7DCB80;
+}
+
+.badge-card .badge-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+}
+
+.badge-card .badge-title {
+    color: #2E5E4E;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.badge-card .badge-description {
+    color: #666;
+    margin-bottom: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.badge-card .badge-type {
+    background: #F7FAF7;
+    color: #2E5E4E;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+.badge-card .badge-points {
+    color: #7DCB80;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+/* Enhanced Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    border-radius: 20px;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+/* Enhanced Create Badge Button */
+.create-badge-btn {
+    background: #7DCB80;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 0.75rem 2rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(125, 203, 128, 0.3);
+}
+
+.create-badge-btn:hover {
+    background: #2E5E4E;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(125, 203, 128, 0.4);
+    color: white;
+}
+
+/* Enhanced Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: #F7FAF7;
+    border-radius: 20px;
+    border: 2px dashed #7DCB80;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #7DCB80;
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    color: #2E5E4E;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #666;
+    margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .quick-stats {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+    }
+}
+</style>
+
 <div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-1">Badge Management</h1>
-                    <p class="text-muted mb-0">Create and manage badges for your students</p>
+    <div class="row">
+        <!-- Removed Sidebar -->
+        <!-- Main content -->
+        <main class="col-12 px-md-4">
+            <!-- Enhanced Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="welcome-title">Badge Management System</h1>
+                        <p class="welcome-subtitle">Create and manage achievement badges to motivate your students</p>
+                        
+                        <!-- Action Buttons -->
+                        <div class="welcome-actions mt-3">
+                            <button class="btn create-badge-btn" data-bs-toggle="modal" data-bs-target="#createBadgeModal">
+                                <i class="bi bi-plus-circle me-2"></i>Create Badge
+                            </button>
+                            <a href="student_badges.php" class="btn btn-outline-light btn-lg ms-2">
+                                <i class="bi bi-eye me-2"></i>View Student Badges
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-end">
+                        <!-- Quick Stats -->
+                        <div class="quick-stats">
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo $badge_stats['total_badges'] ?? 0; ?></span>
+                                <span class="stat-label">Total Badges</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo $badge_stats['awarded_badges'] ?? 0; ?></span>
+                                <span class="stat-label">Awarded</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo $badge_stats['my_badges'] ?? 0; ?></span>
+                                <span class="stat-label">My Badges</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="btn-group">
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createBadgeModal">
-                        <i class="bi bi-plus-circle me-1"></i>Create Badge
-                    </button>
-                    <a href="student_badges.php" class="btn btn-outline-info">
-                        <i class="bi bi-eye me-1"></i>View Student Badges
-                    </a>
+                <div class="welcome-decoration">
+                    <i class="fas fa-medal"></i>
                 </div>
+                <div class="floating-shapes"></div>
+                <div class="accent-line"></div>
             </div>
-        </div>
-    </div>
 
     <?php if ($message): ?>
         <div class="alert alert-<?= $message_type ?> alert-dismissible fade show" role="alert">
@@ -464,6 +826,9 @@ $badge_stats = $stmt->fetch();
     </div>
     <?php endif; ?>
 <?php endforeach; ?>
+        </main>
+    </div>
+</div>
 
 <style>
 /* Enhanced Badges Table Scrolling */
@@ -565,16 +930,29 @@ $badge_stats = $stmt->fetch();
     transform: scale(1.05);
 }
 
-/* Badge icon styling */
+/* Enhanced Badge icon styling */
 .badges-table-container .table tbody td img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
     transition: all 0.3s ease;
-    border: 2px solid transparent;
+    display: block;
+    background: transparent;
 }
 
 .badges-table-container .table tbody tr:hover td img {
     transform: scale(1.1);
-    border-color: #ffc107;
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* Ensure images are visible */
+.badges-table-container .table tbody td {
+    text-align: center;
+}
+
+.badges-table-container .table tbody td img[src=""],
+.badges-table-container .table tbody td img:not([src]) {
+    display: none;
 }
 
 /* Scroll indicators for badges table */
@@ -691,7 +1069,8 @@ $badge_stats = $stmt->fetch();
     }
     
     .badges-table-container .table tbody td img {
-        height: 30px !important;
+        width: 35px !important;
+        height: 35px !important;
     }
 }
 

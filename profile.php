@@ -26,24 +26,42 @@ echo '<style>
         --role-accent: ' . $role_theme['accent'] . ';
     }
     
+    body {
+        background: linear-gradient(120deg, #F7FAF7 0%, #7DCB80 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+    
+    /* Subtle pattern overlay */
+    .home-bg-pattern {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.13;
+        background: url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'1.5\' fill=\'%237DCB80\'/%3E%3Ccircle cx=\'10\' cy=\'50\' r=\'1\' fill=\'%23FDD744\'/%3E%3Ccircle cx=\'50\' cy=\'10\' r=\'1\' fill=\'%232E5E4E\'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+    }
+    
+    /* Abstract SVG shapes overlay */
+    .home-bg-svg {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+        pointer-events: none;
+    }
+    
     .profile-container {
-        background: #F7FAF7;
+        background: transparent;
         min-height: 100vh;
         padding: 2rem 0;
         position: relative;
         overflow: hidden;
-    }
-    
-    .profile-container::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%237DCB80\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'2\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
-        opacity: 0.3;
-        z-index: 0;
+        z-index: 2;
     }
     
      .profile-header {
@@ -575,6 +593,12 @@ if ($user['role'] === 'student') {
 
 
 <div class="profile-container">
+    <!-- Home page background pattern -->
+    <div class="home-bg-pattern"></div>
+    
+    <!-- Home page SVG overlay -->
+    <div class="home-bg-svg"></div>
+    
     <!-- Floating Background Elements -->
     <div class="floating-elements">
         <div class="floating-circle"></div>

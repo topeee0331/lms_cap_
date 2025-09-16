@@ -223,24 +223,175 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assessments - Student Dashboard</title>
+    <title>My Assessments - Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2c3e50;
+            --primary-color: #2E5E4E;
             --secondary-color: #95a5a6;
-            --success-color: #27ae60;
-            --info-color: #3498db;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
+            --success-color: #28a745;
+            --info-color: #17a2b8;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
             --light-color: #f8f9fa;
-            --dark-color: #2c3e50;
+            --dark-color: #2E5E4E;
+            --accent-color: #7DCB80;
             --border-radius: 8px;
             --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             --transition: all 0.2s ease;
             --border-color: #e9ecef;
             --text-muted: #6c757d;
+        }
+        
+        /* Enhanced Welcome Section */
+        .welcome-section {
+            background: #2E5E4E;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .welcome-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .welcome-actions .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        /* Decorative elements */
+        .welcome-section::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-decoration {
+            position: absolute;
+            top: 25px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .welcome-decoration i {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        /* Auto-close alert animation */
+        @keyframes countdown {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
+        
+        .alert-progress-bar {
+            border-radius: 0 0 0.375rem 0.375rem;
+        }
+        
+        /* Top center positioning for attempt limits reminder */
+        #attempt-limits-reminder {
+            position: fixed !important;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            max-width: 600px;
+            width: 90%;
+            margin: 0 !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .welcome-section .accent-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #7DCB80;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .welcome-section .floating-shapes {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .welcome-section .floating-shapes::before {
+            content: '';
+            position: absolute;
+            top: 50px;
+            left: 20px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
         }
 
         body {
@@ -1417,45 +1568,64 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             <!-- Removed Sidebar -->
             <!-- Main content -->
             <main class="col-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Assessments</h1>
+                <!-- Enhanced Welcome Section -->
+                <div class="welcome-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="welcome-title">My Assessments</h1>
+                            <p class="welcome-subtitle">Track your progress and take assessments</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="welcome-actions">
+                                <button id="refresh-assessments" class="btn btn-refresh" title="Refresh assessment data">
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="welcome-decoration">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                    <div class="accent-line"></div>
                 </div>
 
-                <!-- Statistics -->
+                <!-- Enhanced Statistics -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
-                                <h5 class="card-title">Total Assessments</h5>
-                                <p class="card-text display-6"><?php echo $total_assessments; ?></p>
+                                <i class="fas fa-clipboard-list fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $total_assessments; ?></h4>
+                                <p class="card-text small">Total Assessments</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Completed</h5>
-                                <p class="card-text display-6"><?php echo $completed_assessments; ?></p>
+                                <i class="fas fa-check-circle fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $completed_assessments; ?></h4>
+                                <p class="card-text small">Completed</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                                <h5 class="card-title">Average Score</h5>
-                                <p class="card-text display-6"><?php echo $average_score; ?>%</p>
+                                <i class="fas fa-chart-line fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $average_score; ?>%</h4>
+                                <p class="card-text small">Average Score</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-redo fa-3x text-warning mb-3"></i>
-                                <h5 class="card-title">Total Attempts</h5>
-                                <p class="card-text display-6"><?php echo $attempt_count; ?></p>
+                                <i class="fas fa-redo fa-2x mb-2" style="color: rgba(33,37,41,0.8);"></i>
+                                <h4 class="card-title mb-1"><?php echo $attempt_count; ?></h4>
+                                <p class="card-text small">Total Attempts</p>
                             </div>
                         </div>
                     </div>
@@ -1464,25 +1634,25 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 <div class="row">
                     <!-- Available Assessments -->
                     <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
+                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">
+                                    <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
                                         <i class="fas fa-clipboard-list me-2"></i>
                                         Available Assessments
                                     </h5>
                                     <div class="d-flex gap-2 align-items-center">
                                         <div class="d-flex align-items-center me-3">
-                                            <label for="statusFilter" class="form-label mb-0 me-2 small text-muted">Filter by:</label>
-                                        <select class="form-select form-select-sm" id="statusFilter" style="width: auto;">
+                                            <label for="statusFilter" class="form-label mb-0 me-2 small" style="color: rgba(255,255,255,0.9);">Filter by:</label>
+                                        <select class="form-select form-select-sm" id="statusFilter" style="width: auto; background: rgba(255,255,255,0.9); border: none; border-radius: 8px;">
                                             <option value="all">All Status</option>
                                             <option value="not-attempted">Not Attempted</option>
                                                 <option value="completed">Completed (Any Score)</option>
                                         </select>
                                         </div>
                                         <div class="d-flex align-items-center">
-                                            <label for="courseFilter" class="form-label mb-0 me-2 small text-muted">Course:</label>
-                                        <select class="form-select form-select-sm" id="courseFilter" style="width: auto;">
+                                            <label for="courseFilter" class="form-label mb-0 me-2 small" style="color: rgba(255,255,255,0.9);">Course:</label>
+                                        <select class="form-select form-select-sm" id="courseFilter" style="width: auto; background: rgba(255,255,255,0.9); border: none; border-radius: 8px;">
                                             <option value="all">All Courses</option>
                                             <?php 
                                             $unique_courses = [];
@@ -1497,7 +1667,8 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                         </select>
                                         </div>
                                         <div class="ms-2">
-                                            <i class="fas fa-info-circle text-muted" 
+                                            <i class="fas fa-info-circle" 
+                                               style="color: rgba(255,255,255,0.8);"
                                                data-bs-toggle="tooltip" 
                                                data-bs-placement="top" 
                                                title="'Completed' means you have taken the assessment at least once, regardless of your score."></i>
@@ -1527,7 +1698,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                 ?>
                                 
                                 <?php if ($attempts_warning): ?>
-                                    <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+                                    <div class="alert alert-warning fade show mb-4" id="attempt-limits-reminder" role="alert" style="position: relative;">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
                                             <div class="flex-grow-1">
@@ -1548,7 +1719,9 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                 </ul>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                        <div class="alert-progress" style="position: absolute; bottom: 0; left: 0; height: 3px; background: rgba(255,193,7,0.3); width: 100%; border-radius: 0 0 0.375rem 0.375rem;">
+                                            <div class="alert-progress-bar" style="height: 100%; background: #ffc107; width: 100%; animation: countdown 5s linear forwards;"></div>
+                                        </div>
                                     </div>
                                 <?php endif; ?>
 
@@ -1958,6 +2131,19 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+            
+            // Auto-close attempt limits reminder after 5 seconds
+            const attemptLimitsReminder = document.getElementById('attempt-limits-reminder');
+            if (attemptLimitsReminder) {
+                setTimeout(function() {
+                    attemptLimitsReminder.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    attemptLimitsReminder.style.opacity = '0';
+                    attemptLimitsReminder.style.transform = 'translateX(-50%) translateY(-20px)';
+                    setTimeout(function() {
+                        attemptLimitsReminder.style.display = 'none';
+                    }, 500);
+                }, 5000); // 5 seconds
+            }
 
             // Initialize attempts modal functionality
             const attemptsModal = new bootstrap.Modal(document.getElementById('attemptsModal'));

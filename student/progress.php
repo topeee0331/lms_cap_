@@ -225,11 +225,117 @@ $monthly_progress = $stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Progress - Student Dashboard</title>
+    <title>My Learning Progress - Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        
+        /* Enhanced Welcome Section */
+        .welcome-section {
+            background: #2E5E4E;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .welcome-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .welcome-actions .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .floating-shapes {
+            position: absolute;
+            top: 20px;
+            right: 100px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-decoration {
+            position: absolute;
+            top: 25px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .welcome-decoration i {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .welcome-section .accent-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #7DCB80;
+            border-radius: 0 0 20px 20px;
+        }
+        
         .progress-card {
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -574,61 +680,77 @@ $monthly_progress = $stmt->fetchAll();
             <!-- Sidebar removed -->
             <!-- Main content -->
             <main class="col-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Learning Progress</h1>
+                <!-- Enhanced Welcome Section -->
+                <div class="welcome-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="welcome-title">My Learning Progress</h1>
+                            <p class="welcome-subtitle">Track your academic journey and achievements</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="welcome-actions">
+                                <button class="btn btn-refresh" onclick="updateProgress()" title="Refresh Progress">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="welcome-decoration">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                    <div class="accent-line"></div>
                 </div>
 
-                <!-- Overall Progress -->
+                <!-- Enhanced Overall Progress -->
                 <div class="row mb-4">
-                    <div class="col-md-3" data-progress-type="module-progress">
-                        <div class="card progress-card text-center">
+                    <div class="col-md-3 mb-3" data-progress-type="module-progress">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-layer-group fa-3x text-primary mb-3"></i>
-                                <h5 class="card-title">Module Progress</h5>
-                                <div class="progress mb-2" style="height: 20px;">
-                                    <div class="progress-bar bg-primary" style="width: <?php echo $module_progress; ?>%" role="progressbar" aria-valuenow="<?php echo $module_progress; ?>" aria-valuemin="0" aria-valuemax="100">
-                                        <span class="progress-percentage"><?php echo $module_progress; ?>%</span>
-                                    </div>
+                                <i class="fas fa-layer-group fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $module_progress; ?>%</h4>
+                                <p class="card-text small">Module Progress</p>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: <?php echo $module_progress; ?>%; background: #7DCB80;" role="progressbar" aria-valuenow="<?php echo $module_progress; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
-                                <p class="card-text progress-text"><?php echo $overall_stats['completed_modules']; ?> of <?php echo $overall_stats['total_modules']; ?> modules</p>
+                                <small class="text-light"><?php echo $overall_stats['completed_modules']; ?> of <?php echo $overall_stats['total_modules']; ?> modules</small>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3" data-progress-type="video-progress">
-                        <div class="card progress-card text-center">
+                    <div class="col-md-3 mb-3" data-progress-type="video-progress">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-video fa-3x text-info mb-3"></i>
-                                <h5 class="card-title">Video Progress</h5>
-                                <div class="progress mb-2" style="height: 20px;">
-                                    <div class="progress-bar bg-info" style="width: <?php echo $video_progress; ?>%" role="progressbar" aria-valuenow="<?php echo $video_progress; ?>" aria-valuemin="0" aria-valuemax="100">
-                                        <span class="progress-percentage"><?php echo $video_progress; ?>%</span>
-                                    </div>
+                                <i class="fas fa-video fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $video_progress; ?>%</h4>
+                                <p class="card-text small">Video Progress</p>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: <?php echo $video_progress; ?>%; background: #20c997;" role="progressbar" aria-valuenow="<?php echo $video_progress; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
-                                <p class="card-text progress-text"><?php echo $overall_stats['watched_videos']; ?> of <?php echo $overall_stats['total_videos']; ?> videos</p>
+                                <small class="text-light"><?php echo $overall_stats['watched_videos']; ?> of <?php echo $overall_stats['total_videos']; ?> videos</small>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3" data-progress-type="assessment-progress">
-                        <div class="card progress-card text-center">
+                    <div class="col-md-3 mb-3" data-progress-type="assessment-progress">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-clipboard-check fa-3x text-warning mb-3"></i>
-                                <h5 class="card-title">Assessment Progress</h5>
-                                <div class="progress mb-2" style="height: 20px;">
-                                    <div class="progress-bar bg-warning" style="width: <?php echo $assessment_progress; ?>%" role="progressbar" aria-valuenow="<?php echo $assessment_progress; ?>" aria-valuemin="0" aria-valuemax="100">
-                                        <span class="progress-percentage"><?php echo $assessment_progress; ?>%</span>
-                                    </div>
+                                <i class="fas fa-clipboard-check fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $assessment_progress; ?>%</h4>
+                                <p class="card-text small">Assessment Progress</p>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: <?php echo $assessment_progress; ?>%; background: #ffed4a;" role="progressbar" aria-valuenow="<?php echo $assessment_progress; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
-                                <p class="card-text progress-text"><?php echo $overall_stats['completed_assessments']; ?> of <?php echo $overall_stats['total_assessments']; ?> assessments</p>
+                                <small class="text-light"><?php echo $overall_stats['completed_assessments']; ?> of <?php echo $overall_stats['total_assessments']; ?> assessments</small>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card progress-card text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Average Score</h5>
-                                <p class="card-text display-6"><?php echo round($overall_stats['average_score'] ?? 0, 1); ?>%</p>
-                                <small class="text-muted">Across all assessments</small>
+                                <i class="fas fa-chart-line fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo round($overall_stats['average_score'] ?? 0, 1); ?>%</h4>
+                                <p class="card-text small">Average Score</p>
+                                <small class="text-light">Across all assessments</small>
                             </div>
                         </div>
                     </div>
@@ -637,14 +759,19 @@ $monthly_progress = $stmt->fetchAll();
                 <div class="row">
                     <!-- Course Progress -->
                     <div class="col-lg-8">
-                        <div class="card progress-card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Course Progress</h5>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="updateProgress()" title="Refresh Progress">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </button>
-                                    <small class="text-muted ms-2" id="last-update">Last updated: Just now</small>
+                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                                        <i class="fas fa-graduation-cap me-2"></i>
+                                        Course Progress
+                                    </h5>
+                                    <div class="d-flex align-items-center">
+                                        <button class="btn btn-sm" onclick="updateProgress()" title="Refresh Progress" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 20px;">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <small class="ms-2" style="color: rgba(255,255,255,0.8);" id="last-update">Last updated: Just now</small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -740,9 +867,12 @@ $monthly_progress = $stmt->fetchAll();
                     
                     <!-- Recent Activities -->
                     <div class="col-lg-4">
-                        <div class="card progress-card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Recent Activities</h5>
+                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                                    <i class="fas fa-history me-2"></i>
+                                    Recent Activities
+                                </h5>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($recent_activities)): ?>
@@ -769,9 +899,12 @@ $monthly_progress = $stmt->fetchAll();
                         </div>
                         
                         <!-- Monthly Progress Chart -->
-                        <div class="card progress-card mt-3">
-                            <div class="card-header">
-                                <h6 class="mb-0">Monthly Progress</h6>
+                        <div class="card mt-3" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <h6 class="mb-0" style="font-weight: 600; font-size: 1.2rem;">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    Monthly Progress
+                                </h6>
                             </div>
                             <div class="card-body">
                                 <canvas id="monthlyChart" width="400" height="200"></canvas>
@@ -803,10 +936,15 @@ $monthly_progress = $stmt->fetchAll();
                 datasets: [{
                     label: 'Modules Completed',
                     data: data,
-                    borderColor: '#007bff',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderColor: '#2E5E4E',
+                    backgroundColor: 'rgba(46, 94, 78, 0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#7DCB80',
+                    pointBorderColor: '#2E5E4E',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
                 }]
             },
             options: {

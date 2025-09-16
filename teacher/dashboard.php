@@ -137,6 +137,168 @@ function getRandomBgClass($userId) {
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: #2E5E4E;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.teacher-stats-display {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+}
+
+.stat-item {
+    text-align: center;
+    color: white;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #7DCB80;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 0.25rem;
+}
+
+.academic-year-selector {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 25px;
+    padding: 0.75rem 1.5rem;
+    color: white;
+}
+
+.academic-year-icon {
+    color: #7DCB80;
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.academic-year-label {
+    color: rgba(255,255,255,0.9);
+    margin-right: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.academic-year-select {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 15px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+}
+
+.academic-year-select:focus {
+    background: rgba(255,255,255,0.3);
+    border-color: #7DCB80;
+    box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
+    color: white;
+}
+
+.academic-year-select option {
+    background: #2E5E4E;
+    color: white;
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #7DCB80;
+    border-radius: 0 0 20px 20px;
+}
+
 /* Statistics Cards Styling */
 .stats-card {
     transition: all 0.3s ease;
@@ -265,15 +427,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="container-fluid">
     <div class="row">
-        <div class="col-12">
-            <h1 class="h3 mb-4">
-                Teacher Dashboard
-            </h1>
-        </div>
-    </div>
+        <!-- Removed Sidebar -->
+        <!-- Main content -->
+        <main class="col-12 px-md-4">
+            <!-- Enhanced Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="welcome-title">Welcome back, <?php echo htmlspecialchars($_SESSION['name']); ?>!</h1>
+                        <p class="welcome-subtitle">Ready to manage your courses and students?</p>
+                        
+                        <!-- Academic Year Selector -->
+                        <div class="academic-year-selector d-inline-block mt-3">
+                            <form method="get" class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt academic-year-icon"></i>
+                                <label for="academic_period_id" class="academic-year-label">Academic Year:</label>
+                                <select name="academic_period_id" id="academic_period_id" class="academic-year-select" onchange="this.form.submit()">
+                                    <?php foreach ($all_years as $year): ?>
+                                        <option value="<?= $year['id'] ?>" <?= $selected_period_id == $year['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($year['academic_year'] . ' - ' . $year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="welcome-actions">
+                            <div class="teacher-stats-display">
+                                <div class="stat-item">
+                                    <span class="stat-number"><?php echo $stats['total_courses'] ?? 0; ?></span>
+                                    <span class="stat-label">Courses</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number"><?php echo $stats['total_students'] ?? 0; ?></span>
+                                    <span class="stat-label">Students</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="welcome-decoration">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="floating-shapes"></div>
+                <div class="accent-line"></div>
+            </div>
 
-    <!-- 4. Add the academic year dropdown to the dashboard UI (above the stats cards): -->
-    <div class="row mb-3">
+            <!-- 4. Add the academic year dropdown to the dashboard UI (above the stats cards): -->
+            <div class="row mb-3">
       <div class="col-12">
         <form method="get" class="d-flex align-items-center">
                           <label for="academic_period_id" class="me-2 fw-bold">Academic Period:</label>
@@ -498,6 +700,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         </div>
+    </div>
+        </main>
     </div>
 </div>
 

@@ -32,6 +32,240 @@ require_once '../includes/header.php';
     
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+    
+    /* Enhanced Welcome Section */
+    .welcome-section {
+        background: #2E5E4E;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+
+    .welcome-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
+    }
+
+    .welcome-title {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .welcome-subtitle {
+        color: rgba(255,255,255,0.9);
+        font-size: 1.1rem;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .welcome-actions {
+        position: relative;
+        z-index: 1;
+    }
+
+    .quick-stats {
+        display: flex;
+        gap: 2rem;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 1rem 1.5rem;
+        width: fit-content;
+    }
+
+    .stat-item {
+        text-align: center;
+        color: white;
+    }
+
+    .stat-number {
+        display: block;
+        font-size: 2rem;
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.9);
+        margin-top: 0.25rem;
+    }
+
+    .floating-shapes {
+        position: absolute;
+        top: 20px;
+        right: 100px;
+        width: 80px;
+        height: 80px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+    .welcome-decoration {
+        position: absolute;
+        top: 25px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+
+    .welcome-decoration i {
+        font-size: 1.5rem;
+        color: rgba(255,255,255,0.8);
+    }
+
+    .welcome-section .accent-line {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #7DCB80;
+        border-radius: 0 0 20px 20px;
+    }
+
+    /* Enhanced Course Cards */
+    .course-card {
+        background: white;
+        border: 1px solid #E8F5E8;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        height: 100%;
+    }
+
+    .course-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        border-color: #7DCB80;
+    }
+
+    .course-card .card-title {
+        color: #2E5E4E;
+        font-weight: 700;
+        font-size: 1.3rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .course-card .card-text {
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    .course-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .course-stat {
+        text-align: center;
+        color: #2E5E4E;
+    }
+
+    .course-stat .stat-number {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #7DCB80;
+    }
+
+    .course-stat .stat-label {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    /* Enhanced Academic Year Selector */
+    .academic-year-selector {
+        background: #F7FAF7;
+        border: 1px solid #7DCB80;
+        border-radius: 15px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .academic-year-selector .form-label {
+        color: #2E5E4E;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .academic-year-selector .form-select {
+        border: 1px solid #7DCB80;
+        border-radius: 10px;
+        color: #2E5E4E;
+        font-weight: 600;
+    }
+
+    .academic-year-selector .form-select:focus {
+        border-color: #7DCB80;
+        box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
+    }
+
+    /* Enhanced Create Course Button */
+    .create-course-btn {
+        background: #7DCB80;
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(125, 203, 128, 0.3);
+    }
+
+    .create-course-btn:hover {
+        background: #2E5E4E;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(125, 203, 128, 0.4);
+        color: white;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .welcome-title {
+            font-size: 2rem;
+        }
+        
+        .quick-stats {
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+        }
+        
+        .course-stats {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
 </style>
 <?php
 
@@ -308,32 +542,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
 ?>
 <div class="container-fluid">
     <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">My Courses</h1>
-                <div>
-                    <button class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;" data-bs-toggle="modal" data-bs-target="#createCourseModal">
-                        <i class="bi bi-plus-circle me-2"></i>Create Course
-                    </button>
+        <!-- Removed Sidebar -->
+        <!-- Main content -->
+        <main class="col-12 px-md-4">
+            <!-- Enhanced Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="welcome-title">My Courses Management</h1>
+                        <p class="welcome-subtitle">Create, manage, and monitor your courses and student progress</p>
+                        
+                        <!-- Back Button -->
+                        <div class="welcome-actions mt-3">
+                            <a href="dashboard.php" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-end">
+                        <!-- Quick Stats -->
+                        <div class="quick-stats">
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo count($courses); ?></span>
+                                <span class="stat-label">Total Courses</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo array_sum(array_column($courses, 'student_count')); ?></span>
+                                <span class="stat-label">Total Students</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo array_sum(array_column($courses, 'module_count')); ?></span>
+                                <span class="stat-label">Total Modules</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <div class="welcome-decoration">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="floating-shapes"></div>
+                <div class="accent-line"></div>
             </div>
         </div>
     </div>
 
-    <!-- Academic Year Selection -->
+    <!-- Enhanced Academic Year Selection -->
     <div class="row mb-3">
         <div class="col-12">
-            <form method="get" class="d-flex align-items-center">
-                                        <label for="academic_period_id" class="me-2 fw-bold">Academic Period:</label>
-                        <select name="academic_period_id" id="academic_period_id" class="form-select w-auto me-2" onchange="this.form.submit()">
-                                            <?php foreach ($all_years as $year): ?>
-                            <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($year['academic_year']) ?> - <?= htmlspecialchars($year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
-                            </option>
-                        <?php endforeach; ?>
-                </select>
-                <noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
-            </form>
+            <div class="academic-year-selector">
+                <form method="get" class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-alt me-2" style="color: #7DCB80; font-size: 1.2rem;"></i>
+                        <label for="academic_period_id" class="form-label mb-0 me-3">Academic Period:</label>
+                        <select name="academic_period_id" id="academic_period_id" class="form-select w-auto" onchange="this.form.submit()">
+                            <?php foreach ($all_years as $year): ?>
+                                <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($year['academic_year']) ?> - <?= htmlspecialchars($year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button class="btn create-course-btn" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+                        <i class="bi bi-plus-circle me-2"></i>Create Course
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -559,6 +832,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+    </div>
+        </main>
     </div>
 </div>
 

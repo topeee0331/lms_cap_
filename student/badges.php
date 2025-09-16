@@ -59,10 +59,128 @@ foreach ($all_badges as $badge) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Badges - Student Dashboard</title>
+    <title>My Badges & Achievements - Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        
+        /* Enhanced Welcome Section */
+        .welcome-section {
+            background: #2E5E4E;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .welcome-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .badge-count-display {
+            text-align: center;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            color: white;
+        }
+        
+        .badge-count {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #7DCB80;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .badge-total {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .badge-label {
+            display: block;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.9);
+            margin-top: 0.5rem;
+        }
+        
+        .floating-shapes {
+            position: absolute;
+            top: 20px;
+            right: 100px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-decoration {
+            position: absolute;
+            top: 25px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .welcome-decoration i {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .welcome-section .accent-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #7DCB80;
+            border-radius: 0 0 20px 20px;
+        }
+        
         .badge-card {
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -489,39 +607,59 @@ foreach ($all_badges as $badge) {
             <!-- Sidebar removed -->
             <!-- Main content -->
             <main class="col-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Badges & Achievements</h1>
+                <!-- Enhanced Welcome Section -->
+                <div class="welcome-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="welcome-title">My Badges & Achievements</h1>
+                            <p class="welcome-subtitle">Celebrate your learning milestones and accomplishments</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="welcome-actions">
+                                <div class="badge-count-display">
+                                    <span class="badge-count"><?php echo $earned_badges_count; ?></span>
+                                    <span class="badge-total">/ <?php echo $total_badges; ?></span>
+                                    <small class="badge-label">Badges Earned</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="welcome-decoration">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                    <div class="accent-line"></div>
                 </div>
 
-                <!-- Statistics -->
+                <!-- Enhanced Statistics -->
                 <div class="row mb-4 badges-stats">
-                    <div class="col-md-4">
-                        <div class="card text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
                                 <div class="position-relative">
-                                    <div class="progress-circle"></div>
-                                    <div class="progress-text"><?php echo $earned_badges_count; ?>/<?php echo $total_badges; ?></div>
+                                    <div class="progress-circle" style="background: conic-gradient(#7DCB80 0deg, #7DCB80 <?php echo ($earned_badges_count / $total_badges) * 360; ?>deg, rgba(255,255,255,0.2) <?php echo ($earned_badges_count / $total_badges) * 360; ?>deg, rgba(255,255,255,0.2) 360deg);"></div>
+                                    <div class="progress-text" style="color: #7DCB80;"><?php echo $earned_badges_count; ?>/<?php echo $total_badges; ?></div>
                                 </div>
-                                <h5 class="card-title mt-3">Badge Progress</h5>
-                                <p class="card-text"><?php echo round(($earned_badges_count / $total_badges) * 100); ?>% complete</p>
+                                <h4 class="card-title mt-3 mb-1">Badge Progress</h4>
+                                <p class="card-text small"><?php echo round(($earned_badges_count / $total_badges) * 100); ?>% complete</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-trophy fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Badges Earned</h5>
-                                <p class="card-text display-6"><?php echo $earned_badges_count; ?></p>
+                                <i class="fas fa-trophy fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $earned_badges_count; ?></h4>
+                                <p class="card-text small">Badges Earned</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
                             <div class="card-body">
-                                <i class="fas fa-lock fa-3x text-secondary mb-3"></i>
-                                <h5 class="card-title">Badges Remaining</h5>
-                                <p class="card-text display-6"><?php echo $total_badges - $earned_badges_count; ?></p>
+                                <i class="fas fa-lock fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <h4 class="card-title mb-1"><?php echo $total_badges - $earned_badges_count; ?></h4>
+                                <p class="card-text small">Badges Remaining</p>
                             </div>
                         </div>
                     </div>
@@ -529,9 +667,12 @@ foreach ($all_badges as $badge) {
 
                 <!-- Next Badge Progress -->
                 <?php if ($next_badge): ?>
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">Next Badge to Unlock</h5>
+                    <div class="card mb-4" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                        <div class="card-header" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                            <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                                <i class="fas fa-unlock-alt me-2"></i>
+                                Next Badge to Unlock
+                            </h5>
                         </div>
                         <div class="card-body">
                             <div class="row align-items-center">
@@ -566,9 +707,12 @@ foreach ($all_badges as $badge) {
                 <div class="row">
                     <!-- All Badges -->
                     <div class="col-lg-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">All Badges</h5>
+                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                                    <i class="fas fa-medal me-2"></i>
+                                    All Badges
+                                </h5>
                             </div>
                             <div class="card-body">
                                 <div class="all-badges-container">
@@ -631,9 +775,12 @@ foreach ($all_badges as $badge) {
                     
                     <!-- Recent Badges -->
                     <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Recently Earned</h5>
+                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
+                                    <i class="fas fa-star me-2"></i>
+                                    Recently Earned
+                                </h5>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($recent_badges)): ?>
@@ -681,9 +828,12 @@ foreach ($all_badges as $badge) {
                         </div>
                         
                         <!-- How to Earn Badges -->
-                        <div class="card mt-3">
-                            <div class="card-header">
-                                <h6 class="mb-0">How to Earn Badges</h6>
+                        <div class="card mt-3" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
+                            <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                                <h6 class="mb-0" style="font-weight: 600; font-size: 1.2rem;">
+                                    <i class="fas fa-lightbulb me-2"></i>
+                                    How to Earn Badges
+                                </h6>
                             </div>
                             <div class="card-body">
                                 <ul class="list-unstyled small">

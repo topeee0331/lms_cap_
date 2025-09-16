@@ -207,78 +207,456 @@ $other_requests = array_filter($pending_requests, function($req) {
 });
 ?>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<style>
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: #2E5E4E;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.quick-stats {
+    display: flex;
+    gap: 2rem;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+    width: fit-content;
+}
+
+.stat-item {
+    text-align: center;
+    color: white;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #7DCB80;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 0.25rem;
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #7DCB80;
+    border-radius: 0 0 20px 20px;
+}
+
+/* Enhanced Statistics Cards */
+.stats-card {
+    background: #F7FAF7;
+    border: 1px solid #7DCB80;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stats-card .card-title {
+    color: #2E5E4E;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card .display-4 {
+    color: #7DCB80;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Enhanced Section Headers */
+.section-header {
+    background: #2E5E4E;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.section-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-weight: 700;
+    position: relative;
+    z-index: 1;
+}
+
+.section-header .badge {
+    background: #7DCB80;
+    color: #2E5E4E;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+}
+
+/* Enhanced Request Cards */
+.request-card {
+    background: white;
+    border: 1px solid #E8F5E8;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-color: #7DCB80;
+}
+
+.request-card .student-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.request-card .student-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #7DCB80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-right: 1rem;
+}
+
+.request-card .student-details h6 {
+    margin: 0;
+    color: #2E5E4E;
+    font-weight: 700;
+}
+
+.request-card .student-details small {
+    color: #666;
+}
+
+.request-card .course-info {
+    background: #F7FAF7;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.request-card .course-info h6 {
+    color: #2E5E4E;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.request-card .course-info p {
+    color: #666;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.request-card .request-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.request-card .btn {
+    border-radius: 25px;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+}
+
+/* Enhanced Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: #F7FAF7;
+    border-radius: 20px;
+    border: 2px dashed #7DCB80;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #7DCB80;
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    color: #2E5E4E;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #666;
+    margin-bottom: 0;
+}
+
+/* Enhanced Status Badges */
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.status-badge.pending {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFEAA7;
+}
+
+.status-badge.approved {
+    background: #D4EDDA;
+    color: #155724;
+    border: 1px solid #C3E6CB;
+}
+
+.status-badge.rejected {
+    background: #F8D7DA;
+    color: #721C24;
+    border: 1px solid #F5C6CB;
+}
+
+/* Enhanced Buttons */
+.btn-outline-light {
+    border: 2px solid rgba(255,255,255,0.3);
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-light:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .quick-stats {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+    }
+    
+    .request-card .request-actions {
+        flex-direction: column;
+    }
+    
+    .request-card .btn {
+        width: 100%;
+    }
+}
+</style>
+
 <div class="container-fluid">
     <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">Enrollment Requests</h1>
-                <div>
-                    <a href="courses.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-1"></i>Back to Courses
-                    </a>
+        <!-- Removed Sidebar -->
+        <!-- Main content -->
+        <main class="col-12 px-md-4">
+            <!-- Enhanced Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="welcome-title">Enrollment Requests Management</h1>
+                        <p class="welcome-subtitle">Review and manage student enrollment requests for your courses</p>
+                        
+                        <!-- Back Button -->
+                        <div class="welcome-actions mt-3">
+                            <a href="courses.php" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Courses
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-end">
+                        <!-- Quick Stats -->
+                        <div class="quick-stats">
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo count($pending_requests); ?></span>
+                                <span class="stat-label">Pending</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo count(array_filter($processed_requests, function($r) { return $r['status'] === 'approved'; })); ?></span>
+                                <span class="stat-label">Approved</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number"><?php echo count(array_filter($processed_requests, function($r) { return $r['status'] === 'rejected'; })); ?></span>
+                                <span class="stat-label">Rejected</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <div class="welcome-decoration">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="floating-shapes"></div>
+                <div class="accent-line"></div>
             </div>
         </div>
     </div>
 
-    <!-- Summary Statistics -->
+    <!-- Enhanced Summary Statistics -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?php echo count($irregular_section_requests); ?></h4>
-                            <p class="mb-0">Irregular Students</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-exclamation-triangle fs-1"></i>
-                        </div>
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="display-4 mb-0"><?php echo count($irregular_section_requests); ?></h4>
+                        <p class="card-title">Irregular Students</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2.5rem; color: #FFC107;"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?php echo count($other_requests); ?></h4>
-                            <p class="mb-0">Pending Requests</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-clock fs-1"></i>
-                        </div>
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="display-4 mb-0"><?php echo count($other_requests); ?></h4>
+                        <p class="card-title">Pending Requests</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock" style="font-size: 2.5rem; color: #007BFF;"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?php echo count(array_filter($processed_requests, function($r) { return $r['status'] === 'approved'; })); ?></h4>
-                            <p class="mb-0">Approved</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-check-circle fs-1"></i>
-                        </div>
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="display-4 mb-0"><?php echo count(array_filter($processed_requests, function($r) { return $r['status'] === 'approved'; })); ?></h4>
+                        <p class="card-title">Approved</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle" style="font-size: 2.5rem; color: #28A745;"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="mb-0"><?php echo count($processed_requests); ?></h4>
-                            <p class="mb-0">Total Processed</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-clock-history fs-1"></i>
-                        </div>
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="display-4 mb-0"><?php echo count($processed_requests); ?></h4>
+                        <p class="card-title">Total Processed</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock-history" style="font-size: 2.5rem; color: #17A2B8;"></i>
                     </div>
                 </div>
             </div>
@@ -296,13 +674,14 @@ $other_requests = array_filter($pending_requests, function($req) {
     <?php if (!empty($irregular_section_requests)): ?>
         <div class="row mb-4">
             <div class="col-12">
+                <div class="section-header">
+                    <h3>
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Irregular Students - Section Assigned Courses
+                        <span class="badge"><?php echo count($irregular_section_requests); ?></span>
+                    </h3>
+                </div>
                 <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Irregular Students - Section Assigned Courses (<?php echo count($irregular_section_requests); ?>)
-                        </h5>
-                    </div>
                     <div class="card-body">
                         <div class="alert alert-warning">
                             <i class="bi bi-info-circle me-2"></i>
@@ -381,19 +760,20 @@ $other_requests = array_filter($pending_requests, function($req) {
     <!-- Other Pending Requests -->
     <div class="row mb-4">
         <div class="col-12">
+            <div class="section-header">
+                <h3>
+                    <i class="bi bi-clock me-2"></i>
+                    Other Pending Requests
+                    <span class="badge" id="other-requests-count"><?php echo count($other_requests); ?></span>
+                </h3>
+            </div>
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock text-warning me-2"></i>
-                        Other Pending Requests (<span id="other-requests-count"><?php echo count($other_requests); ?></span>)
-                    </h5>
-                </div>
                 <div class="card-body">
                     <?php if (empty($other_requests)): ?>
-                        <div class="text-center py-4" id="no-other-requests-message">
-                            <i class="bi bi-check-circle fs-1 text-success mb-3"></i>
-                            <h6>No Other Pending Requests</h6>
-                            <p class="text-muted">All other enrollment requests have been processed.</p>
+                        <div class="empty-state" id="no-other-requests-message">
+                            <i class="bi bi-check-circle"></i>
+                            <h4>No Other Pending Requests</h4>
+                            <p>All other enrollment requests have been processed.</p>
                         </div>
                     <?php else: ?>
                         <div class="table-responsive">
@@ -478,19 +858,19 @@ $other_requests = array_filter($pending_requests, function($req) {
     <!-- Recently Processed Requests -->
     <div class="row">
         <div class="col-12">
+            <div class="section-header">
+                <h3>
+                    <i class="bi bi-clock-history me-2"></i>
+                    Recently Processed Requests
+                </h3>
+            </div>
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock-history text-info me-2"></i>
-                        Recently Processed Requests
-                    </h5>
-                </div>
                 <div class="card-body">
                     <?php if (empty($processed_requests)): ?>
-                        <div class="text-center py-4">
-                            <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
-                            <h6>No Processed Requests</h6>
-                            <p class="text-muted">No enrollment requests have been processed yet.</p>
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h4>No Processed Requests</h4>
+                            <p>No enrollment requests have been processed yet.</p>
                         </div>
                     <?php else: ?>
                         <div class="table-responsive">
@@ -606,6 +986,8 @@ $other_requests = array_filter($pending_requests, function($req) {
                 </div>
             </form>
         </div>
+    </div>
+        </main>
     </div>
 </div>
 

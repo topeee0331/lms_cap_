@@ -337,7 +337,7 @@ $course_themes = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Courses - Student Dashboard</title>
+    <title>My Courses - Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -423,6 +423,188 @@ $course_themes = [
         
         /* Import Google Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        
+        /* Enhanced Welcome Section */
+        .welcome-section {
+            background: #2E5E4E;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .welcome-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .welcome-actions .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        /* Decorative elements */
+        .welcome-section::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-decoration {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .welcome-decoration i {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .welcome-section .accent-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #7DCB80;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .welcome-section .floating-shapes {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .welcome-section .floating-shapes::before {
+            content: '';
+            position: absolute;
+            top: 50px;
+            left: 20px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+
+        /* Enhanced Academic Year Selector */
+        .academic-year-selector {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .academic-year-selector:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .academic-year-label {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-right: 0.75rem;
+            opacity: 0.9;
+        }
+        
+        .academic-year-select {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 15px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            color: #2E5E4E;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+        
+        .academic-year-select:focus {
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+            outline: none;
+        }
+        
+        .academic-year-select option {
+            color: #2E5E4E;
+            font-weight: 500;
+        }
+        
+        .academic-year-icon {
+            color: rgba(255,255,255,0.8);
+            margin-right: 0.5rem;
+            font-size: 1rem;
+        }
         
         /* Button Hover Effects */
         .btn:hover {
@@ -827,30 +1009,43 @@ $course_themes = [
                         <i class="fas fa-plus"></i> Enroll / Add Course
                     </a>
                 </div>-->
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Courses</h1>
-                    <div>
-                        <button id="refresh-courses" class="btn btn-outline-primary btn-sm btn-refresh" title="Refresh course data">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
+                <!-- Enhanced Welcome Section -->
+                <div class="welcome-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="welcome-title">My Courses</h1>
+                            <p class="welcome-subtitle">Explore and manage your enrolled courses</p>
+                            
+                            <!-- Academic Year Selector -->
+                            <div class="academic-year-selector d-inline-block mt-3">
+                                <form method="get" class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-alt academic-year-icon"></i>
+                                    <label for="academic_period_id" class="academic-year-label">Academic Year:</label>
+                                    <select name="academic_period_id" id="academic_period_id" class="academic-year-select" onchange="this.form.submit()">
+                                        <?php foreach ($all_years as $year): ?>
+                                            <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($year['academic_year'] . ' - ' . $year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <noscript><button type="submit" class="btn btn-sm ms-2" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;">Go</button></noscript>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="welcome-actions">
+                                <button id="refresh-courses" class="btn btn-refresh" title="Refresh course data">
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Academic Year Selection -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <form method="get" class="d-flex align-items-center">
-                            <label for="academic_period_id" class="me-2 fw-bold">Academic Year:</label>
-                            <select name="academic_period_id" id="academic_period_id" class="form-select w-auto me-2" onchange="this.form.submit()">
-                                <?php foreach ($all_years as $year): ?>
-                                    <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($year['academic_year'] . ' - ' . $year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
-                        </form>
+                    <div class="welcome-decoration">
+                        <i class="fas fa-book"></i>
                     </div>
+                    <div class="floating-shapes"></div>
+                    <div class="accent-line"></div>
                 </div>
 
                 <!-- Course Summary Statistics -->
@@ -1668,6 +1863,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-dismiss alerts
     initAutoDismissAlerts();
+    
+    // Auto-close alert when Browse Year Level Courses button is clicked
+    const browseButton = document.querySelector('button[data-bs-target="#enrollCourseModal"]');
+    if (browseButton) {
+        browseButton.addEventListener('click', function() {
+            // Find the alert in the same section (outside modal)
+            const alert = this.closest('.mb-4').querySelector('.alert.auto-dismiss');
+            if (alert) {
+                // Auto-close the alert after 1 second
+                setTimeout(function() {
+                    alert.classList.add('fade');
+                    setTimeout(function() {
+                        if (alert.parentNode) {
+                            alert.parentNode.removeChild(alert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }, 1000); // 1 second delay
+            }
+            
+            // Also auto-close the alert inside the modal after 3 seconds
+            setTimeout(function() {
+                const modalAlert = document.querySelector('#enrollCourseModal .alert.alert-info');
+                if (modalAlert) {
+                    modalAlert.classList.add('fade');
+                    setTimeout(function() {
+                        if (modalAlert.parentNode) {
+                            modalAlert.parentNode.removeChild(modalAlert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }
+            }, 3000); // 3 second delay
+            
+            // Also auto-close the "No courses available" alert if it exists
+            setTimeout(function() {
+                const noCoursesAlert = document.querySelector('#enrollCourseModal .alert.alert-info.text-center');
+                if (noCoursesAlert) {
+                    noCoursesAlert.classList.add('fade');
+                    setTimeout(function() {
+                        if (noCoursesAlert.parentNode) {
+                            noCoursesAlert.parentNode.removeChild(noCoursesAlert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }
+            }, 1000); // 1 second delay
+        });
+    }
 });
 
 // Auto-dismiss alerts functionality

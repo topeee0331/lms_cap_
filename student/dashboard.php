@@ -769,13 +769,13 @@ $stats['completed_modules'] = $completed_modules;
 
         /* Enhanced Welcome Section */
         .welcome-section {
-            background: linear-gradient(135deg, #2E5E4E 0%, #7DCB80 100%);
+            background: #2E5E4E;
             border-radius: 20px;
             padding: 2rem;
             margin-bottom: 2rem;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(46, 94, 78, 0.3);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
         }
         
         .welcome-section::before {
@@ -891,7 +891,7 @@ $stats['completed_modules'] = $completed_modules;
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #2E5E4E 0%, #7DCB80 50%, #FFE066 100%);
+            background: #7DCB80;
             border-radius: 0 0 20px 20px;
         }
         

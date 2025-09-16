@@ -151,9 +151,29 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id, $selected_year_id]);
 $progress_stats = $stmt->fetch();
 
-// Calculate overall progress
+// Calculate overall progress with more realistic assessment-based calculation
 $total_modules = $stats['total_modules'] ?? 0;
-$overall_progress = $total_modules > 0 ? round(($completed_modules / $total_modules) * 100) : 0;
+$total_attempts = $progress_stats['total_attempts'] ?? 0;
+$passed_assessments = $progress_stats['passed_assessments'] ?? 0;
+
+// More realistic progress calculation:
+// 1. Base progress on passed assessments vs total attempts
+// 2. Apply a completion factor based on assessment success rate
+// 3. Cap at reasonable maximum to avoid unrealistic percentages
+
+if ($total_attempts > 0) {
+    $success_rate = $passed_assessments / $total_attempts;
+    $base_progress = ($passed_assessments / max($total_modules, 1)) * 100;
+    
+    // Apply success rate as a multiplier (0.6 to 1.0 range)
+    $success_multiplier = max(0.6, min(1.0, $success_rate));
+    $adjusted_progress = $base_progress * $success_multiplier;
+    
+    // Cap at 95% to keep it realistic
+    $overall_progress = min(95, round($adjusted_progress));
+} else {
+    $overall_progress = 0;
+}
 
 // Update stats array
 $stats['completed_modules'] = $completed_modules;
@@ -398,14 +418,61 @@ $stats['completed_modules'] = $completed_modules;
             border-radius: 10px;
         }
         
-        /* Activity and badge items */
-        .activity-item, .badge-item {
-            border-radius: 8px;
-            transition: background-color 0.2s;
+        /* Enhanced Activity and Badge Items */
+        .activity-item {
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            border-radius: 0 2px 2px 0;
         }
         
         .activity-item:hover {
-            background-color: rgba(0,123,255,0.05);
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(0,123,255,0.1);
+        }
+        
+        .badge-item {
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+            border: 1px solid #ffecb3;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .badge-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ffc107, #ff9800);
+        }
+        
+        .badge-item:hover {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255,193,7,0.2);
         }
         
         /* Card content enhancements */
@@ -463,57 +530,210 @@ $stats['completed_modules'] = $completed_modules;
             opacity: 0.5;
         }
 
-        /* Enrollment request status styling */
+        /* Enhanced Enrollment Request Styling */
+        .enrollment-request-item {
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            padding: 18px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .enrollment-request-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border-radius: 0 2px 2px 0;
+        }
+        
+        .enrollment-request-item:hover {
+            background: linear-gradient(135deg, #e8f5e8 0%, #f8f9fa 100%);
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(40,167,69,0.1);
+        }
+        
         .enrollment-status {
-            font-size: 0.8rem;
-            font-weight: 600;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .status-pending {
-            background-color: #fff3cd;
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
             color: #856404;
-            border: 1px solid #ffeaa7;
+            border: 1px solid #ffc107;
         }
         
         .status-approved {
-            background-color: #d4edda;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
             color: #155724;
-            border: 1px solid #c3e6cb;
+            border: 1px solid #28a745;
         }
         
         .status-rejected {
-            background-color: #f8d7da;
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             color: #721c24;
-            border: 1px solid #f5c6cb;
+            border: 1px solid #dc3545;
         }
 
-        /* Announcement styling */
+        /* Enhanced Announcement Styling */
         .announcement-item {
-            border-left: 3px solid #17a2b8;
-            padding-left: 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            padding: 18px;
             margin-bottom: 15px;
-            transition: background-color 0.2s;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .announcement-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #17a2b8, #20c997);
+            border-radius: 0 2px 2px 0;
         }
         
         .announcement-item:hover {
-            background-color: rgba(23, 162, 184, 0.05);
+            background: linear-gradient(135deg, #e0f7fa 0%, #f8f9fa 100%);
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(23,162,184,0.1);
         }
         
         .announcement-course {
-            font-size: 0.75rem;
-            color: #6c757d;
-            background-color: #e9ecef;
-            padding: 0.125rem 0.375rem;
-            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #495057;
+            background: linear-gradient(135deg, #e9ecef, #f8f9fa);
+            padding: 0.3rem 0.6rem;
+            border-radius: 15px;
             display: inline-block;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         
         .announcement-system {
-            background-color: #007bff;
+            background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+        }
+
+        /* Enhanced Card Headers - Matching Page Color Scheme */
+        .enhanced-card .card-header {
+            color: white;
+            border: none;
+            border-radius: 12px 12px 0 0;
+            padding: 1.25rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Recent Activities - Blue theme */
+        .enhanced-card.recent-activities .card-header {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        }
+        
+        /* Recent Badges - Yellow theme */
+        .enhanced-card.recent-badges .card-header {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #212529;
+        }
+        
+        /* Enrollment Requests - Green theme */
+        .enhanced-card.enrollment-requests .card-header {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+        
+        /* Recent Announcements - Teal theme */
+        .enhanced-card.recent-announcements .card-header {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+        
+        .enhanced-card .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .enhanced-card .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .enhanced-card .card-header i {
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+        
+        .enhanced-card .card-header .btn {
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+        
+        .enhanced-card .card-header .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-1px);
+        }
+        
+        /* Special styling for yellow theme (badges) */
+        .enhanced-card.recent-badges .card-header .btn {
+            background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.2);
+            color: #212529;
+        }
+        
+        .enhanced-card.recent-badges .card-header .btn:hover {
+            background: rgba(0,0,0,0.2);
+            border-color: rgba(0,0,0,0.3);
+        }
+        
+        .enhanced-card .card-body {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        }
+        
+        .enhanced-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .enhanced-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
         }
 
         /* Scrollable Container Styles */
@@ -546,6 +766,455 @@ $stats['completed_modules'] = $completed_modules;
             scrollbar-width: thin;
             scrollbar-color: #2E5E4E #f1f1f1;
         }
+
+        /* Enhanced Welcome Section */
+        .welcome-section {
+            background: linear-gradient(135deg, #2E5E4E 0%, #7DCB80 100%);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(46, 94, 78, 0.3);
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .welcome-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .student-id-badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .student-id-badge:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .welcome-actions {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-actions .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .welcome-actions .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        /* Decorative elements */
+        .welcome-section::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .welcome-decoration {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .welcome-decoration i {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        /* Additional system-themed decorative elements */
+        .welcome-section .accent-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #2E5E4E 0%, #7DCB80 50%, #FFE066 100%);
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .welcome-section .floating-shapes {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .welcome-section .floating-shapes::before {
+            content: '';
+            position: absolute;
+            top: 50px;
+            left: 20px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+
+        /* Enhanced Progress Overview Section */
+        .progress-overview-section {
+            margin-bottom: 2rem;
+        }
+        
+        .progress-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+        }
+        
+        .progress-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #007bff 0%, #0056b3 50%, #004085 100%);
+        }
+        
+        .progress-card-header {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 1.5rem;
+            margin: -1rem -1rem 1rem -1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .progress-card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .progress-card-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0.5rem 0 0 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Enhanced Progress Circle */
+        .enhanced-progress-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(#007bff 0deg, #007bff <?php echo $overall_progress * 3.6; ?>deg, #e9ecef <?php echo $overall_progress * 3.6; ?>deg, #e9ecef 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem auto;
+            position: relative;
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .enhanced-progress-circle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+        }
+        
+        .enhanced-progress-circle::before {
+            content: '';
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+            z-index: 1;
+        }
+        
+        .enhanced-progress-text {
+            position: relative;
+            z-index: 2;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #007bff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .progress-stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .progress-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #007bff;
+            margin-bottom: 0.25rem;
+        }
+        
+        .progress-stat-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .progress-divider {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, transparent, #dee2e6, transparent);
+            margin: 0 1rem;
+        }
+        
+        /* Enhanced Assessment Performance */
+        .assessment-performance {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        }
+        
+        .assessment-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem auto;
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .assessment-icon:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 123, 255, 0.3);
+        }
+        
+        .assessment-icon i {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        .assessment-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 1.5rem 0;
+        }
+        
+        .assessment-stat {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            flex: 1;
+            margin: 0 0.5rem;
+        }
+        
+        .assessment-stat.passed {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 1px solid #28a745;
+        }
+        
+        .assessment-stat.failed {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 1px solid #dc3545;
+        }
+        
+        .assessment-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .assessment-stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .assessment-stat.passed .assessment-stat-value {
+            color: #28a745;
+        }
+        
+        .assessment-stat.failed .assessment-stat-value {
+            color: #dc3545;
+        }
+        
+        .assessment-stat-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .assessment-stat.passed .assessment-stat-label {
+            color: #155724;
+        }
+        
+        .assessment-stat.failed .assessment-stat-label {
+            color: #721c24;
+        }
+        
+        .total-attempts {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+            border: 1px solid #2196f3;
+            border-radius: 15px;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .total-attempts-text {
+            color: #1976d2;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Enhanced Academic Year Selector */
+        .academic-year-selector {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .academic-year-selector:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .academic-year-label {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-right: 0.75rem;
+            opacity: 0.9;
+        }
+        
+        .academic-year-select {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 15px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            color: #2E5E4E;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+        
+        .academic-year-select:focus {
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+            outline: none;
+        }
+        
+        .academic-year-select option {
+            color: #2E5E4E;
+            font-weight: 500;
+        }
+        
+        .academic-year-icon {
+            color: rgba(255,255,255,0.8);
+            margin-right: 0.5rem;
+            font-size: 1rem;
+        }
+
     </style>
 </head>
 <body>
@@ -558,36 +1227,54 @@ $stats['completed_modules'] = $completed_modules;
             <!-- Removed Sidebar -->
             <!-- Main content -->
             <main class="col-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <div>
-                        <h1 class="h2">Welcome back, <?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>!</h1>
-                        <?php if (!empty($student['student_id'])): ?>
-                            <p class="text-muted mb-0">Student ID: <span class="badge bg-primary"><?php echo htmlspecialchars($student['student_id']); ?></span></p>
-                        <?php endif; ?>
-                    </div>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-                            <a href="courses.php" class="btn btn-sm btn-outline-primary">View All Courses</a>
+                <!-- Enhanced Welcome Section -->
+                <div class="welcome-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="welcome-title">Welcome back, <?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>!</h1>
+                            <p class="welcome-subtitle">Ready to continue your learning journey?</p>
+                            
+                            <!-- Academic Year Selector -->
+                            <div class="academic-year-selector d-inline-block mt-3">
+                                <form method="get" class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-alt academic-year-icon"></i>
+                                    <label for="academic_period_id" class="academic-year-label">Academic Year:</label>
+                                    <select name="academic_period_id" id="academic_period_id" class="academic-year-select" onchange="this.form.submit()">
+                                        <?php foreach ($all_years as $year): ?>
+                                            <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($year['academic_year'] . ' - ' . $year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <noscript><button type="submit" class="btn btn-sm ms-2" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;">Go</button></noscript>
+                                </form>
+                            </div>
+                            
+                            <?php if (!empty($student['student_id'])): ?>
+                                <div class="mt-3">
+                                    <span class="student-id-badge">
+                                        <i class="fas fa-id-card me-2"></i>
+                                        Student ID: <?php echo htmlspecialchars($student['student_id']); ?>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="welcome-actions">
+                                <a href="courses.php" class="btn">
+                                    <i class="fas fa-book me-2"></i>
+                                    View All Courses
+                                </a>
+                            </div>
                         </div>
                     </div>
+                    <div class="welcome-decoration">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                    <div class="accent-line"></div>
                 </div>
 
-                <!-- Academic Year Selection -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <form method="get" class="d-flex align-items-center">
-                            <label for="academic_period_id" class="me-2 fw-bold">Academic Year:</label>
-                            <select name="academic_period_id" id="academic_period_id" class="form-select w-auto me-2" onchange="this.form.submit()">
-                                <?php foreach ($all_years as $year): ?>
-                                    <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($year['academic_year'] . ' - ' . $year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
-                        </form>
-                    </div>
-                </div>
 
                 <!-- Course Statistics -->
                 <div class="row mb-4">
@@ -629,136 +1316,84 @@ $stats['completed_modules'] = $completed_modules;
                     </div>
                 </div>
 
-                <!-- Progress Overview -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <div class="position-relative">
-                                    <div class="progress-circle"></div>
-                                    <div class="progress-text"><?php echo $overall_progress; ?>%</div>
+                <!-- Enhanced Progress Overview -->
+                <div class="progress-overview-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card progress-card">
+                                <div class="progress-card-header">
+                                    <h5 class="progress-card-title">
+                                        <i class="fas fa-tasks me-2"></i>
+                                        Overall Progress
+                                    </h5>
+                                    <p class="progress-card-subtitle">Your learning journey progress</p>
                                 </div>
-                                <h5 class="card-title mt-3">Overall Progress</h5>
-                                <p class="card-text"><?php echo $completed_modules; ?> of <?php echo $total_modules; ?> modules completed</p>
-                                <?php if ($progress_stats['average_score']): ?>
-                                    <p class="card-text small text-muted">
-                                        Average Score: <?php echo round($progress_stats['average_score'], 1); ?>%
-                                    </p>
-                                <?php endif; ?>
+                                <div class="card-body text-center">
+                                    <div class="enhanced-progress-circle">
+                                        <div class="enhanced-progress-text"><?php echo $overall_progress; ?>%</div>
+                                    </div>
+                                    
+                                    <div class="progress-stats">
+                                        <div class="progress-stat-item">
+                                            <div class="progress-stat-value"><?php echo $completed_modules; ?></div>
+                                            <div class="progress-stat-label">Completed</div>
+                                        </div>
+                                        <div class="progress-divider"></div>
+                                        <div class="progress-stat-item">
+                                            <div class="progress-stat-value"><?php echo $total_modules; ?></div>
+                                            <div class="progress-stat-label">Total Modules</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if ($progress_stats['average_score']): ?>
+                                        <div class="total-attempts">
+                                            <p class="total-attempts-text">
+                                                <i class="fas fa-star me-2"></i>
+                                                Average Score: <?php echo round($progress_stats['average_score'], 1); ?>%
+                                            </p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Assessment Performance</h5>
-                                <div class="row text-center">
-                                    <div class="col-6">
-                                        <h4 class="text-success"><?php echo $progress_stats['passed_assessments'] ?? 0; ?></h4>
-                                        <small>Passed</small>
-                            </div>
-                                    <div class="col-6">
-                                        <h4 class="text-danger"><?php echo $progress_stats['failed_assessments'] ?? 0; ?></h4>
-                                        <small>Failed</small>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card progress-card assessment-performance">
+                                <div class="progress-card-header">
+                                    <h5 class="progress-card-title">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Assessment Performance
+                                    </h5>
+                                    <p class="progress-card-subtitle">Your test and quiz results</p>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="assessment-icon">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                    
+                                    <div class="assessment-stats">
+                                        <div class="assessment-stat passed">
+                                            <div class="assessment-stat-value"><?php echo $progress_stats['passed_assessments'] ?? 0; ?></div>
+                                            <div class="assessment-stat-label">Passed</div>
+                                        </div>
+                                        <div class="assessment-stat failed">
+                                            <div class="assessment-stat-value"><?php echo $progress_stats['failed_assessments'] ?? 0; ?></div>
+                                            <div class="assessment-stat-label">Failed</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="total-attempts">
+                                        <p class="total-attempts-text">
+                                            <i class="fas fa-list-check me-2"></i>
+                                            <?php echo $progress_stats['total_attempts'] ?? 0; ?> total attempts
+                                        </p>
                                     </div>
                                 </div>
-                                <p class="card-text small text-muted mt-2">
-                                    <?php echo $progress_stats['total_attempts'] ?? 0; ?> total attempts
-                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Enrollment Requests & Announcements Row -->
-                <div class="row mb-4">
-                    <!-- Enrollment Requests -->
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Enrollment Requests</h5>
-                                <a href="enrollment_requests.php" class="btn btn-sm btn-outline-primary">View All</a>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($enrollment_requests)): ?>
-                                    <p class="text-muted">No enrollment requests found.</p>
-                                <?php else: ?>
-                                    <div class="scrollable-container">
-                                    <?php foreach ($enrollment_requests as $request): ?>
-                                        <div class="d-flex justify-content-between align-items-start mb-3 p-2 rounded">
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <strong class="me-2"><?php echo htmlspecialchars($request['course_name']); ?></strong>
-                                                    <span class="enrollment-status status-<?php echo $request['status']; ?>">
-                                                        <?php echo ucfirst($request['status']); ?>
-                                                    </span>
-                                                </div>
-                                                <small class="text-muted d-block">
-                                                    <i class="fas fa-user-tie me-1"></i>
-                                                    <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['teacher_last_name']); ?>
-                                                </small>
-                                                <small class="text-muted d-block">
-                                                    <i class="fas fa-calendar me-1"></i>
-                                                    <?php echo date('M j, Y g:i A', strtotime($request['requested_at'])); ?>
-                                                </small>
-                                                <?php if ($request['status'] === 'rejected' && !empty($request['rejection_reason'])): ?>
-                                                    <div class="mt-2 p-2 bg-light rounded">
-                                                        <small class="text-danger">
-                                                            <i class="fas fa-exclamation-triangle me-1"></i>
-                                                            <strong>Reason:</strong> <?php echo htmlspecialchars($request['rejection_reason']); ?>
-                                                        </small>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Announcements -->
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-bullhorn"></i> Recent Announcements</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($recent_announcements)): ?>
-                                    <p class="text-muted">No announcements available.</p>
-                                <?php else: ?>
-                                    <div class="scrollable-container">
-                                    <?php foreach ($recent_announcements as $announcement): ?>
-                                        <div class="announcement-item">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div class="flex-grow-1">
-                                                    <?php if ($announcement['course_name']): ?>
-                                                        <span class="announcement-course"><?php echo htmlspecialchars($announcement['course_code'] . ' - ' . $announcement['course_name']); ?></span>
-                                                    <?php else: ?>
-                                                        <span class="announcement-course announcement-system">System Announcement</span>
-                                                    <?php endif; ?>
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($announcement['title']); ?></h6>
-                                                    <p class="mb-1 small"><?php echo htmlspecialchars(substr($announcement['content'], 0, 100)) . (strlen($announcement['content']) > 100 ? '...' : ''); ?></p>
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-user me-1"></i>
-                                                        <?php echo htmlspecialchars($announcement['first_name'] . ' ' . $announcement['last_name']); ?>
-                                                        <span class="ms-2">
-                                                            <i class="fas fa-clock me-1"></i>
-                                                            <?php echo date('M j, Y g:i A', strtotime($announcement['created_at'])); ?>
-                                                        </span>
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Enrolled Courses -->
                 <div class="row mb-4">
@@ -840,26 +1475,37 @@ $stats['completed_modules'] = $completed_modules;
                 <div class="row">
                     <!-- Recent Activities -->
                     <div class="col-md-6">
-                        <div class="card">
+                        <div class="card enhanced-card recent-activities">
                             <div class="card-header">
                                 <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activities</h5>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($recent_activities)): ?>
-                                    <p class="text-muted">No recent activities</p>
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No recent activities</p>
+                                    </div>
                                 <?php else: ?>
                                     <div class="scrollable-container">
                                     <?php foreach ($recent_activities as $activity): ?>
                                         <div class="activity-item">
-                                            <div class="d-flex justify-content-between">
-                                                <div>
-                                                    <strong><?php echo htmlspecialchars($activity['title']); ?></strong>
-                                                    <br>
-                                                    <small class="text-muted"><?php echo $activity['action']; ?></small>
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-tasks text-primary me-2"></i>
+                                                        <strong class="text-dark"><?php echo htmlspecialchars($activity['title']); ?></strong>
+                                                    </div>
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        <?php echo $activity['action']; ?>
+                                                    </small>
                                                 </div>
-                                                <small class="text-muted">
-                                                    <?php echo date('M j, Y', strtotime($activity['activity_date'])); ?>
-                                                </small>
+                                                <div class="text-end">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-alt me-1"></i>
+                                                        <?php echo date('M j, Y', strtotime($activity['activity_date'])); ?>
+                                                    </small>
+                                                </div>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
@@ -871,31 +1517,149 @@ $stats['completed_modules'] = $completed_modules;
 
                     <!-- Badges -->
                     <div class="col-md-6">
-                        <div class="card">
+                        <div class="card enhanced-card recent-badges">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-trophy"></i> Recent Badges</h5>
-                                <span class="badge bg-warning"><?php echo count($badges); ?></span>
+                                <span class="badge bg-warning text-dark fw-bold px-3 py-2" style="border-radius: 20px; font-size: 0.8rem;">
+                                    <?php echo count($badges); ?>
+                                </span>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($badges)): ?>
-                                    <p class="text-muted">No badges earned yet. Keep learning to earn badges!</p>
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-trophy fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No badges earned yet. Keep learning to earn badges!</p>
+                                    </div>
                                 <?php else: ?>
                                     <div class="scrollable-container">
                                     <?php foreach ($badges as $badge): ?>
                                         <div class="badge-item">
-                                            <?php
-                                            $icon_path = "../uploads/badges/" . htmlspecialchars($badge['badge_icon']);
-                                            if (!empty($badge['badge_icon']) && file_exists(__DIR__ . "/../uploads/badges/" . $badge['badge_icon'])): ?>
-                                                <img src="<?php echo $icon_path; ?>" alt="<?php echo htmlspecialchars($badge['badge_name']); ?>" class="img-fluid" style="width: 50px; height: 50px;">
-                                            <?php else: ?>
-                                                <span class="d-inline-flex align-items-center justify-content-center bg-secondary text-white rounded-circle" style="width: 50px; height: 50px; font-size: 2rem;">
-                                                    <i class="fas fa-award"></i>
-                                                </span>
-                                            <?php endif; ?>
-                                            <br>
-                                            <small><?php echo htmlspecialchars($badge['badge_name']); ?></small>
-                                            <br>
-                                            <small class="text-muted"><?php echo $badge['formatted_date']; ?></small>
+                                            <div class="d-flex align-items-center mb-3">
+                                                <?php
+                                                $icon_path = "../uploads/badges/" . htmlspecialchars($badge['badge_icon']);
+                                                if (!empty($badge['badge_icon']) && file_exists(__DIR__ . "/../uploads/badges/" . $badge['badge_icon'])): ?>
+                                                    <img src="<?php echo $icon_path; ?>" alt="<?php echo htmlspecialchars($badge['badge_name']); ?>" class="img-fluid me-3" style="width: 60px; height: 60px; border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                                <?php else: ?>
+                                                    <span class="d-inline-flex align-items-center justify-content-center bg-gradient text-white rounded-circle me-3" style="width: 60px; height: 60px; font-size: 2rem; background: linear-gradient(135deg, #ffc107, #ff9800); box-shadow: 0 4px 8px rgba(255,193,7,0.3);">
+                                                        <i class="fas fa-award"></i>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1 fw-bold text-dark"><?php echo htmlspecialchars($badge['badge_name']); ?></h6>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar me-1"></i>
+                                                        <?php echo $badge['formatted_date']; ?>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enrollment Requests & Announcements Row -->
+                <div class="row mb-4">
+                    <!-- Enrollment Requests -->
+                    <div class="col-md-6">
+                        <div class="card enhanced-card enrollment-requests">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Enrollment Requests</h5>
+                                <a href="enrollment_requests.php" class="btn btn-sm">View All</a>
+                            </div>
+                            <div class="card-body">
+                                <?php if (empty($enrollment_requests)): ?>
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No enrollment requests found.</p>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="scrollable-container">
+                                    <?php foreach ($enrollment_requests as $request): ?>
+                                        <div class="enrollment-request-item">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-book text-success me-2"></i>
+                                                        <strong class="text-dark me-2"><?php echo htmlspecialchars($request['course_name']); ?></strong>
+                                                        <span class="enrollment-status status-<?php echo $request['status']; ?>">
+                                                            <?php echo ucfirst($request['status']); ?>
+                                                        </span>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-12 mb-1">
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-user-tie me-1"></i>
+                                                                <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['teacher_last_name']); ?>
+                                                            </small>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-calendar me-1"></i>
+                                                                <?php echo date('M j, Y g:i A', strtotime($request['requested_at'])); ?>
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <?php if ($request['status'] === 'rejected' && !empty($request['rejection_reason'])): ?>
+                                                        <div class="mt-3 p-3 bg-light rounded" style="border-left: 3px solid #dc3545;">
+                                                            <small class="text-danger">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                                <strong>Reason:</strong> <?php echo htmlspecialchars($request['rejection_reason']); ?>
+                                                            </small>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Announcements -->
+                    <div class="col-md-6">
+                        <div class="card enhanced-card recent-announcements">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-bullhorn"></i> Recent Announcements</h5>
+                            </div>
+                            <div class="card-body">
+                                <?php if (empty($recent_announcements)): ?>
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No announcements available.</p>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="scrollable-container">
+                                    <?php foreach ($recent_announcements as $announcement): ?>
+                                        <div class="announcement-item">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="mb-2">
+                                                        <?php if ($announcement['course_name']): ?>
+                                                            <span class="announcement-course"><?php echo htmlspecialchars($announcement['course_code'] . ' - ' . $announcement['course_name']); ?></span>
+                                                        <?php else: ?>
+                                                            <span class="announcement-course announcement-system">System Announcement</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <h6 class="mb-2 text-dark fw-bold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                    <p class="mb-3 small text-muted"><?php echo htmlspecialchars(substr($announcement['content'], 0, 120)) . (strlen($announcement['content']) > 120 ? '...' : ''); ?></p>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-user me-1"></i>
+                                                            <?php echo htmlspecialchars($announcement['first_name'] . ' ' . $announcement['last_name']); ?>
+                                                        </small>
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            <?php echo date('M j, Y g:i A', strtotime($announcement['created_at'])); ?>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     <?php endforeach; ?>
                                     </div>
@@ -921,6 +1685,4 @@ $stats['completed_modules'] = $completed_modules;
         });
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html> 
+<?php require_once '../includes/footer.php'; ?> 

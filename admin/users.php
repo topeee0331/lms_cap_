@@ -154,11 +154,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $password = $_POST['password'] ?? '';
                 $is_irregular = isset($_POST['is_irregular']) ? intval($_POST['is_irregular']) : 0;
                 
+                // Get current user role to check if it's a student
+                $current_user_stmt = $db->prepare('SELECT role FROM users WHERE id = ?');
+                $current_user_stmt->execute([$user_id]);
+                $current_user = $current_user_stmt->fetch();
+                
+                // Get current logged-in user's role for permission checking
+                $current_admin_role = $_SESSION['role'] ?? '';
+                
                 if (empty($first_name) || empty($last_name) || empty($email) || empty($role)) {
                     $message = 'All fields are required.';
                     $message_type = 'danger';
                 } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $message = 'Invalid email address.';
+                    $message_type = 'danger';
+                } elseif ($current_user && $current_user['role'] === 'student' && in_array($role, ['teacher', 'admin'])) {
+                    $message = 'Students cannot be promoted to teacher or admin roles.';
+                    $message_type = 'danger';
+                } elseif ($current_user && $current_user['role'] === 'teacher' && $role === 'student') {
+                    $message = 'Teachers cannot be demoted to student roles.';
+                    $message_type = 'danger';
+                } elseif ($current_user && $current_user['role'] === 'teacher' && $role === 'admin' && $current_admin_role !== 'admin') {
+                    $message = 'Only administrators can promote teachers to admin roles.';
+                    $message_type = 'danger';
+                } elseif ($current_admin_role === 'teacher' && $role === 'student') {
+                    $message = 'Teachers cannot promote users to student roles.';
                     $message_type = 'danger';
                 } else {
                     // Check for duplicate email (excluding current user)
@@ -756,12 +776,37 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                                         <div class="mb-3">
                                                                         <label for="role<?= $user['id'] ?>" class="form-label fw-semibold">
                                                                             <i class="bi bi-shield me-2"></i>Role
+                                                                            <?php 
+                                                                            $current_admin_role = $_SESSION['role'] ?? '';
+                                                                            $role_restricted = false;
+                                                                            $restriction_message = '';
+                                                                            
+                                                                            if ($user['role'] === 'student') {
+                                                                                $role_restricted = true;
+                                                                                $restriction_message = 'Students cannot be promoted to teacher or admin roles.';
+                                                                            } elseif ($current_admin_role === 'teacher') {
+                                                                                $role_restricted = true;
+                                                                                $restriction_message = 'Teachers cannot change user roles. Only administrators can manage roles.';
+                                                                            }
+                                                                            
+                                                                            if ($role_restricted): ?>
+                                                                                <span class="badge bg-warning ms-2">Cannot be changed</span>
+                                                                            <?php endif; ?>
                                                                         </label>
-                                                            <select class="form-select" id="role<?= $user['id'] ?>" name="role" required>
+                                                            <select class="form-select" id="role<?= $user['id'] ?>" name="role" required <?= $role_restricted ? 'disabled' : '' ?>>
                                                                             <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrator</option>
                                                                 <option value="teacher" <?= $user['role'] === 'teacher' ? 'selected' : '' ?>>Teacher</option>
-                                                                <option value="student" <?= $user['role'] === 'student' ? 'selected' : '' ?>>Student</option>
+                                                                <?php if ($current_admin_role === 'admin' && $user['role'] === 'student'): ?>
+                                                                    <option value="student" <?= $user['role'] === 'student' ? 'selected' : '' ?>>Student</option>
+                                                                <?php endif; ?>
                                                             </select>
+                                                            <?php if ($role_restricted): ?>
+                                                                <input type="hidden" name="role" value="<?= $user['role'] ?>">
+                                                                <div class="form-text text-warning">
+                                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                                    <?= $restriction_message ?>
+                                                                </div>
+                                                            <?php endif; ?>
                                                         </div>
                                                                 </div>
                                                             </div>
@@ -1019,7 +1064,9 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                     <option value="">Select Role</option>
                                     <option value="admin">Administrator</option>
                             <option value="teacher">Teacher</option>
-                            <option value="student">Student</option>
+                            <?php if (($_SESSION['role'] ?? '') === 'admin'): ?>
+                                <option value="student">Student</option>
+                            <?php endif; ?>
                         </select>
                             </div>
                         </div>

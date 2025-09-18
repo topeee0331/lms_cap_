@@ -69,7 +69,7 @@ $courses_for_assignment = $course_stmt->fetchAll();
 
 // Fetch all academic periods for assignment
 $academic_periods = [];
-$period_stmt = $db->prepare("SELECT id, CONCAT(academic_year, ' - ', semester_name) as period_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name");
+$period_stmt = $db->prepare("SELECT id, CONCAT(academic_year, ' - ', semester_name) as period_name FROM academic_periods ORDER BY academic_year DESC, semester_name");
 $period_stmt->execute();
 $academic_periods = $period_stmt->fetchAll();
 
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $current_sections = [];
                     if ($course && $course['sections']) {
-                        $current_sections = !empty($course['sections']) ? json_decode($course['sections'], true) ?: [] : [];
+                        $current_sections = json_decode($course['sections'], true) ?: [];
                     }
                     
                     // Add section if not already present
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             foreach ($all_courses as $course) {
                 if ($course['sections']) {
-                    $current_sections = !empty($course['sections']) ? json_decode($course['sections'], true) ?: [] : [];
+                    $current_sections = json_decode($course['sections'], true) ?: [];
                     $key = array_search($section_id, $current_sections);
                     if ($key !== false) {
                         unset($current_sections[$key]);
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $current_sections = [];
                     if ($course && $course['sections']) {
-                        $current_sections = !empty($course['sections']) ? json_decode($course['sections'], true) ?: [] : [];
+                        $current_sections = json_decode($course['sections'], true) ?: [];
                     }
                     
                     // Add section if not already present
@@ -240,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $current_students = [];
             if ($section && $section['students']) {
-                $current_students = !empty($section['students']) ? json_decode($section['students'], true) ?: [] : [];
+                $current_students = json_decode($section['students'], true) ?: [];
             }
             
             // Add new students (avoid duplicates)
@@ -299,38 +299,12 @@ foreach ($sections as $sec) {
     $used_codes_per_year[$yr][] = $code;
 }
 
-// Get comprehensive statistics with filters applied
-$stats_where_conditions = [];
-$stats_params = [];
-
-if ($year_filter !== '') {
-    $stats_where_conditions[] = "s.year_level = ?";
-    $stats_params[] = $year_filter;
-}
-
-if ($status_filter !== '') {
-    if ($status_filter === 'active') {
-        $stats_where_conditions[] = "s.is_active = 1";
-    } elseif ($status_filter === 'inactive') {
-        $stats_where_conditions[] = "s.is_active = 0";
-    }
-}
-
-if ($period_filter !== '') {
-    $stats_where_conditions[] = "s.academic_period_id = ?";
-    $stats_params[] = $period_filter;
-}
-
-$stats_where_clause = '';
-if (!empty($stats_where_conditions)) {
-    $stats_where_clause = "WHERE " . implode(" AND ", $stats_where_conditions);
-}
-
+// Get comprehensive statistics
 $stats_stmt = $db->prepare("
     SELECT 
         COUNT(*) as total_sections,
-        COALESCE(SUM(JSON_LENGTH(COALESCE(students, '[]'))), 0) as total_students_assigned,
-        COALESCE(SUM(JSON_LENGTH(COALESCE(teachers, '[]'))), 0) as total_teachers_assigned,
+        SUM(JSON_LENGTH(COALESCE(students, '[]'))) as total_students_assigned,
+        SUM(JSON_LENGTH(COALESCE(teachers, '[]'))) as total_teachers_assigned,
         COUNT(CASE WHEN s.is_active = 1 THEN 1 END) as active_sections,
         COUNT(CASE WHEN s.is_active = 0 THEN 1 END) as inactive_sections,
         COUNT(CASE WHEN ap.is_active = 1 THEN 1 END) as current_period_sections,
@@ -339,30 +313,9 @@ $stats_stmt = $db->prepare("
         (SELECT COUNT(*) FROM courses WHERE is_archived = 0) as total_courses
     FROM sections s
     LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id
-    $stats_where_clause
 ");
-$stats_stmt->execute($stats_params);
+$stats_stmt->execute();
 $stats = $stats_stmt->fetch();
-
-// Debug: Log the statistics for troubleshooting
-error_log("Sections Statistics Debug:");
-error_log("Year Filter: " . $year_filter);
-error_log("Status Filter: " . $status_filter);
-error_log("Period Filter: " . $period_filter);
-error_log("Stats Query: " . $stats_stmt->queryString);
-error_log("Stats Result: " . print_r($stats, true));
-
-// Ensure all statistics have default values
-$stats = array_merge([
-    'total_sections' => 0,
-    'active_sections' => 0,
-    'inactive_sections' => 0,
-    'current_period_sections' => 0,
-    'total_students_assigned' => 0,
-    'total_teachers_assigned' => 0,
-    'year_levels_covered' => 0,
-    'total_courses' => 0
-], $stats ?: []);
 
 // Get detailed teacher assignment data
 $teacher_assignments_query = "
@@ -388,7 +341,7 @@ $teacher_assignments = $teacher_assignments_stmt->fetchAll();
 $assigned_teachers_details = [];
 if (!empty($teacher_assignments)) {
     foreach ($teacher_assignments as $assignment) {
-        $teacher_ids = !empty($assignment['teachers']) ? json_decode($assignment['teachers'], true) ?? [] : [];
+        $teacher_ids = json_decode($assignment['teachers'], true) ?? [];
         if (!empty($teacher_ids)) {
             $placeholders = str_repeat('?,', count($teacher_ids) - 1) . '?';
             $teacher_details_query = "
@@ -531,51 +484,43 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
 }
 
 .stats-primary {
-    background: #0d6efd;
-    border-left: 4px solid #0a58ca;
-    color: white;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+    border-left: 4px solid #0d6efd;
 }
 
 .stats-success {
-    background: #198754;
-    border-left: 4px solid #146c43;
-    color: white;
+    background: linear-gradient(135deg, #e8f5e8 0%, #f8f9fa 100%);
+    border-left: 4px solid #198754;
 }
 
 .stats-info {
-    background: #0dcaf0;
-    border-left: 4px solid #0aa2c0;
-    color: white;
+    background: linear-gradient(135deg, #e0f7fa 0%, #f8f9fa 100%);
+    border-left: 4px solid #0dcaf0;
 }
 
 .stats-warning {
-    background: #ffc107;
-    border-left: 4px solid #ffca2c;
-    color: #000;
+    background: linear-gradient(135deg, #fff8e1 0%, #f8f9fa 100%);
+    border-left: 4px solid #ffc107;
 }
 
 .stats-secondary {
-    background: #6c757d;
-    border-left: 4px solid #5c636a;
-    color: white;
+    background: linear-gradient(135deg, #f5f5f5 0%, #f8f9fa 100%);
+    border-left: 4px solid #6c757d;
 }
 
 .stats-danger {
-    background: #dc3545;
-    border-left: 4px solid #b02a37;
-    color: white;
+    background: linear-gradient(135deg, #ffebee 0%, #f8f9fa 100%);
+    border-left: 4px solid #dc3545;
 }
 
 .stats-danger-alt {
-    background: #e91e63;
-    border-left: 4px solid #d81b60;
-    color: white;
+    background: linear-gradient(135deg, #fce4ec 0%, #f8f9fa 100%);
+    border-left: 4px solid #e91e63;
 }
 
 .stats-purple {
-    background: #9c27b0;
-    border-left: 4px solid #7b1fa2;
-    color: white;
+    background: linear-gradient(135deg, #f3e5f5 0%, #f8f9fa 100%);
+    border-left: 4px solid #9c27b0;
 }
 
 .bg-purple {
@@ -707,53 +652,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
     }
 }
 
-/* Data Collection Cards Styling */
-.data-collection-card {
-    transition: all 0.3s ease;
-    border-left: 4px solid transparent;
-}
-
-.data-collection-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
-}
-
-.data-collection-card .card-body {
-    padding: 1.5rem;
-}
-
-.data-collection-card .stats-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 1.5rem;
-}
-
-.export-btn {
-    background: linear-gradient(45deg, #007bff, #0056b3);
-    border: none;
-    color: white;
-    transition: all 0.3s ease;
-}
-
-.export-btn:hover {
-    background: linear-gradient(45deg, #0056b3, #004085);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
-}
-
-.refresh-btn {
-    background: linear-gradient(45deg, #6c757d, #495057);
-    border: none;
-    color: white;
-    transition: all 0.3s ease;
-}
-
-.refresh-btn:hover {
-    background: linear-gradient(45deg, #495057, #343a40);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(108,117,125,0.3);
-}
-
 @media (max-width: 768px) {
     .section-row:hover {
         transform: none;
@@ -788,16 +686,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
         padding: 0.5rem 1rem;
         font-weight: 600;
     }
-    
-    .data-collection-card .card-body {
-        padding: 1rem;
-    }
-    
-    .data-collection-card .stats-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 1.2rem;
-    }
 }
 </style>
 
@@ -821,8 +709,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-collection-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_sections'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Total Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Total Sections</p>
                 </div>
             </div>
         </div>
@@ -834,8 +722,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-check-circle-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['active_sections'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Active Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['active_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Active Sections</p>
                 </div>
             </div>
         </div>
@@ -847,8 +735,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-calendar-check-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['current_period_sections'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Current Period</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['current_period_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Current Period</p>
                 </div>
             </div>
         </div>
@@ -861,7 +749,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                         </div>
                     </div>
                     <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_students_assigned'] ?></h3>
-                    <p class="text-dark mb-0 small fw-medium">Students Assigned</p>
+                    <p class="text-muted mb-0 small fw-medium">Students Assigned</p>
                 </div>
             </div>
         </div>
@@ -873,8 +761,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-mortarboard-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['year_levels_covered'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Year Levels</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['year_levels_covered'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Year Levels</p>
                 </div>
             </div>
         </div>
@@ -886,8 +774,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-book-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_courses'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Total Courses</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_courses'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Total Courses</p>
                 </div>
             </div>
         </div>
@@ -899,8 +787,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-x-circle-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['inactive_sections'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Inactive Sections</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['inactive_sections'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Inactive Sections</p>
                 </div>
             </div>
         </div>
@@ -912,13 +800,12 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                             <i class="bi bi-people-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-white"><?= $stats['total_teachers_assigned'] ?></h3>
-                    <p class="text-white mb-0 small fw-medium">Teachers Assigned</p>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_teachers_assigned'] ?></h3>
+                    <p class="text-muted mb-0 small fw-medium">Teachers Assigned</p>
                 </div>
             </div>
         </div>
     </div>
-
 
     <!-- Teacher Assignments Overview -->
     <?php if (!empty($assigned_teachers_details)): ?>
@@ -1453,7 +1340,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                     $as_stmt = $db->prepare($as_sql);
                                                                     $as_stmt->execute([$section['id']]);
                                                                     $assigned_students_json = $as_stmt->fetchColumn();
-                                                                    $assigned_students = !empty($assigned_students_json) ? json_decode($assigned_students_json, true) ?? [] : [];
+                                                                    $assigned_students = json_decode($assigned_students_json, true) ?? [];
                                                                     foreach ($students as $stu) {
                                                                                 $checked = in_array($stu['id'], $assigned_students) ? 'checked' : '';
                                                                         $status = ($stu['is_irregular'] ? 'irregular' : 'regular');
@@ -1490,7 +1377,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                     $at_stmt = $db->prepare($at_sql);
                                                                     $at_stmt->execute([$section['id']]);
                                                                     $assigned_teachers_json = $at_stmt->fetchColumn();
-                                                                    $assigned_teachers = !empty($assigned_teachers_json) ? json_decode($assigned_teachers_json, true) ?? [] : [];
+                                                                    $assigned_teachers = json_decode($assigned_teachers_json, true) ?? [];
                                                                     foreach ($teachers as $teach) {
                                                                                 $checked = in_array($teach['id'], $assigned_teachers) ? 'checked' : '';
                                                                                 echo "<div class='form-check' style='margin-bottom: 4px;'>";
@@ -2592,86 +2479,6 @@ function removeStudentFromSection(studentId, sectionId) {
         console.error('Remove error:', error);
         showAlert('danger', 'Error removing student. Please try again.');
     });
-}
-
-// Data Collection and Export Functions
-function exportData() {
-    try {
-        // Collect all the data from the page
-        const data = {
-            timestamp: new Date().toISOString(),
-            filters: {
-                year: '<?= $year_filter ?>',
-                status: '<?= $status_filter ?>',
-                period: '<?= $period_filter ?>'
-            },
-            statistics: {
-                total_sections: <?= $stats['total_sections'] ?>,
-                active_sections: <?= $stats['active_sections'] ?>,
-                inactive_sections: <?= $stats['inactive_sections'] ?>,
-                current_period_sections: <?= $stats['current_period_sections'] ?>,
-                total_students_assigned: <?= $stats['total_students_assigned'] ?>,
-                total_teachers_assigned: <?= $stats['total_teachers_assigned'] ?>,
-                year_levels_covered: <?= $stats['year_levels_covered'] ?>,
-                total_courses: <?= $stats['total_courses'] ?>
-            },
-            sections: [
-                <?php if (!empty($filtered_sections)): ?>
-                    <?php 
-                    $section_count = 0;
-                    foreach ($filtered_sections as $section): 
-                        $section_count++;
-                    ?>
-                    {
-                        id: <?= $section['id'] ?>,
-                        section_name: '<?= addslashes($section['section_name']) ?>',
-                        description: '<?= addslashes($section['description']) ?>',
-                        year_level: <?= $section['year_level'] ?>,
-                        is_active: <?= $section['is_active'] ? 'true' : 'false' ?>,
-                        academic_year: '<?= addslashes($section['academic_year']) ?>',
-                        semester_name: '<?= addslashes($section['semester_name']) ?>',
-                        students: <?= $section['students'] ?>,
-                        teachers: <?= $section['teachers'] ?>,
-                        created_at: '<?= $section['created_at'] ?>'
-                    }<?= $section_count < count($filtered_sections) ? ',' : '' ?>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            ]
-        };
-        
-        // Create and download JSON file
-        const dataStr = JSON.stringify(data, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `sections_data_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        showAlert('success', 'Data exported successfully!');
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('danger', 'Error exporting data. Please try again.');
-    }
-}
-
-function refreshData() {
-    location.reload();
-}
-
-function showStudents(sectionId, sectionName) {
-    // This would show a modal with student details
-    // For now, we'll just show an alert with the section info
-    showAlert('info', `Showing students for section: ${sectionName} (ID: ${sectionId})`);
-}
-
-function showTeachers(sectionId, sectionName) {
-    // This would show a modal with teacher details
-    // For now, we'll just show an alert with the section info
-    showAlert('info', `Showing teachers for section: ${sectionName} (ID: ${sectionId})`);
 }
 </script>
 

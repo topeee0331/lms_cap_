@@ -376,7 +376,7 @@ foreach ($teachers as $teacher) {
                                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
                                                     <div class="mb-3">
                                                         <label for="teacher_id<?= $teacher['id'] ?>" class="form-label">Teacher ID</label>
-                                                        <input type="text" class="form-control" id="teacher_id<?= $teacher['id'] ?>" value="<?= htmlspecialchars($teacher['student_id'] ?? 'Not assigned') ?>" readonly>
+                                                        <input type="text" class="form-control" id="teacher_id<?= $teacher['id'] ?>" value="<?= htmlspecialchars($teacher['identifier'] ?? 'Not assigned') ?>" readonly>
                                                         <div class="form-text">Teacher ID cannot be modified</div>
                                                     </div>
                                                     <div class="mb-3">

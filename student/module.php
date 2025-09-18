@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/config.php';
 require_once '../config/database.php';
+require_once '../config/pusher.php';
 require_once '../includes/assessment_pass_tracker.php';
 
 $db = new Database();
@@ -96,6 +97,8 @@ $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_i
 // Get videos from module data
 $videos = $module['videos'] ?? [];
 
+// Video data loaded successfully
+
 // Get assessments that belong to the current module from course modules JSON
 $assessments = [];
 if (isset($module['assessments']) && is_array($module['assessments'])) {
@@ -134,18 +137,20 @@ foreach ($videos as $video) {
 $videos = $unique_videos;
 
 // Add video watch status and duration
-foreach ($videos as &$video) {
-    $video['is_watched'] = isset($video_progress[$video['id']]) && $video_progress[$video['id']]['is_watched'] == 1;
-    $video['watch_duration'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['watch_duration'] ?? 0) : 0;
-    $video['completion_percentage'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['completion_percentage'] ?? 0) : 0;
+foreach ($videos as $index => $video) {
+    $videos[$index]['is_watched'] = isset($video_progress[$video['id']]) && $video_progress[$video['id']]['is_watched'] == 1;
+    $videos[$index]['watch_duration'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['watch_duration'] ?? 0) : 0;
+    $videos[$index]['completion_percentage'] = isset($video_progress[$video['id']]) ? ($video_progress[$video['id']]['completion_percentage'] ?? 0) : 0;
 }
 
-// Sort videos by video_order to ensure proper display order
+// Sort videos by creation time (oldest first - original order)
 usort($videos, function($a, $b) {
-    $order_a = $a['video_order'] ?? 999;
-    $order_b = $b['video_order'] ?? 999;
-    return $order_a - $order_b;
+    $time_a = strtotime($a['created_at'] ?? '1970-01-01 00:00:00');
+    $time_b = strtotime($b['created_at'] ?? '1970-01-01 00:00:00');
+    return $time_a - $time_b; // Oldest first (original order)
 });
+
+// Video processing completed successfully
 
 
 // Add comprehensive assessment attempt data
@@ -546,6 +551,84 @@ $module_files = []; // This would need to be implemented based on how files are 
         .video-card:hover, .assessment-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Video Card Preview Styles */
+        .video-card-preview {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px 12px 0 0;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .video-card-preview iframe,
+        .video-card-preview video {
+            width: 100%;
+            height: 200px;
+            border: none;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .video-card-preview img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .video-card-preview .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .video-card-preview .play-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* Real-time progress update animations */
+        .video-card.progress-updated {
+            animation: progressUpdate 2s ease-in-out;
+            border: 2px solid #28a745 !important;
+            box-shadow: 0 0 20px rgba(40, 167, 69, 0.3) !important;
+        }
+
+        @keyframes progressUpdate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Highlight updated progress */
+        .text-warning {
+            transition: all 0.3s ease;
+        }
+
+        .text-warning.updated {
+            background-color: #d4edda;
+            border-radius: 4px;
+            padding: 2px 4px;
+            animation: progressHighlight 1s ease-in-out;
+        }
+
+        @keyframes progressHighlight {
+            0% { background-color: #d4edda; }
+            50% { background-color: #c3e6cb; }
+            100% { background-color: transparent; }
         }
 
         .video-card.watched {
@@ -1161,37 +1244,125 @@ $module_files = []; // This would need to be implemented based on how files are 
                     <div class="mb-4">
                         <h3>Videos</h3>
                         <div class="row">
-                            <?php foreach ($videos as $video): ?>
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card video-card <?php echo $video['is_watched'] ? 'watched' : ''; ?>">
+                            <?php foreach ($videos as $index => $video): ?>
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card video-card h-100 border-0 shadow-sm <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
+                                        <!-- Video Preview Section -->
+                                        <div class="video-card-preview">
+                                            <?php 
+                                            $video_url = $video['video_url'] ?? '';
+                                            $video_file = $video['video_file'] ?? '';
+                                            
+                                            // Check if video_file contains a URL (from old data)
+                                            if (!empty($video_file) && (strpos($video_file, 'http') === 0 || strpos($video_file, 'www.') === 0)) {
+                                                $video_url = $video_file;
+                                                $video_file = '';
+                                            }
+                                            
+                                            if (!empty($video_url)) {
+                                                if (preg_match('/youtu\.be|youtube\.com/', $video_url)) {
+                                                    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_url, $matches)) {
+                                                        $youtube_id = $matches[1];
+                                                        echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="https://www.youtube.com/embed/' . htmlspecialchars($youtube_id) . '" frameborder="0" allowfullscreen></iframe>';
+                                                    } else {
+                                                        echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                        echo '<div class="text-center text-muted">';
+                                                        echo '<i class="fas fa-video display-4 mb-2"></i>';
+                                                        echo '<div class="fw-bold">YouTube Video</div>';
+                                                        echo '<small>Click to watch</small>';
+                                                        echo '</div>';
+                                                        echo '</div>';
+                                                    }
+                                                } elseif (preg_match('/drive\.google\.com/', $video_url)) {
+                                                    echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                    echo '<div class="text-center text-muted">';
+                                                    echo '<i class="fab fa-google-drive display-4 mb-2"></i>';
+                                                    echo '<div class="fw-bold">Google Drive Video</div>';
+                                                    echo '<small>Click to watch</small>';
+                                                    echo '</div>';
+                                                    echo '</div>';
+                                                } elseif (preg_match('/\.mp4$/', $video_url)) {
+                                                    echo '<video class="card-img-top" style="height: 200px; width: 100%; object-fit: cover;" controls preload="metadata">';
+                                                    echo '<source src="' . htmlspecialchars($video_url) . '" type="video/mp4">';
+                                                    echo 'Your browser does not support the video tag.';
+                                                    echo '</video>';
+                                                } else {
+                                                    echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                    echo '<div class="text-center text-muted">';
+                                                    echo '<i class="fas fa-link display-4 mb-2"></i>';
+                                                    echo '<div class="fw-bold">Video Link</div>';
+                                                    echo '<small>Click to watch</small>';
+                                                    echo '</div>';
+                                                    echo '</div>';
+                                                }
+                                            } elseif (!empty($video_file)) {
+                                                echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                echo '<div class="text-center text-muted">';
+                                                echo '<i class="fas fa-file-video display-4 mb-2"></i>';
+                                                echo '<div class="fw-bold">Video File</div>';
+                                                echo '<small>Click to watch</small>';
+                                                echo '</div>';
+                                                echo '</div>';
+                                            } else {
+                                                // Fallback display for videos without URL or file
+                                                echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                echo '<div class="text-center text-muted">';
+                                                echo '<i class="fas fa-camera-video-off display-4 mb-2"></i>';
+                                                echo '<div class="fw-bold">No Video Preview</div>';
+                                                echo '<small>Video link not provided</small>';
+                                                echo '</div>';
+                                                echo '</div>';
+                                            }
+                                            ?>
+                                        </div>
+                                        
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
                                                 <h5 class="card-title"><?php echo htmlspecialchars($video['video_title'] ?? ''); ?></h5>
                                                 <?php if ($video['is_watched']): ?>
-                                        <span class="badge bg-success">
+                                                    <span class="badge bg-success">
                                                         <i class="fas fa-check"></i> Watched
-                                        </span>
+                                                    </span>
                                                 <?php endif; ?>
-                                    </div>
+                                            </div>
                                             
-                                            <p class="card-text"><?php echo htmlspecialchars(substr($video['video_description'] ?? 'No description available.', 0, 100)); ?><?php echo strlen($video['video_description'] ?? '') > 100 ? '...' : ''; ?></p>
+                                            <p class="card-text text-muted"><?php echo htmlspecialchars(substr($video['video_description'] ?? 'No description available.', 0, 100)); ?><?php echo strlen($video['video_description'] ?? '') > 100 ? '...' : ''; ?></p>
                                             
-                                            <!-- Video Details -->
-                                            <div class="row text-center mb-2">
-                                                <div class="col-6">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-clock"></i><br>
-                                                        <?php echo $video['min_watch_time'] ?? 5; ?> min
-                                                    </small>
+                                            <!-- Statistics Row -->
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-primary fs-5" style="color: #1976d2 !important;"><?php echo $video['min_watch_time'] ?? 5; ?>m</div>
+                                                        <small class="text-muted d-block">Duration</small>
+                                                    </div>
                                                 </div>
-                                                <div class="col-6">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-sort-numeric-up"></i><br>
-                                                        Order <?php echo $video['video_order'] ?? 1; ?>
-                                                    </small>
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-info fs-5" style="color: #00bcd4 !important;"><?php echo $index + 1; ?></div>
+                                                        <small class="text-muted d-block">Order</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-warning fs-5" style="color: #ff9800 !important;"><?php echo $video['completion_percentage'] ?? 0; ?>%</div>
+                                                        <small class="text-muted d-block">Progress</small>
+                                                    </div>
                                                 </div>
                                             </div>
                                             
+                                            <!-- Video URL Preview -->
+                                            <?php if (!empty($video_url)): ?>
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-link text-muted me-2"></i>
+                                                        <small class="text-muted text-truncate" title="<?php echo htmlspecialchars($video_url); ?>">
+                                                            <?php echo htmlspecialchars($video_url); ?>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Action Buttons -->
                                             <div class="d-grid gap-2">
                                                 <?php if ($video['video_url'] ?? $video['video_file'] ?? ''): ?>
                                                     <a href="video_player.php?id=<?php echo $video['id']; ?>&module_id=<?php echo $module_id; ?>" class="action-button start">
@@ -1654,6 +1825,83 @@ $module_files = []; // This would need to be implemented based on how files are 
                     </div>
                 `;
             });
+
+            // Pusher real-time video progress updates
+            const pusherConfig = <?php echo json_encode(PusherConfig::getConfig()); ?>;
+            
+            if (pusherConfig && pusherConfig.available) {
+                console.log('🎥 Initializing Pusher for student video progress...');
+                
+                // Initialize Pusher
+                const pusher = new Pusher(pusherConfig.app_key, {
+                    cluster: pusherConfig.cluster,
+                    encrypted: true
+                });
+                
+                // Subscribe to student-specific channel
+                const studentChannel = pusher.subscribe(`user-<?php echo $user_id; ?>`);
+                studentChannel.bind('video_progress_update', function(data) {
+                    console.log('📊 Received video progress update:', data);
+                    updateVideoProgress(data);
+                });
+                
+                // Subscribe to module-specific channel
+                const moduleChannel = pusher.subscribe('module-<?php echo $module_id; ?>');
+                moduleChannel.bind('video_progress_update', function(data) {
+                    console.log('📊 Received module video progress update:', data);
+                    updateVideoProgress(data);
+                });
+                
+                // Function to update video progress in real-time
+                function updateVideoProgress(data) {
+                    const videoId = data.video_id;
+                    const progress = data.progress;
+                    
+                    // Find the video card by ID
+                    const videoCards = document.querySelectorAll('.video-card');
+                    videoCards.forEach(card => {
+                        const cardVideoId = card.getAttribute('data-video-id');
+                        if (cardVideoId === videoId) {
+                            // Update progress percentage
+                            const progressElement = card.querySelector('.text-warning');
+                            if (progressElement) {
+                                progressElement.textContent = progress.completion_percentage + '%';
+                            }
+                            
+                            // Update watch status if completed
+                            if (progress.completion_percentage >= 100) {
+                                card.classList.add('watched');
+                                
+                                // Update badge
+                                const badgeElement = card.querySelector('.badge');
+                                if (badgeElement) {
+                                    badgeElement.className = 'badge bg-success';
+                                    badgeElement.innerHTML = '<i class="fas fa-check"></i> Watched';
+                                }
+                                
+                                // Update action button
+                                const actionButton = card.querySelector('.action-button');
+                                if (actionButton) {
+                                    actionButton.className = 'action-button completed';
+                                    actionButton.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+                                }
+                            }
+                            
+                            // Add visual feedback
+                            card.classList.add('progress-updated');
+                            setTimeout(() => {
+                                card.classList.remove('progress-updated');
+                            }, 2000);
+                            
+                            console.log(`✅ Updated progress for video ${videoId}:`, progress);
+                        }
+                    });
+                }
+                
+                console.log('✅ Pusher video progress initialized');
+            } else {
+                console.warn('⚠️ Pusher not available for video progress');
+            }
         });
     </script>
 </body>

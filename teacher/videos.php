@@ -4,6 +4,7 @@ ob_start();
 
 $page_title = 'Videos';
 require_once '../config/config.php';
+require_once '../config/pusher.php';
 requireRole('teacher');
 require_once '../includes/header.php';
 
@@ -366,6 +367,7 @@ foreach ($courses_data as $course) {
                     $video['module_id'] = $module['id'];
                     $video['view_count'] = 0; // Placeholder - would need to calculate from video_progress
                     $video['avg_completion'] = 0; // Placeholder - would need to calculate from video_progress
+                    $video['video_order'] = count($videos) + 1; // Add video order based on current count
                     $videos[] = $video;
                 }
             }
@@ -373,9 +375,86 @@ foreach ($courses_data as $course) {
     }
 }
 
-// Sort videos by order
+// Calculate real view statistics for all videos
+if (!empty($videos)) {
+    // Get all video IDs
+    $video_ids = array_column($videos, 'id');
+    $video_id_ints = array_map('crc32', $video_ids);
+    
+    // Get course sections and students for this teacher
+    $teacher_courses = [];
+    $stmt = $db->prepare('SELECT id, sections FROM courses WHERE teacher_id = ?');
+    $stmt->execute([$_SESSION['user_id']]);
+    $courses_data = $stmt->fetchAll();
+    
+    $all_student_ids = [];
+    foreach ($courses_data as $course) {
+        $teacher_courses[] = $course['id'];
+        if ($course['sections']) {
+            $section_ids = json_decode($course['sections'], true);
+            if (is_array($section_ids)) {
+                $placeholders = str_repeat('?,', count($section_ids) - 1) . '?';
+                $stmt = $db->prepare("SELECT u.id FROM sections s 
+                                      JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL 
+                                      WHERE s.id IN ($placeholders)");
+                $stmt->execute($section_ids);
+                $students = $stmt->fetchAll();
+                foreach ($students as $student) {
+                    $all_student_ids[] = $student['id'];
+                }
+            }
+        }
+    }
+    
+    // Remove duplicates
+    $all_student_ids = array_unique($all_student_ids);
+    
+    // Get video statistics from video_views table
+    if (!empty($all_student_ids)) {
+        $video_stats = [];
+        
+        foreach ($video_id_ints as $video_id_int) {
+            $stmt = $db->prepare("
+                SELECT 
+                    COUNT(*) as total_views,
+                    COUNT(DISTINCT student_id) as unique_viewers,
+                    AVG(completion_percentage) as avg_completion,
+                    SUM(watch_duration) as total_watch_time
+                FROM video_views 
+                WHERE video_id = ? AND student_id IN (" . str_repeat('?,', count($all_student_ids) - 1) . "?)
+            ");
+            $params = array_merge([$video_id_int], $all_student_ids);
+            $stmt->execute($params);
+            $stats = $stmt->fetch();
+            
+            if ($stats) {
+                $video_stats[$video_id_int] = [
+                    'total_views' => (int)$stats['total_views'],
+                    'unique_viewers' => (int)$stats['unique_viewers'],
+                    'avg_completion' => round((float)$stats['avg_completion'], 1),
+                    'total_watch_time' => (int)$stats['total_watch_time']
+                ];
+            }
+        }
+        
+        // Update video data with real statistics
+        foreach ($videos as $index => $video) {
+            $video_id_int = crc32($video['id']);
+            if (isset($video_stats[$video_id_int])) {
+                $videos[$index]['view_count'] = $video_stats[$video_id_int]['total_views'];
+                $videos[$index]['unique_viewers'] = $video_stats[$video_id_int]['unique_viewers'];
+                $videos[$index]['avg_completion'] = $video_stats[$video_id_int]['avg_completion'];
+                $videos[$index]['total_watch_time'] = $video_stats[$video_id_int]['total_watch_time'];
+            }
+        }
+    }
+}
+
+// Sort videos by creation time (oldest first)
 usort($videos, function($a, $b) {
-    return ($a['video_order'] ?? 0) - ($b['video_order'] ?? 0);
+    $time_a = strtotime($a['created_at'] ?? '1970-01-01 00:00:00');
+    $time_b = strtotime($b['created_at'] ?? '1970-01-01 00:00:00');
+    return $time_a - $time_b;
 });
 
 // Debug logging for video count
@@ -644,6 +723,37 @@ error_log("Total videos found: " . count($videos));
     
     .video-card:hover .video-play-button {
         opacity: 1;
+    }
+
+    /* Real-time update animations */
+    .video-card.stats-updated {
+        animation: statsUpdate 2s ease-in-out;
+        border: 2px solid #28a745 !important;
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.3) !important;
+    }
+
+    @keyframes statsUpdate {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+
+    /* Highlight updated statistics */
+    .view-count {
+        transition: all 0.3s ease;
+    }
+
+    .view-count.updated {
+        background-color: #d4edda;
+        border-radius: 4px;
+        padding: 2px 4px;
+        animation: statHighlight 1s ease-in-out;
+    }
+
+    @keyframes statHighlight {
+        0% { background-color: #d4edda; }
+        50% { background-color: #c3e6cb; }
+        100% { background-color: transparent; }
     }
     
     .video-card-body {
@@ -1054,13 +1164,13 @@ error_log("Total videos found: " . count($videos));
                                 ];
                                 $color_index = 0;
                                 ?>
-                                <?php foreach ($videos as $video): ?>
+                                <?php foreach ($videos as $index => $video): ?>
                                     <?php 
                                     $card_color = $video_colors[$color_index % count($video_colors)];
                                     $color_index++;
                                     ?>
                                     <div class="col-md-6 col-lg-4 mb-4">
-                                        <div class="card video-card h-100" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
+                                        <div class="card video-card h-100" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
                                         <div class="video-card-preview">
                                             <?php
                                             $video_url = $video['video_url'] ?? '';
@@ -1130,14 +1240,30 @@ error_log("Total videos found: " . count($videos));
                                             </div>
                                             </div>
                                             
-                                            <div class="video-stats-row">
-                                                <div class="video-views">
-                                                    <i class="bi bi-eye"></i>
-                                                    <span><?php echo $video['view_count']; ?> views</span>
+                                            <!-- Statistics Row -->
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-primary fs-5 view-count" style="color: #1976d2 !important;"><?php echo number_format($video['view_count'] ?? 0); ?></div>
+                                                        <small class="text-muted d-block">Views</small>
+                                                    </div>
                                                 </div>
-                                                <div class="text-muted small">
-                                                    Order: <?php echo $video['video_order']; ?>
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-info fs-5 unique-viewers" style="color: #00bcd4 !important;"><?php echo number_format($video['unique_viewers'] ?? 0); ?></div>
+                                                        <small class="text-muted d-block">Unique</small>
+                                                    </div>
                                                 </div>
+                                                <div class="col-4">
+                                                    <div class="text-center p-2 bg-light rounded">
+                                                        <div class="fw-bold text-warning fs-5 avg-completion" style="color: #ff9800 !important;"><?php echo $video['avg_completion'] ?? 0; ?>%</div>
+                                                        <small class="text-muted d-block">Avg</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="text-muted small mb-3">
+                                                Order: <?php echo $index + 1; ?>
                                             </div>
                                             
                                             <div class="video-actions">
@@ -1427,6 +1553,79 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+});
+
+// Pusher real-time video statistics updates
+document.addEventListener('DOMContentLoaded', function() {
+    // Get Pusher configuration
+    const pusherConfig = <?php echo json_encode(PusherConfig::getConfig()); ?>;
+    
+    if (pusherConfig && pusherConfig.available) {
+        console.log('🎥 Initializing Pusher for video statistics...');
+        
+        // Initialize Pusher
+        const pusher = new Pusher(pusherConfig.app_key, {
+            cluster: pusherConfig.cluster,
+            encrypted: true
+        });
+        
+        // Subscribe to teacher channel for video stats updates
+        const teacherChannel = pusher.subscribe('role-teacher');
+        teacherChannel.bind('video_stats_update', function(data) {
+            console.log('📊 Received video stats update:', data);
+            updateVideoStats(data);
+        });
+        
+        // Subscribe to general video updates channel
+        const videoChannel = pusher.subscribe('video-updates');
+        videoChannel.bind('video_stats_update', function(data) {
+            console.log('📊 Received general video stats update:', data);
+            updateVideoStats(data);
+        });
+        
+        // Function to update video statistics in real-time
+        function updateVideoStats(data) {
+            const videoId = data.video_id;
+            const stats = data.stats;
+            
+            // Find the video card by ID
+            const videoCards = document.querySelectorAll('.video-card');
+            videoCards.forEach(card => {
+                const cardVideoId = card.getAttribute('data-video-id');
+                if (cardVideoId === videoId) {
+                    // Update view count
+                    const viewCountElement = card.querySelector('.view-count');
+                    if (viewCountElement) {
+                        viewCountElement.textContent = stats.total_views;
+                    }
+                    
+                    // Update unique viewers
+                    const uniqueViewersElement = card.querySelector('.unique-viewers');
+                    if (uniqueViewersElement) {
+                        uniqueViewersElement.textContent = stats.unique_viewers;
+                    }
+                    
+                    // Update average completion
+                    const avgCompletionElement = card.querySelector('.avg-completion');
+                    if (avgCompletionElement) {
+                        avgCompletionElement.textContent = stats.avg_completion + '%';
+                    }
+                    
+                    // Add visual feedback
+                    card.classList.add('stats-updated');
+                    setTimeout(() => {
+                        card.classList.remove('stats-updated');
+                    }, 2000);
+                    
+                    console.log(`✅ Updated stats for video ${videoId}:`, stats);
+                }
+            });
+        }
+        
+        console.log('✅ Pusher video statistics initialized');
+    } else {
+        console.warn('⚠️ Pusher not available for video statistics');
+    }
 });
 </script>
 

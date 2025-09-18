@@ -150,7 +150,7 @@ $hourly_engagement = $stmt->fetchAll();
                 <div>
                     <h1 class="h3 mb-1">Video Statistics</h1>
                     <p class="text-muted mb-0">
-                        <?php echo htmlspecialchars($video['video_title']); ?> • 
+                        <?php echo htmlspecialchars($video['video_title'] ?? 'Unknown Video'); ?> • 
                         <?php echo htmlspecialchars($course['course_name'] ?? 'Unknown Course'); ?>
                     </p>
                 </div>
@@ -215,9 +215,9 @@ $hourly_engagement = $stmt->fetchAll();
                             <?php endif; ?>
                         </div>
                         <div class="col-md-8">
-                            <h5 class="mb-2"><?php echo htmlspecialchars($video['video_title']); ?></h5>
+                            <h5 class="mb-2"><?php echo htmlspecialchars($video['video_title'] ?? 'Unknown Video'); ?></h5>
                             <?php if (!empty($video['video_description'])): ?>
-                                <p class="text-muted mb-3"><?php echo htmlspecialchars($video['video_description']); ?></p>
+                                <p class="text-muted mb-3"><?php echo htmlspecialchars($video['video_description'] ?? ''); ?></p>
                             <?php endif; ?>
                             <div class="row">
                                 <div class="col-6">
@@ -369,21 +369,21 @@ $hourly_engagement = $stmt->fetchAll();
                                                 </div>
                                             </td>
                                             <td>
-                                                <small><?php echo date('M j, Y g:i A', strtotime($viewer['watched_at'])); ?></small>
+                                                <small><?php echo date('M j, Y g:i A', strtotime($viewer['viewed_at'] ?? '1970-01-01 00:00:00')); ?></small>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info"><?php echo formatDuration($viewer['watch_duration']); ?></span>
+                                                <span class="badge bg-info"><?php echo formatDuration($viewer['watch_duration'] ?? 0); ?></span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-<?php echo $viewer['completion_percentage'] >= 90 ? 'success' : ($viewer['completion_percentage'] >= 70 ? 'info' : ($viewer['completion_percentage'] >= 50 ? 'warning' : 'danger')); ?>">
-                                                    <?php echo $viewer['completion_percentage']; ?>%
+                                                <span class="badge bg-<?php echo ($viewer['completion_percentage'] ?? 0) >= 90 ? 'success' : (($viewer['completion_percentage'] ?? 0) >= 70 ? 'info' : (($viewer['completion_percentage'] ?? 0) >= 50 ? 'warning' : 'danger')); ?>">
+                                                    <?php echo $viewer['completion_percentage'] ?? 0; ?>%
                                                 </span>
                                             </td>
                                             <td>
                                                 <div class="progress" style="height: 20px;">
-                                                    <div class="progress-bar bg-<?php echo $viewer['completion_percentage'] >= 90 ? 'success' : ($viewer['completion_percentage'] >= 70 ? 'info' : ($viewer['completion_percentage'] >= 50 ? 'warning' : 'danger')); ?>" 
-                                                         style="width: <?php echo $viewer['completion_percentage']; ?>%">
-                                                        <?php echo $viewer['completion_percentage']; ?>%
+                                                    <div class="progress-bar bg-<?php echo ($viewer['completion_percentage'] ?? 0) >= 90 ? 'success' : (($viewer['completion_percentage'] ?? 0) >= 70 ? 'info' : (($viewer['completion_percentage'] ?? 0) >= 50 ? 'warning' : 'danger')); ?>" 
+                                                         style="width: <?php echo $viewer['completion_percentage'] ?? 0; ?>%">
+                                                        <?php echo $viewer['completion_percentage'] ?? 0; ?>%
                                                     </div>
                                                 </div>
                                             </td>

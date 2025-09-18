@@ -3,6 +3,7 @@
 ob_start();
 
 require_once '../config/config.php';
+require_once '../config/pusher.php';
 requireRole('teacher');
 
 $page_title = 'Module Videos';
@@ -139,6 +140,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (empty($video_title) || empty($video_id)) {
                     $message = 'Video title and ID are required.';
                     $message_type = 'danger';
+                } elseif (empty($video_url)) {
+                    $message = 'Video link is required.';
+                    $message_type = 'danger';
                 } elseif ($min_watch_time < 1 || $min_watch_time > 30) {
                     $message = 'Minimum watch time must be between 1 and 30 minutes.';
                     $message_type = 'danger';
@@ -270,15 +274,30 @@ if (isset($module['videos']) && is_array($module['videos'])) {
     }
 }
 
-// Sort videos by creation time (newest first)
+// Sort videos by creation time (oldest first - original order)
 usort($videos, function($a, $b) {
     $time_a = strtotime($a['created_at'] ?? '1970-01-01 00:00:00');
     $time_b = strtotime($b['created_at'] ?? '1970-01-01 00:00:00');
-    return $time_b - $time_a; // Newest first
+    return $time_a - $time_b; // Oldest first (original order)
 });
 
 // Debug logging for video count - using videos.php logic
 error_log("Total videos found in module: " . count($videos));
+error_log("Videos data: " . json_encode($videos));
+
+// Debug output for testing
+if (isset($_GET['debug'])) {
+    echo "<div class='alert alert-info'>";
+    echo "<strong>Debug Info:</strong><br>";
+    echo "Total videos loaded: " . count($videos) . "<br>";
+    echo "Module videos count: " . count($module['videos'] ?? []) . "<br>";
+    foreach ($videos as $i => $video) {
+        echo "Video " . ($i + 1) . ": " . $video['video_title'] . " (URL: " . ($video['video_url'] ?: 'EMPTY') . ")<br>";
+    }
+    echo "</div>";
+}
+
+// Debug output removed - issue fixed
 
 // Get students in sections for this course - using videos.php logic
 $student_names = [];
@@ -300,8 +319,34 @@ if ($course['sections']) {
             $student_ids[] = $stu['id'];
         }
         
-        // Get video statistics from video_views table (if it exists)
-        if ($videos && $student_ids) {
+// Function to send video statistics updates via Pusher
+function sendVideoStatsUpdate($video_id, $stats, $module_id) {
+    try {
+        $pusher = PusherConfig::getInstance();
+        if ($pusher) {
+            $data = [
+                'type' => 'video_stats_update',
+                'video_id' => $video_id,
+                'module_id' => $module_id,
+                'stats' => $stats,
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+            
+            // Send to teachers channel
+            $pusher->trigger('role-teacher', 'video_stats_update', $data);
+            
+            // Send to specific module channel
+            $pusher->trigger("module-{$module_id}", 'video_stats_update', $data);
+            
+            // Video stats update sent successfully
+        }
+    } catch (Exception $e) {
+        error_log("Failed to send video stats update via Pusher: " . $e->getMessage());
+    }
+}
+
+// Get video statistics from video_views table (if it exists)
+if ($videos && $student_ids) {
             // Check if video_views table exists
             $table_exists = false;
             try {
@@ -351,6 +396,9 @@ if ($course['sections']) {
                                 'total_watch_time' => (int)$stats['total_watch_time']
                             ];
                             
+                            // Send real-time update via Pusher
+                            sendVideoStatsUpdate($video_id, $video_stats[$video_id], $module_id);
+                            
                             // Get individual viewers
                             if ($stats['viewer_ids']) {
                                 $viewer_ids = explode(',', $stats['viewer_ids']);
@@ -380,13 +428,15 @@ if ($course['sections']) {
 }
 
 // Update video data with real statistics
-foreach ($videos as &$video) {
+foreach ($videos as $index => $video) {
     $video_id = $video['id'];
     if (isset($video_stats[$video_id])) {
-        $video['view_count'] = $video_stats[$video_id]['total_views'];
-        $video['unique_viewers'] = $video_stats[$video_id]['unique_viewers'];
-        $video['avg_completion'] = $video_stats[$video_id]['avg_completion'];
-        $video['total_watch_time'] = $video_stats[$video_id]['total_watch_time'];
+        $videos[$index]['view_count'] = $video_stats[$video_id]['total_views'];
+        $videos[$index]['unique_viewers'] = $video_stats[$video_id]['unique_viewers'];
+        $videos[$index]['avg_completion'] = $video_stats[$video_id]['avg_completion'];
+        $videos[$index]['total_watch_time'] = $video_stats[$video_id]['total_watch_time'];
+        
+        // Video statistics updated
     }
 }
 
@@ -654,7 +704,7 @@ if (isset($_GET['debug'])) {
                              <div class="row">
                                  <?php foreach ($videos as $index => $video): ?>
                                      <div class="col-md-6 col-lg-4 mb-4">
-                                         <div class="card video-card h-100 border-0 shadow-sm">
+                                         <div class="card video-card h-100 border-0 shadow-sm" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
                                              <div class="video-card-preview">
                                                  <?php 
                                                  $video_url = $video['video_url'] ?? '';
@@ -695,6 +745,15 @@ if (isset($_GET['debug'])) {
                                                      if ($ext === 'webm') $mime = 'video/webm';
                                                      elseif ($ext === 'ogg' || $ext === 'ogv') $mime = 'video/ogg';
                                                      echo '<video class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;" controls><source src="/lms_cap/uploads/videos/' . htmlspecialchars($video_file) . '" type="' . $mime . '">Your browser does not support the video tag.</video>';
+                                                 } else {
+                                                     // Fallback display for videos without URL or file
+                                                     echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                     echo '<div class="text-center text-muted">';
+                                                     echo '<i class="bi bi-camera-video-off display-4 mb-2"></i>';
+                                                     echo '<div class="fw-bold">No Video Preview</div>';
+                                                     echo '<small>Video link not provided</small>';
+                                                     echo '</div>';
+                                                     echo '</div>';
                                                  }
                                                  ?>
                                              </div>
@@ -737,13 +796,13 @@ if (isset($_GET['debug'])) {
                                                  <div class="row g-2 mb-3">
                                                      <div class="col-4">
                                                          <div class="text-center p-2 bg-light rounded">
-                                                             <div class="fw-bold text-primary fs-5" style="color: #1976d2 !important;"><?php echo number_format($video['view_count'] ?? 0); ?></div>
+                                                             <div class="fw-bold text-primary fs-5 view-count" style="color: #1976d2 !important;"><?php echo number_format($video['view_count'] ?? 0); ?></div>
                                                              <small class="text-muted d-block">Views</small>
                                                          </div>
                                                      </div>
                                                      <div class="col-4">
                                                          <div class="text-center p-2 bg-light rounded">
-                                                             <div class="fw-bold text-info fs-5" style="color: #00bcd4 !important;"><?php echo number_format($video['unique_viewers'] ?? 0); ?></div>
+                                                             <div class="fw-bold text-info fs-5 unique-viewers" style="color: #00bcd4 !important;"><?php echo number_format($video['unique_viewers'] ?? 0); ?></div>
                                                              <small class="text-muted d-block">Unique</small>
                                                          </div>
                                                      </div>
@@ -878,6 +937,12 @@ if (isset($_GET['debug'])) {
                                min="1" max="30" step="1" required>
                         <div class="form-text">Minimum time students must watch to count as "viewed" (1-30 minutes)</div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_video_url" class="form-label">Video Link (YouTube, Google Drive, or direct .mp4 link)</label>
+                        <input type="url" class="form-control" id="edit_video_url" name="video_url" placeholder="https://..." required>
+                        <div class="form-text">Paste a YouTube, Google Drive, or direct video link.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -904,6 +969,7 @@ function editVideo(video) {
         document.getElementById('edit_video_title').value = video.video_title || '';
         document.getElementById('edit_description').value = video.video_description || '';
         document.getElementById('edit_min_watch_time').value = video.min_watch_time || 30;
+        document.getElementById('edit_video_url').value = video.video_url || '';
 
         const modal = new bootstrap.Modal(document.getElementById('editVideoModal'));
         modal.show();
@@ -964,6 +1030,100 @@ document.addEventListener('DOMContentLoaded', function() {
              }, 500);
          }, 5000);
      }
+ });
+
+// Pusher real-time video statistics updates
+document.addEventListener('DOMContentLoaded', function() {
+    // Get Pusher configuration
+    const pusherConfig = <?php echo json_encode(PusherConfig::getConfig()); ?>;
+    
+    if (pusherConfig && pusherConfig.available) {
+        console.log('🎥 Initializing Pusher for video statistics...');
+        
+        // Initialize Pusher
+        const pusher = new Pusher(pusherConfig.app_key, {
+            cluster: pusherConfig.cluster,
+            encrypted: true
+        });
+        
+        // Subscribe to teacher channel for video stats updates
+        const teacherChannel = pusher.subscribe('role-teacher');
+        teacherChannel.bind('video_stats_update', function(data) {
+            console.log('📊 Received video stats update:', data);
+            updateVideoStats(data);
+        });
+        
+        // Subscribe to module-specific channel
+        const moduleChannel = pusher.subscribe('module-<?php echo $module_id; ?>');
+        moduleChannel.bind('video_stats_update', function(data) {
+            console.log('📊 Received module video stats update:', data);
+            updateVideoStats(data);
+        });
+        
+        // Function to update video statistics in real-time
+        function updateVideoStats(data) {
+            const videoId = data.video_id;
+            const stats = data.stats;
+            
+            // Find the video card by ID
+            const videoCards = document.querySelectorAll('.video-card');
+            videoCards.forEach(card => {
+                const cardVideoId = card.getAttribute('data-video-id');
+                if (cardVideoId === videoId) {
+                    // Update view count
+                    const viewCountElement = card.querySelector('.view-count');
+                    if (viewCountElement) {
+                        viewCountElement.textContent = stats.total_views + ' views';
+                    }
+                    
+                    // Update unique viewers
+                    const uniqueViewersElement = card.querySelector('.unique-viewers');
+                    if (uniqueViewersElement) {
+                        uniqueViewersElement.textContent = stats.unique_viewers + ' viewers';
+                    }
+                    
+                    // Update average completion
+                    const avgCompletionElement = card.querySelector('.avg-completion');
+                    if (avgCompletionElement) {
+                        avgCompletionElement.textContent = stats.avg_completion + '%';
+                    }
+                    
+                    // Update total watch time
+                    const watchTimeElement = card.querySelector('.total-watch-time');
+                    if (watchTimeElement) {
+                        watchTimeElement.textContent = formatTime(stats.total_watch_time);
+                    }
+                    
+                    // Add visual feedback
+                    card.classList.add('stats-updated');
+                    setTimeout(() => {
+                        card.classList.remove('stats-updated');
+                    }, 2000);
+                    
+                    console.log(`✅ Updated stats for video ${videoId}:`, stats);
+                }
+            });
+        }
+        
+        // Helper function to format time
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${secs}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+        
+        console.log('✅ Pusher video statistics initialized');
+    } else {
+        console.warn('⚠️ Pusher not available for video statistics');
+    }
 });
 </script>
 
@@ -1350,6 +1510,37 @@ function sanitizeFilename($filename) {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
     border-color: #f44336;
+}
+
+/* Real-time update animations */
+.video-card.stats-updated {
+    animation: statsUpdate 2s ease-in-out;
+    border: 2px solid #28a745 !important;
+    box-shadow: 0 0 20px rgba(40, 167, 69, 0.3) !important;
+}
+
+@keyframes statsUpdate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Highlight updated statistics */
+.view-count, .unique-viewers, .avg-completion, .total-watch-time {
+    transition: all 0.3s ease;
+}
+
+.view-count.updated, .unique-viewers.updated, .avg-completion.updated, .total-watch-time.updated {
+    background-color: #d4edda;
+    border-radius: 4px;
+    padding: 2px 4px;
+    animation: statHighlight 1s ease-in-out;
+}
+
+@keyframes statHighlight {
+    0% { background-color: #d4edda; }
+    50% { background-color: #c3e6cb; }
+    100% { background-color: transparent; }
 }
 
 /* Empty State */

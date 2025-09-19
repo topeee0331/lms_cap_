@@ -462,6 +462,11 @@ function validateModuleOrder($modules, $new_order, $exclude_id = null) {
     color: white;
 }
 
+.btn-files {
+    background: #9b59b6;
+    color: white;
+}
+
 .btn-delete {
     background: #e74c3c;
     color: white;
@@ -553,6 +558,101 @@ function validateModuleOrder($modules, $new_order, $exclude_id = null) {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
+/* File Display Styles */
+.file-item {
+    margin-bottom: 1rem;
+}
+
+.file-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.file-card:hover {
+    background: #e9ecef;
+    border-color: #9b59b6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.file-icon {
+    font-size: 2.5rem;
+    color: #9b59b6;
+    margin-right: 1rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+.file-details {
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+.file-name {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.file-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.file-size {
+    font-weight: 500;
+}
+
+.file-date {
+    font-style: italic;
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.file-actions .btn {
+    white-space: nowrap;
+}
+
+/* File Preview Modal Styles */
+#filePreviewModal .modal-dialog {
+    max-width: 90vw;
+    width: 90vw;
+}
+
+#filePreviewModal .modal-body {
+    background: #f8f9fa;
+}
+
+#filePreviewContent iframe {
+    border-radius: 0.375rem;
+}
+
+#filePreviewContent img {
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#filePreviewContent video {
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#filePreviewContent audio {
+    border-radius: 0.375rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .module-actions {
@@ -561,6 +661,25 @@ function validateModuleOrder($modules, $new_order, $exclude_id = null) {
     
     .module-action-btn {
         margin-bottom: 0.25rem;
+    }
+    
+    .file-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .file-icon {
+        margin-right: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .file-details {
+        margin-right: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .file-actions {
+        justify-content: center;
     }
 }
 </style>
@@ -998,7 +1117,13 @@ $stats = $stmt->fetch();
                                                 <div class="module-stat">
                                                     <span class="module-stat-number"><?php echo $module['assessment_count'] ?? 0; ?></span>
                                                     <span class="module-stat-label">Assessments</span>
-                                            </div>
+                                                </div>
+                                                <?php if (isset($module['file']) && !empty($module['file'])): ?>
+                                                <div class="module-stat">
+                                                    <span class="module-stat-number">1</span>
+                                                    <span class="module-stat-label">File</span>
+                                                </div>
+                                                <?php endif; ?>
                                                 <div class="module-stat">
                                                     <span class="module-stat-number"><?php echo $module['module_order'] ?? 1; ?></span>
                                                     <span class="module-stat-label">Order</span>
@@ -1020,6 +1145,12 @@ $stats = $stmt->fetch();
                                                 <i class="bi bi-clipboard-check"></i>
                                                 <span>Assessments</span>
                                             </a>
+                                            <?php if (isset($module['file']) && !empty($module['file'])): ?>
+                                            <a href="javascript:void(0)" onclick="showModuleFiles('<?php echo $module['id']; ?>', <?php echo htmlspecialchars(json_encode($module)); ?>)" class="module-action-btn btn-files" title="View Module Files">
+                                                <i class="bi bi-file-earmark"></i>
+                                                <span>Files</span>
+                                            </a>
+                                            <?php endif; ?>
                                             <a href="javascript:void(0)" onclick="deleteModule('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-delete" title="Delete Module">
                                                 <i class="bi bi-trash"></i>
                                                 <span>Delete</span>
@@ -1166,6 +1297,52 @@ $stats = $stmt->fetch();
     </div>
 </div>
 
+<!-- Module Files Modal -->
+<div class="modal fade" id="moduleFilesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark me-2"></i>
+                    Module Files
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="moduleFilesContent">
+                    <!-- Files will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Preview Modal -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye me-2"></i>
+                    <span id="previewFileName">File Preview</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="filePreviewContent" style="min-height: 500px;">
+                    <!-- File preview will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Module Form -->
 <form id="deleteModuleForm" method="post" style="display: none;">
     <input type="hidden" name="action" value="delete_module">
@@ -1190,6 +1367,282 @@ function deleteModule(moduleId, moduleTitle) {
     if (confirm(`Are you sure you want to delete "${moduleTitle}"? This will also delete all videos and assessments in this module.`)) {
         document.getElementById('delete_module_id').value = moduleId;
         document.getElementById('deleteModuleForm').submit();
+    }
+}
+
+function showModuleFiles(moduleId, module) {
+    const modal = new bootstrap.Modal(document.getElementById('moduleFilesModal'));
+    const content = document.getElementById('moduleFilesContent');
+    
+    // Update modal title with module name
+    const modalTitle = document.querySelector('#moduleFilesModal .modal-title');
+    modalTitle.innerHTML = `<i class="bi bi-file-earmark me-2"></i>Module Files - ${module.module_title}`;
+    
+    // Generate file content
+    let fileHtml = '';
+    
+    if (module.file && module.file.filename) {
+        const file = module.file;
+        const fileExtension = file.original_name ? file.original_name.split('.').pop().toLowerCase() : 'file';
+        const fileSize = file.file_size ? formatFileSize(file.file_size) : 'Unknown size';
+        const uploadDate = file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : 'Unknown date';
+        
+        // Get file icon based on extension
+        const fileIcon = getFileIcon(fileExtension);
+        
+        fileHtml = `
+            <div class="file-item">
+                <div class="file-card">
+                    <div class="file-icon">
+                        <i class="bi ${fileIcon}"></i>
+                    </div>
+                    <div class="file-details">
+                        <h6 class="file-name">${file.original_name || 'Unknown file'}</h6>
+                        <div class="file-meta">
+                            <span class="file-size">${fileSize}</span>
+                            <span class="file-date">Uploaded: ${uploadDate}</span>
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        <button onclick="previewFile('${moduleId}', '${file.filename}', '${file.original_name}', '${fileExtension}')" 
+                                class="btn btn-primary btn-sm" title="Preview File">
+                            <i class="bi bi-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        fileHtml = `
+            <div class="text-center py-4">
+                <i class="bi bi-file-earmark-x display-1 text-muted mb-3"></i>
+                <h5 class="text-muted">No Files Attached</h5>
+                <p class="text-muted">This module doesn't have any files attached yet.</p>
+            </div>
+        `;
+    }
+    
+    content.innerHTML = fileHtml;
+    modal.show();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function getFileIcon(extension) {
+    const iconMap = {
+        'pdf': 'bi-file-pdf',
+        'doc': 'bi-file-word',
+        'docx': 'bi-file-word',
+        'xls': 'bi-file-excel',
+        'xlsx': 'bi-file-excel',
+        'ppt': 'bi-file-ppt',
+        'pptx': 'bi-file-ppt',
+        'txt': 'bi-file-text',
+        'jpg': 'bi-file-image',
+        'jpeg': 'bi-file-image',
+        'png': 'bi-file-image',
+        'gif': 'bi-file-image',
+        'mp4': 'bi-file-play',
+        'avi': 'bi-file-play',
+        'mov': 'bi-file-play',
+        'zip': 'bi-file-zip',
+        'rar': 'bi-file-zip',
+        '7z': 'bi-file-zip'
+    };
+    return iconMap[extension] || 'bi-file-earmark';
+}
+
+function showFileInfo(moduleId, filename, originalName, fileExtension) {
+    const content = document.getElementById('filePreviewContent');
+    content.innerHTML = `
+        <div class="text-center p-5">
+            <i class="bi bi-file-earmark-x text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-3 text-muted">Preview Not Available</h4>
+            <p class="text-muted mb-4">
+                This file type (${fileExtension.toUpperCase()}) cannot be previewed directly in the browser.
+            </p>
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-file-earmark me-2"></i>File Information
+                    </h6>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><strong>Name:</strong> ${originalName}</li>
+                        <li class="mb-2"><strong>Type:</strong> ${fileExtension.toUpperCase()} file</li>
+                        <li class="mb-2"><strong>Module:</strong> ${moduleId}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center mb-4">
+                <a href="../download_module_file.php?module_id=${moduleId}&filename=${filename}&original_name=${encodeURIComponent(originalName)}" 
+                   class="btn btn-primary me-md-2" target="_blank">
+                    <i class="bi bi-download me-1"></i>Download File
+                </a>
+                <button onclick="bootstrap.Modal.getInstance(document.getElementById('filePreviewModal')).hide()" 
+                        class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Close
+                </button>
+            </div>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Tip:</strong> Download the file and open it with the appropriate application to view the content.
+            </div>
+        </div>
+    `;
+}
+
+function previewFile(moduleId, filename, originalName, fileExtension) {
+    const modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+    const content = document.getElementById('filePreviewContent');
+    const title = document.getElementById('previewFileName');
+    
+    // Update modal title
+    title.textContent = originalName;
+    
+    // Show loading state
+    content.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 500px;">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Loading file preview...</p>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Determine preview method based on file type (using same logic as student)
+    const previewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'txt', 'mp4', 'avi', 'mov', 'wmv', 'mp3', 'wav'];
+    const docxPreviewableTypes = ['docx'];
+    const nonPreviewableTypes = ['doc', 'xlsx', 'xls', 'pptx', 'ppt', 'zip', 'rar', '7z'];
+    
+    if (docxPreviewableTypes.includes(fileExtension)) {
+        // Use DOCX preview with PhpOffice/PhpWord (same as student)
+        const iframe = document.createElement('iframe');
+        iframe.src = `../preview_docx.php?module_id=${moduleId}&filename=${filename}&original_name=${encodeURIComponent(originalName)}`;
+        iframe.style.width = '100%';
+        iframe.style.height = '700px';
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '8px';
+        iframe.style.minHeight = '600px';
+        
+        content.innerHTML = '';
+        content.appendChild(iframe);
+        
+        // Add fallback timeout
+        setTimeout(() => {
+            if (content.innerHTML.includes('iframe')) {
+                console.log('DOCX iframe loaded successfully');
+            } else {
+                console.log('DOCX iframe failed to load, showing fallback');
+                showFileInfo(moduleId, filename, originalName, fileExtension);
+            }
+        }, 5000);
+        
+    } else if (nonPreviewableTypes.includes(fileExtension)) {
+        // Show file info for non-previewable files
+        showFileInfo(moduleId, filename, originalName, fileExtension);
+        
+    } else if (previewableTypes.includes(fileExtension)) {
+        // Use different approaches based on file type (same as student)
+        const previewUrl = `../preview_module_file.php?module_id=${moduleId}&filename=${filename}&original_name=${encodeURIComponent(originalName)}`;
+        
+        if (fileExtension === 'pdf') {
+            // For PDFs, use object tag for better rendering (same as student)
+            const object = document.createElement('object');
+            object.data = previewUrl;
+            object.type = 'application/pdf';
+            object.style.width = '100%';
+            object.style.height = '700px';
+            object.style.border = 'none';
+            object.style.borderRadius = '8px';
+            
+            const fallback = document.createElement('div');
+            fallback.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="bi bi-file-pdf text-danger" style="font-size: 3rem;"></i>
+                    <h5>PDF Preview</h5>
+                    <p class="text-muted">Your browser doesn't support PDF preview.</p>
+                    <a href="${previewUrl}" target="_blank" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Open PDF in New Tab
+                    </a>
+                </div>
+            `;
+            
+            content.innerHTML = '';
+            content.appendChild(object);
+            content.appendChild(fallback);
+            
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
+            content.innerHTML = `
+                <div class="text-center p-4">
+                    <img src="${previewUrl}" 
+                         alt="${originalName}" 
+                         style="max-width: 100%; max-height: 600px; object-fit: contain;"
+                         class="img-fluid">
+                </div>
+            `;
+        } else if (['mp4', 'avi', 'mov', 'wmv'].includes(fileExtension)) {
+            content.innerHTML = `
+                <div class="text-center p-4">
+                    <video controls style="max-width: 100%; max-height: 600px;">
+                        <source src="${previewUrl}" type="video/${fileExtension}">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            `;
+        } else if (['mp3', 'wav'].includes(fileExtension)) {
+            content.innerHTML = `
+                <div class="text-center p-4">
+                    <audio controls style="width: 100%;">
+                        <source src="${previewUrl}" type="audio/${fileExtension}">
+                        Your browser does not support the audio tag.
+                    </audio>
+                </div>
+            `;
+        } else if (fileExtension === 'txt') {
+            fetch(previewUrl)
+                .then(response => response.text())
+                .then(text => {
+                    content.innerHTML = `
+                        <div class="p-4">
+                            <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; background: #f8f9fa; padding: 1rem; border-radius: 0.375rem; max-height: 600px; overflow-y: auto;">${text}</pre>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    content.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">Error Loading File</h5>
+                            <p class="text-muted">Unable to load the file preview.</p>
+                        </div>
+                    `;
+                });
+        } else {
+            // For other files, use iframe (same as student)
+            const iframe = document.createElement('iframe');
+            iframe.src = previewUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '700px';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '8px';
+            iframe.style.minHeight = '600px';
+            
+            content.innerHTML = '';
+            content.appendChild(iframe);
+        }
+    } else {
+        // Show unsupported file type message
+        showFileInfo(moduleId, filename, originalName, fileExtension);
     }
 }
 

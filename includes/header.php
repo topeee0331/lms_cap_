@@ -164,7 +164,7 @@ if (!defined('NO_HTML_OUTPUT')) {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 1050 !important;
             background: var(--main-green);
             color: var(--white);
             border: none;
@@ -373,7 +373,7 @@ if (!defined('NO_HTML_OUTPUT')) {
             margin-top: 0.5rem;
             min-width: 220px;
             animation: dropdownFadeIn 0.3s ease-out;
-            z-index: 1040;
+            z-index: 1050 !important;
             position: absolute;
         }
         
@@ -810,7 +810,7 @@ if (!defined('NO_HTML_OUTPUT')) {
             position: absolute;
             top: 100%;
             left: 0;
-            z-index: 1000;
+            z-index: 1050 !important;
             display: none;
             float: left;
             min-width: 10rem;
@@ -835,6 +835,19 @@ if (!defined('NO_HTML_OUTPUT')) {
         /* Ensure dropdowns are visible */
         .dropdown-menu.show {
             display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* Force dropdown visibility */
+        .navbar-nav .dropdown-menu {
+            display: none !important;
+        }
+        
+        .navbar-nav .dropdown-menu.show {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         
         .navbar-nav .dropdown-toggle::after {
@@ -3641,6 +3654,98 @@ window.startTutorial = function() {
         }
     }
 };
+
+// Simple dropdown fix - ensure Bootstrap dropdowns work
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 DOM loaded - checking Bootstrap dropdowns...');
+    
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+        console.error('❌ Bootstrap not loaded!');
+        return;
+    }
+    
+    console.log('✅ Bootstrap is available');
+    
+    // Force re-initialization of all dropdowns
+    var dropdowns = document.querySelectorAll('.dropdown-toggle');
+    console.log('Found', dropdowns.length, 'dropdown elements');
+    
+    dropdowns.forEach(function(dropdown, index) {
+        console.log('Processing dropdown', index + 1, ':', dropdown.id || dropdown.textContent.trim());
+        
+        try {
+            // Dispose existing instance if any
+            var existingInstance = bootstrap.Dropdown.getInstance(dropdown);
+            if (existingInstance) {
+                console.log('Disposing existing instance for dropdown', index + 1);
+                existingInstance.dispose();
+            }
+            
+            // Create new instance
+            new bootstrap.Dropdown(dropdown);
+            console.log('✅ Successfully initialized dropdown', index + 1);
+        } catch (error) {
+            console.error('❌ Error initializing dropdown', index + 1, ':', error);
+        }
+    });
+    
+    // Add manual click handler as fallback
+    dropdowns.forEach(function(dropdown) {
+        dropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            var menu = this.nextElementSibling;
+            if (menu && menu.classList.contains('dropdown-menu')) {
+                // Close other dropdowns
+                document.querySelectorAll('.dropdown-menu.show').forEach(function(openMenu) {
+                    if (openMenu !== menu) {
+                        openMenu.classList.remove('show');
+                    }
+                });
+                
+                // Toggle current dropdown
+                menu.classList.toggle('show');
+                console.log('Manual dropdown toggle:', this.id || this.textContent.trim());
+            }
+        });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                menu.classList.remove('show');
+            });
+        }
+    });
+    
+    console.log('✅ Dropdown initialization complete');
+    
+    // Test the teacher activity dropdown specifically
+    setTimeout(function() {
+        var teacherDropdown = document.querySelector('#teacherActivityDropdown');
+        if (teacherDropdown) {
+            console.log('🧪 Testing teacher activity dropdown...');
+            console.log('Dropdown element:', teacherDropdown);
+            console.log('Dropdown classes:', teacherDropdown.className);
+            
+            var menu = teacherDropdown.nextElementSibling;
+            if (menu) {
+                console.log('Menu element:', menu);
+                console.log('Menu classes:', menu.className);
+                console.log('Menu display style:', window.getComputedStyle(menu).display);
+                console.log('Menu visibility style:', window.getComputedStyle(menu).visibility);
+                console.log('Menu opacity style:', window.getComputedStyle(menu).opacity);
+            } else {
+                console.error('❌ Menu element not found!');
+            }
+        } else {
+            console.error('❌ Teacher activity dropdown not found!');
+        }
+    }, 500);
+});
 </script>
 </body>
 </html>

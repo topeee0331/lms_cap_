@@ -110,10 +110,13 @@ if (!empty($course['modules'])) {
         $missing_requirements = [];
         
         if (isset($module['assessments']) && !empty($module['assessments'])) {
-            foreach ($module['assessments'] as $assessment_id) {
+            foreach ($module['assessments'] as $assessment) {
+                // Extract assessment ID - handle both string and object formats
+                $assessment_id = is_array($assessment) ? $assessment['id'] : $assessment;
+                
                 // Get assessment details
                 $stmt = $pdo->prepare("
-                    SELECT a.assessment_title, a.passing_rate, a.required_score
+                    SELECT a.assessment_title, a.passing_rate
                     FROM assessments a 
                     WHERE a.id = ? AND a.course_id = ?
                 ");
@@ -204,10 +207,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
         
         // Check if module has assessments and passing requirements
         if (isset($target_module['assessments']) && !empty($target_module['assessments'])) {
-            foreach ($target_module['assessments'] as $assessment_id) {
+            foreach ($target_module['assessments'] as $assessment) {
+                // Extract assessment ID - handle both string and object formats
+                $assessment_id = is_array($assessment) ? $assessment['id'] : $assessment;
+                
                 // Get assessment details including passing rate
                 $stmt = $pdo->prepare("
-                    SELECT a.assessment_title, a.passing_rate, a.required_score
+                    SELECT a.assessment_title, a.passing_rate
                     FROM assessments a 
                     WHERE a.id = ? AND a.course_id = ?
                 ");

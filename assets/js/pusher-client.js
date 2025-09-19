@@ -816,20 +816,23 @@ class PusherClient {
     }
 }
 
-// Initialize PusherClient when DOM is ready
+// Initialize PusherClient when DOM is ready - with delay to avoid conflicts
 $(document).ready(function() {
-    if (typeof window.pusherConfig !== 'undefined' && 
-        typeof window.currentUserId !== 'undefined' && 
-        typeof window.currentUserRole !== 'undefined') {
-        
-        window.pusherClient = new PusherClient(
-            window.pusherConfig,
-            window.currentUserId,
-            window.currentUserRole
-        );
-        
-        console.log('✅ PusherClient initialized successfully');
-    } else {
-        console.warn('⚠️ PusherClient initialization skipped - missing configuration');
-    }
+    // Add a small delay to ensure Bootstrap dropdowns are initialized first
+    setTimeout(function() {
+        if (typeof window.pusherConfig !== 'undefined' && 
+            typeof window.currentUserId !== 'undefined' && 
+            typeof window.currentUserRole !== 'undefined') {
+            
+            window.pusherClient = new PusherClient(
+                window.pusherConfig,
+                window.currentUserId,
+                window.currentUserRole
+            );
+            
+            console.log('✅ PusherClient initialized successfully');
+        } else {
+            console.warn('⚠️ PusherClient initialization skipped - missing configuration');
+        }
+    }, 100); // 100ms delay
 });

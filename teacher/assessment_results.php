@@ -374,9 +374,22 @@ $question_stats = $stmt->fetchAll();
                                             </td>
                                             <td>
                                                 <?php 
-                                                $time_taken = $attempt['completed_at'] ? 
-                                                    (strtotime($attempt['completed_at']) - strtotime($attempt['started_at'])) / 60 : 0;
-                                                echo number_format($time_taken, 1) . ' min';
+                                                if ($attempt['completed_at'] && $attempt['started_at']) {
+                                                    $time_taken_seconds = strtotime($attempt['completed_at']) - strtotime($attempt['started_at']);
+                                                    $hours = floor($time_taken_seconds / 3600);
+                                                    $minutes = floor(($time_taken_seconds % 3600) / 60);
+                                                    $seconds = $time_taken_seconds % 60;
+                                                    
+                                                    if ($hours > 0) {
+                                                        echo sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+                                                    } elseif ($minutes > 0) {
+                                                        echo sprintf('%dm %ds', $minutes, $seconds);
+                                                    } else {
+                                                        echo sprintf('%ds', $seconds);
+                                                    }
+                                                } else {
+                                                    echo '<span class="text-muted">N/A</span>';
+                                                }
                                                 ?>
                                             </td>
                                             <td>
@@ -448,9 +461,22 @@ $question_stats = $stmt->fetchAll();
                                         </td>
                                         <td>
                                             <?php 
-                                            $time_taken = $attempt['completed_at'] ? 
-                                                (strtotime($attempt['completed_at']) - strtotime($attempt['started_at'])) / 60 : 0;
-                                            echo number_format($time_taken, 1) . ' min';
+                                            if ($attempt['completed_at'] && $attempt['started_at']) {
+                                                $time_taken_seconds = strtotime($attempt['completed_at']) - strtotime($attempt['started_at']);
+                                                $hours = floor($time_taken_seconds / 3600);
+                                                $minutes = floor(($time_taken_seconds % 3600) / 60);
+                                                $seconds = $time_taken_seconds % 60;
+                                                
+                                                if ($hours > 0) {
+                                                    echo sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+                                                } elseif ($minutes > 0) {
+                                                    echo sprintf('%dm %ds', $minutes, $seconds);
+                                                } else {
+                                                    echo sprintf('%ds', $seconds);
+                                                }
+                                            } else {
+                                                echo '<span class="text-muted">N/A</span>';
+                                            }
                                             ?>
                                         </td>
                                         <td>

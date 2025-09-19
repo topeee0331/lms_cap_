@@ -546,8 +546,18 @@ $total_video_duration = array_sum(array_column($modules, 'total_video_duration')
                                             <td>
                                                 <?php 
                                                 if ($assessment['completed_at'] && $assessment['started_at']) {
-                                                    $time_taken = (strtotime($assessment['completed_at']) - strtotime($assessment['started_at'])) / 60;
-                                                    echo number_format($time_taken, 1) . ' min';
+                                                    $time_taken_seconds = strtotime($assessment['completed_at']) - strtotime($assessment['started_at']);
+                                                    $hours = floor($time_taken_seconds / 3600);
+                                                    $minutes = floor(($time_taken_seconds % 3600) / 60);
+                                                    $seconds = $time_taken_seconds % 60;
+                                                    
+                                                    if ($hours > 0) {
+                                                        echo sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+                                                    } elseif ($minutes > 0) {
+                                                        echo sprintf('%dm %ds', $minutes, $seconds);
+                                                    } else {
+                                                        echo sprintf('%ds', $seconds);
+                                                    }
                                                 } else {
                                                     echo '<span class="text-muted">N/A</span>';
                                                 }

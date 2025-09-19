@@ -278,7 +278,7 @@ error_log("Assessment Result Debug - Attempt ID: " . $attempt_id . ", Calculated
 $pass_fail_status = $is_passed ? 'PASSED' : 'FAILED';
 $pass_fail_class = $is_passed ? 'success' : 'danger';
 
-// Calculate time taken
+// Calculate time taken - use same logic as teacher page
 // Allotted time from assessment (in minutes)
 if (isset($attempt['time_limit'])) {
     $allotted_time = (int)$attempt['time_limit'];
@@ -288,15 +288,47 @@ if (isset($attempt['time_limit'])) {
     $stmt->execute([$attempt['assessment_id']]);
     $allotted_time = (int)($stmt->fetchColumn() ?: 0);
 }
-// Time taken in seconds
+
+// Use time_taken from database if available, otherwise calculate from timestamps
 $time_taken = 0;
-if ($attempt['completed_at'] && $attempt['started_at']) {
+$time_taken_formatted = 'N/A';
+$time_efficiency = '';
+$time_status_class = '';
+
+// Check if time_taken is stored in the database (like in teacher page)
+if (isset($attempt['time_taken']) && $attempt['time_taken'] > 0) {
+    $time_taken = (int)$attempt['time_taken'];
+    $time_taken_formatted = gmdate('H:i:s', $time_taken);
+} elseif ($attempt['completed_at'] && $attempt['started_at']) {
+    // Fallback: calculate from timestamps
     $start_time = strtotime($attempt['started_at']);
     $end_time = strtotime($attempt['completed_at']);
     $time_taken = $end_time - $start_time;
+    $time_taken_formatted = gmdate('H:i:s', $time_taken);
+} else {
+    $time_taken_formatted = 'Not completed';
+    $time_status_class = 'secondary';
 }
-$minutes = floor($time_taken / 60);
-$seconds = $time_taken % 60;
+
+// Calculate time efficiency if we have time data
+if ($time_taken > 0 && $allotted_time > 0) {
+    $allotted_seconds = $allotted_time * 60;
+    $time_percentage = ($time_taken / $allotted_seconds) * 100;
+    
+    if ($time_percentage <= 50) {
+        $time_efficiency = 'Very Fast';
+        $time_status_class = 'success';
+    } elseif ($time_percentage <= 75) {
+        $time_efficiency = 'Fast';
+        $time_status_class = 'info';
+    } elseif ($time_percentage <= 100) {
+        $time_efficiency = 'Good Pace';
+        $time_status_class = 'warning';
+    } else {
+        $time_efficiency = 'Over Time';
+        $time_status_class = 'danger';
+    }
+}
 
 // Fetch assessment, module, and course details, including academic period status
 $stmt = $pdo->prepare("SELECT a.*, c.id as course_id, c.academic_period_id, ap.is_active as academic_period_active FROM assessments a JOIN courses c ON a.course_id = c.id JOIN academic_periods ap ON c.academic_period_id = ap.id WHERE a.id = ?");
@@ -916,17 +948,45 @@ $is_view_only = !$assessment_status['is_active'];
                                                 <span class="fw-semibold">Allotted Time:</span>
                                             </div>
                                             <div class="col-6 text-end">
-                                                <span><?php echo $allotted_time; ?> minute<?php echo $allotted_time == 1 ? '' : 's'; ?></span>
+                                                <span class="badge bg-info text-white">
+                                                    <?php 
+                                                    if ($allotted_time > 0) {
+                                                        if ($allotted_time >= 60) {
+                                                            $hours = floor($allotted_time / 60);
+                                                            $mins = $allotted_time % 60;
+                                                            echo $hours . 'h ' . $mins . 'm';
+                                                        } else {
+                                                            echo $allotted_time . ' minute' . ($allotted_time == 1 ? '' : 's');
+                                                        }
+                                                    } else {
+                                                        echo 'No limit';
+                                                    }
+                                                    ?>
+                                                </span>
                                             </div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-6 text-start">
-                                                <span class="fw-semibold">Time Taken:</span>
+                                                <span class="fw-semibold">Time:</span>
                                             </div>
                                             <div class="col-6 text-end">
-                                                <span><?php echo $minutes; ?>m <?php echo $seconds; ?>s</span>
+                                                <span class="badge bg-<?php echo $time_status_class; ?> text-white">
+                                                    <i class="fas fa-clock me-1"></i><?php echo $time_taken_formatted; ?>
+                                                </span>
                                             </div>
                                         </div>
+                                        <?php if (!empty($time_efficiency)): ?>
+                                        <div class="row mb-2">
+                                            <div class="col-6 text-start">
+                                                <span class="fw-semibold">Time Efficiency:</span>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <span class="badge bg-<?php echo $time_status_class; ?> text-white">
+                                                    <i class="fas fa-tachometer-alt me-1"></i><?php echo $time_efficiency; ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <?php endif; ?>
                                         <div class="d-flex justify-content-between mb-2">
                                             <span>Attempt Date:</span>
                                             <span><?php echo date('M j, Y g:i A', strtotime($attempt['started_at'])); ?></span>
@@ -937,6 +997,7 @@ $is_view_only = !$assessment_status['is_active'];
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Question Review -->
                 <div class="card result-card">
@@ -1056,6 +1117,7 @@ $is_view_only = !$assessment_status['is_active'];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    
     <script>
         // Prevent back navigation after assessment completion
         (function() {
@@ -1090,6 +1152,7 @@ $is_view_only = !$assessment_status['is_active'];
                 return 'Assessment has been completed. You cannot return to change answers.';
             });
         })();
+        
     </script>
     
 </body>

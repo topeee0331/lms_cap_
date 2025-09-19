@@ -104,6 +104,50 @@ if (!empty($course['modules'])) {
         $is_completed = isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1;
         $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_id]['completed_at'] : null;
         
+        // Check if student meets requirements for module completion
+        $can_complete = true;
+        $requirement_message = '';
+        $missing_requirements = [];
+        
+        if (isset($module['assessments']) && !empty($module['assessments'])) {
+            foreach ($module['assessments'] as $assessment_id) {
+                // Get assessment details
+                $stmt = $pdo->prepare("
+                    SELECT a.assessment_title, a.passing_rate, a.required_score
+                    FROM assessments a 
+                    WHERE a.id = ? AND a.course_id = ?
+                ");
+                $stmt->execute([$assessment_id, $course_id]);
+                $assessment = $stmt->fetch();
+                
+                if ($assessment) {
+                    // Get student's best score for this assessment
+                    $stmt = $pdo->prepare("
+                        SELECT MAX(score) as best_score, MAX(has_passed) as has_passed
+                        FROM assessment_attempts 
+                        WHERE student_id = ? AND assessment_id = ? AND status = 'completed'
+                    ");
+                    $stmt->execute([$user_id, $assessment_id]);
+                    $attempt = $stmt->fetch();
+                    
+                    $required_score = $assessment['required_score'] ?? $assessment['passing_rate'];
+                    $student_score = $attempt['best_score'] ?? 0;
+                    $has_passed = $attempt['has_passed'] ?? 0;
+                    
+                    // Check if student meets the requirement
+                    if ($student_score < $required_score || !$has_passed) {
+                        $can_complete = false;
+                        $missing_requirements[] = [
+                            'title' => $assessment['assessment_title'],
+                            'required' => $required_score,
+                            'current' => $student_score,
+                            'has_attempted' => $student_score > 0
+                        ];
+                    }
+                }
+            }
+        }
+        
         $modules[] = [
             'id' => $module_id,
             'module_title' => $module['module_title'],
@@ -117,7 +161,9 @@ if (!empty($course['modules'])) {
             'completed_at' => $completed_at,
             'videos' => $module['videos'] ?? [],
             'assessments' => $module['assessments'] ?? [],
-            'file' => $module['file'] ?? null
+            'file' => $module['file'] ?? null,
+            'can_complete' => $can_complete,
+            'missing_requirements' => $missing_requirements
         ];
     }
     
@@ -143,51 +189,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
     
     // Check if module exists in the course's modules JSON
     $modules_data = json_decode($course['modules'] ?? '[]', true) ?: [];
-    $module_exists = false;
+    $target_module = null;
     foreach ($modules_data as $module) {
         if ($module['id'] === $module_id) {
-            $module_exists = true;
+            $target_module = $module;
             break;
         }
     }
     
-    if ($module_exists) {
-        // Get current progress data
-        $stmt = $pdo->prepare("
-            SELECT module_progress 
-            FROM course_enrollments 
-            WHERE student_id = ? AND course_id = ?
-        ");
-        $stmt->execute([$user_id, $course_id]);
-        $enrollment = $stmt->fetch();
+    if ($target_module) {
+        // Check if student meets the requirements for module completion
+        $can_complete = true;
+        $requirement_message = '';
         
-        $module_progress = json_decode($enrollment['module_progress'] ?? '{}', true) ?: [];
+        // Check if module has assessments and passing requirements
+        if (isset($target_module['assessments']) && !empty($target_module['assessments'])) {
+            foreach ($target_module['assessments'] as $assessment_id) {
+                // Get assessment details including passing rate
+                $stmt = $pdo->prepare("
+                    SELECT a.assessment_title, a.passing_rate, a.required_score
+                    FROM assessments a 
+                    WHERE a.id = ? AND a.course_id = ?
+                ");
+                $stmt->execute([$assessment_id, $course_id]);
+                $assessment = $stmt->fetch();
+                
+                if ($assessment) {
+                    // Get student's best score for this assessment
+                    $stmt = $pdo->prepare("
+                        SELECT MAX(score) as best_score, MAX(has_passed) as has_passed
+                        FROM assessment_attempts 
+                        WHERE student_id = ? AND assessment_id = ? AND status = 'completed'
+                    ");
+                    $stmt->execute([$user_id, $assessment_id]);
+                    $attempt = $stmt->fetch();
+                    
+                    $required_score = $assessment['required_score'] ?? $assessment['passing_rate'];
+                    $student_score = $attempt['best_score'] ?? 0;
+                    $has_passed = $attempt['has_passed'] ?? 0;
+                    
+                    // Check if student meets the requirement
+                    if ($student_score < $required_score || !$has_passed) {
+                        $can_complete = false;
+                        $requirement_message = "You must achieve at least {$required_score}% on '{$assessment['assessment_title']}' to complete this module. Your best score: {$student_score}%";
+                        break;
+                    }
+                }
+            }
+        }
         
-        // Update module progress
-        $module_progress[$module_id] = [
-            'is_completed' => 1,
-            'completed_at' => date('Y-m-d H:i:s')
-        ];
-        
-        // Calculate progress percentage
-        $total_modules = count($modules_data);
-        $completed_count = count($module_progress);
-        $progress_percentage = $total_modules > 0 ? round(($completed_count / $total_modules) * 100, 2) : 0;
-        
-        // Update enrollment with new progress
-        $stmt = $pdo->prepare("
-            UPDATE course_enrollments 
-            SET module_progress = ?, progress_percentage = ?
-            WHERE student_id = ? AND course_id = ?
-        ");
-        $stmt->execute([
-            json_encode($module_progress),
-            $progress_percentage,
-            $user_id,
-            $course_id
-        ]);
-        
-        $_SESSION['success'] = "Module marked as completed!";
+        if ($can_complete) {
+            // Get current progress data
+            $stmt = $pdo->prepare("
+                SELECT module_progress 
+                FROM course_enrollments 
+                WHERE student_id = ? AND course_id = ?
+            ");
+            $stmt->execute([$user_id, $course_id]);
+            $enrollment = $stmt->fetch();
+            
+            $module_progress = json_decode($enrollment['module_progress'] ?? '{}', true) ?: [];
+            
+            // Update module progress
+            $module_progress[$module_id] = [
+                'is_completed' => 1,
+                'completed_at' => date('Y-m-d H:i:s')
+            ];
+            
+            // Calculate progress percentage
+            $total_modules = count($modules_data);
+            $completed_count = count($module_progress);
+            $progress_percentage = $total_modules > 0 ? round(($completed_count / $total_modules) * 100, 2) : 0;
+            
+            // Update enrollment with new progress
+            $stmt = $pdo->prepare("
+                UPDATE course_enrollments 
+                SET module_progress = ?, progress_percentage = ?
+                WHERE student_id = ? AND course_id = ?
+            ");
+            $stmt->execute([
+                json_encode($module_progress),
+                $progress_percentage,
+                $user_id,
+                $course_id
+            ]);
+            
+            $_SESSION['success'] = "Module marked as completed!";
+        } else {
+            $_SESSION['error'] = $requirement_message;
+        }
     }
     
     header('Location: course.php?id=' . $course_id);
@@ -477,12 +567,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                                                     <a href="module.php?id=<?php echo $module['id']; ?>" class="btn btn-primary">
                                                         Start Module
                                                     </a>
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="module_id" value="<?php echo $module['id']; ?>">
-                                                        <button type="submit" name="complete_module" class="btn btn-outline-success btn-sm">
-                                                            Mark as Complete
+                                                    
+                                                    <?php if ($module['can_complete']): ?>
+                                                        <form method="POST" class="d-inline">
+                                                            <input type="hidden" name="module_id" value="<?php echo $module['id']; ?>">
+                                                            <button type="submit" name="complete_module" class="btn btn-outline-success btn-sm">
+                                                                Mark as Complete
+                                                            </button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-outline-secondary btn-sm" disabled title="Requirements not met">
+                                                            <i class="fas fa-lock me-1"></i>Requirements Not Met
                                                         </button>
-                                                    </form>
+                                                        <?php if (!empty($module['missing_requirements'])): ?>
+                                                            <div class="mt-2">
+                                                                <small class="text-muted">Missing requirements:</small>
+                                                                <?php foreach ($module['missing_requirements'] as $req): ?>
+                                                                    <div class="small text-danger">
+                                                                        <i class="fas fa-times-circle me-1"></i>
+                                                                        <?php echo htmlspecialchars($req['title']); ?>: 
+                                                                        <?php echo $req['current']; ?>% / <?php echo $req['required']; ?>% required
+                                                                        <?php if (!$req['has_attempted']): ?>
+                                                                            <span class="text-muted">(Not attempted)</span>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
                                         </div>

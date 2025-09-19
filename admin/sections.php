@@ -895,6 +895,160 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
     </div>
     <?php endif; ?>
 
+    <!-- Real-time Performance Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 fw-bold text-dark">
+                                <i class="bi bi-graph-up me-2 text-success"></i>Real-time Performance Summary
+                                <span class="badge bg-success ms-2" id="liveIndicator">
+                                    <i class="bi bi-circle-fill me-1"></i>Live
+                                </span>
+                            </h5>
+                            <small class="text-muted">Live performance data across all sections and assessments</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-success" onclick="refreshPerformanceData()" id="refreshBtn">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
+                                <i class="bi bi-play-circle me-1"></i>Auto Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Performance Overview Cards -->
+                    <div class="row mb-4" id="performanceOverview">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-people-fill fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1" id="totalStudents">-</h3>
+                                    <p class="mb-0 small">Total Students</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-clipboard-check fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1" id="totalAttempts">-</h3>
+                                    <p class="mb-0 small">Total Attempts</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-percent fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1" id="averageScore">-</h3>
+                                    <p class="mb-0 small">Average Score</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-trophy fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1" id="passingRate">-</h3>
+                                    <p class="mb-0 small">Passing Rate</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="fw-bold text-primary mb-2">Today's Activity</h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-person-check text-success me-2"></i>
+                                                <div>
+                                                    <div class="fw-bold" id="activeStudentsToday">-</div>
+                                                    <small class="text-muted">Active Students</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-clipboard-data text-info me-2"></i>
+                                                <div>
+                                                    <div class="fw-bold" id="attemptsToday">-</div>
+                                                    <small class="text-muted">Attempts</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="fw-bold text-primary mb-2">Question Type Performance</h6>
+                                    <div id="questionTypePerformance">
+                                        <div class="text-center text-muted">
+                                            <i class="bi bi-hourglass-split"></i> Loading...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Performance Table -->
+                    <div class="card border-0">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0 fw-bold text-dark">
+                                <i class="bi bi-bar-chart me-2"></i>Section Performance Rankings
+                            </h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="border-0">Rank</th>
+                                            <th class="border-0">Section</th>
+                                            <th class="border-0">Students</th>
+                                            <th class="border-0">Avg Score</th>
+                                            <th class="border-0">Attempts</th>
+                                            <th class="border-0">Passing Rate</th>
+                                            <th class="border-0">Performance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sectionPerformanceTable">
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-4">
+                                                <i class="bi bi-hourglass-split me-2"></i>Loading performance data...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -2234,6 +2388,9 @@ function showStudentProfileModal(student) {
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle me-2"></i>Close
                         </button>
+                        <button type="button" class="btn btn-info" onclick="viewStudentAssessmentDetails(${student.id}, '${student.first_name} ${student.last_name}')">
+                            <i class="bi bi-clipboard-data me-2"></i>View Assessments
+                        </button>
                         <button type="button" class="btn btn-primary" onclick="editStudentSection(${student.id}, ${student.section_id || 0})">
                             <i class="bi bi-pencil me-2"></i>Edit Section
                         </button>
@@ -2480,6 +2637,422 @@ function removeStudentFromSection(studentId, sectionId) {
         showAlert('danger', 'Error removing student. Please try again.');
     });
 }
+
+// Real-time Performance Data Functions
+let autoRefreshInterval = null;
+let isAutoRefreshEnabled = false;
+
+// Load performance data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadPerformanceData();
+});
+
+function loadPerformanceData() {
+    fetch('../ajax_get_performance_summary.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updatePerformanceOverview(data.data.overview);
+                updateRecentActivity(data.data.recent_activity);
+                updateQuestionTypePerformance(data.data.question_type_performance);
+                updateSectionPerformance(data.data.section_performance);
+                updateLiveIndicator();
+            } else {
+                console.error('Error loading performance data:', data.message);
+                showPerformanceError(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching performance data:', error);
+            showPerformanceError('Failed to load performance data');
+        });
+}
+
+function updatePerformanceOverview(overview) {
+    document.getElementById('totalStudents').textContent = overview.total_students;
+    document.getElementById('totalAttempts').textContent = overview.total_attempts;
+    document.getElementById('averageScore').textContent = overview.average_score + '%';
+    document.getElementById('passingRate').textContent = overview.passing_rate + '%';
+}
+
+function updateRecentActivity(activity) {
+    document.getElementById('activeStudentsToday').textContent = activity.active_students_today;
+    document.getElementById('attemptsToday').textContent = activity.attempts_today;
+}
+
+function updateQuestionTypePerformance(questionTypes) {
+    const container = document.getElementById('questionTypePerformance');
+    
+    if (questionTypes.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted"><i class="bi bi-info-circle"></i> No data available</div>';
+        return;
+    }
+    
+    let html = '';
+    questionTypes.forEach(type => {
+        const accuracyClass = type.accuracy_rate >= 80 ? 'text-success' : 
+                            type.accuracy_rate >= 60 ? 'text-warning' : 'text-danger';
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-medium">${type.question_type.replace('_', ' ').toUpperCase()}</span>
+                <span class="badge ${accuracyClass.replace('text-', 'bg-')} text-white">
+                    ${type.accuracy_rate}%
+                </span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateSectionPerformance(sections) {
+    const tbody = document.getElementById('sectionPerformanceTable');
+    
+    if (sections.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-info-circle me-2"></i>No performance data available</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    sections.forEach((section, index) => {
+        const rank = index + 1;
+        const performanceClass = section.avg_score >= 80 ? 'success' : 
+                               section.avg_score >= 60 ? 'warning' : 'danger';
+        const passingClass = section.passing_rate >= 70 ? 'success' : 
+                           section.passing_rate >= 50 ? 'warning' : 'danger';
+        
+        html += `
+            <tr>
+                <td>
+                    <span class="badge bg-${rank <= 3 ? 'primary' : 'secondary'} text-white">
+                        #${rank}
+                    </span>
+                </td>
+                <td>
+                    <div class="fw-semibold">${section.section_name}</div>
+                </td>
+                <td>
+                    <span class="badge bg-info text-white">${section.student_count}</span>
+                </td>
+                <td>
+                    <span class="badge bg-${performanceClass} text-white">${section.avg_score}%</span>
+                </td>
+                <td>
+                    <span class="badge bg-secondary text-white">${section.total_attempts}</span>
+                </td>
+                <td>
+                    <span class="badge bg-${passingClass} text-white">${section.passing_rate}%</span>
+                </td>
+                <td>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-${performanceClass}" style="width: ${section.avg_score}%"></div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function updateLiveIndicator() {
+    const indicator = document.getElementById('liveIndicator');
+    indicator.innerHTML = '<i class="bi bi-circle-fill me-1"></i>Live';
+    indicator.className = 'badge bg-success ms-2';
+    
+    // Add a subtle animation
+    indicator.style.animation = 'pulse 1s ease-in-out';
+    setTimeout(() => {
+        indicator.style.animation = '';
+    }, 1000);
+}
+
+function showPerformanceError(message) {
+    const overview = document.getElementById('performanceOverview');
+    overview.innerHTML = `
+        <div class="col-12">
+            <div class="alert alert-danger text-center">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        </div>
+    `;
+}
+
+function refreshPerformanceData() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const originalContent = refreshBtn.innerHTML;
+    
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refreshing...';
+    refreshBtn.disabled = true;
+    
+    loadPerformanceData();
+    
+    setTimeout(() => {
+        refreshBtn.innerHTML = originalContent;
+        refreshBtn.disabled = false;
+    }, 1000);
+}
+
+function toggleAutoRefresh() {
+    const autoRefreshBtn = document.getElementById('autoRefreshBtn');
+    
+    if (isAutoRefreshEnabled) {
+        clearInterval(autoRefreshInterval);
+        isAutoRefreshEnabled = false;
+        autoRefreshBtn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Auto Refresh';
+        autoRefreshBtn.className = 'btn btn-sm btn-outline-info';
+    } else {
+        autoRefreshInterval = setInterval(loadPerformanceData, 30000); // Refresh every 30 seconds
+        isAutoRefreshEnabled = true;
+        autoRefreshBtn.innerHTML = '<i class="bi bi-pause-circle me-1"></i>Stop Auto';
+        autoRefreshBtn.className = 'btn btn-sm btn-outline-warning';
+    }
+}
+
+// Enhanced Student Answer Display Functions
+function viewStudentAssessmentDetails(studentId, studentName) {
+    // Show loading modal
+    const modalHtml = `
+        <div class="modal fade" id="studentAssessmentModal" tabindex="-1" aria-labelledby="studentAssessmentLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="studentAssessmentLabel">
+                            <i class="bi bi-clipboard-data me-2"></i>Assessment Details - ${studentName}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading assessment details...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('studentAssessmentModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('studentAssessmentModal'));
+    modal.show();
+    
+    // Fetch assessment details
+    fetch(`../ajax_get_student_assessment_details.php?student_id=${studentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayStudentAssessmentDetails(data.data);
+            } else {
+                showAssessmentError(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching assessment details:', error);
+            showAssessmentError('Failed to load assessment details');
+        });
+}
+
+function displayStudentAssessmentDetails(studentData) {
+    const modalBody = document.querySelector('#studentAssessmentModal .modal-body');
+    
+    let html = `
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body text-center">
+                        <h6 class="fw-bold text-primary mb-2">Student Information</h6>
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="bi bi-person-circle fs-1 text-primary me-3"></i>
+                            <div class="text-start">
+                                <div class="fw-bold">${studentData.student_name}</div>
+                                <small class="text-muted">${studentData.username}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body text-center">
+                        <h6 class="fw-bold text-primary mb-2">Assessment Summary</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="fw-bold text-success">${studentData.attempts.length}</div>
+                                <small class="text-muted">Total Attempts</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold text-info">${calculateAverageScore(studentData.attempts)}%</div>
+                                <small class="text-muted">Average Score</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (studentData.attempts && studentData.attempts.length > 0) {
+        html += '<div class="accordion" id="assessmentAccordion">';
+        
+        studentData.attempts.forEach((attempt, index) => {
+            const statusClass = attempt.status === 'completed' ? 'success' : 'warning';
+            const scoreClass = attempt.score >= 70 ? 'success' : attempt.score >= 50 ? 'warning' : 'danger';
+            
+            html += `
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading${index}">
+                        <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#collapse${index}" 
+                                aria-expanded="${index === 0 ? 'true' : 'false'}" aria-controls="collapse${index}">
+                            <div class="d-flex align-items-center w-100">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">${attempt.assessment_title}</div>
+                                    <small class="text-muted">${attempt.course_name} (${attempt.course_code})</small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-${statusClass} text-white">${attempt.status}</span>
+                                    <span class="badge bg-${scoreClass} text-white">${attempt.score}%</span>
+                                    <span class="badge bg-secondary text-white">${attempt.difficulty}</span>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" 
+                         aria-labelledby="heading${index}" data-bs-parent="#assessmentAccordion">
+                        <div class="accordion-body">
+                            ${displayAttemptAnswers(attempt.answers)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+    } else {
+        html += `
+            <div class="text-center py-4">
+                <i class="bi bi-clipboard-x fs-1 text-muted"></i>
+                <p class="text-muted mt-2">No assessment attempts found for this student.</p>
+            </div>
+        `;
+    }
+    
+    modalBody.innerHTML = html;
+}
+
+function displayAttemptAnswers(answers) {
+    if (!answers || answers.length === 0) {
+        return '<div class="text-center text-muted py-3">No answers available for this attempt.</div>';
+    }
+    
+    let html = '<div class="row">';
+    
+    answers.forEach((answer, index) => {
+        const isCorrect = answer.is_correct;
+        const correctClass = isCorrect ? 'success' : 'danger';
+        const iconClass = isCorrect ? 'check-circle' : 'x-circle';
+        
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-0 ${isCorrect ? 'border-success' : 'border-danger'}">
+                    <div class="card-header bg-${correctClass} text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Question ${index + 1}</span>
+                            <div>
+                                <i class="bi bi-${iconClass} me-1"></i>
+                                <span class="badge bg-white text-${correctClass}">${answer.points_earned}/${answer.points} pts</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-dark">${answer.question_text}</h6>
+                            <span class="badge bg-secondary">${answer.question_type.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <strong class="text-primary">Student Answer:</strong>
+                            <div class="mt-1 p-2 bg-light rounded">
+                                <span class="text-${correctClass} fw-medium">${answer.formatted_answer}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <strong class="text-success">Correct Answer:</strong>
+                            <div class="mt-1 p-2 bg-light rounded">
+                                <span class="text-success fw-medium">${answer.formatted_correct_answer}</span>
+                            </div>
+                        </div>
+                        
+                        ${!isCorrect ? `
+                            <div class="alert alert-warning alert-sm">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <small>This answer was marked incorrect. Review the question and correct answer above.</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function calculateAverageScore(attempts) {
+    if (!attempts || attempts.length === 0) return 0;
+    
+    const totalScore = attempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+    return Math.round(totalScore / attempts.length);
+}
+
+function showAssessmentError(message) {
+    const modalBody = document.querySelector('#studentAssessmentModal .modal-body');
+    modalBody.innerHTML = `
+        <div class="alert alert-danger text-center">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            ${message}
+        </div>
+    `;
+}
+
+// Add CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: #e7f3ff;
+        border-color: #b3d9ff;
+    }
+    
+    .card.border-success {
+        border-left: 4px solid #28a745 !important;
+    }
+    
+    .card.border-danger {
+        border-left: 4px solid #dc3545 !important;
+    }
+`;
+document.head.appendChild(style);
 </script>
 
 <?php require_once '../includes/footer.php'; ?> 

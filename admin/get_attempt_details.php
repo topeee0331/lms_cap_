@@ -131,10 +131,22 @@ $answers = $stmt->fetchAll();
                 $start_time = strtotime($attempt['started_at']);
                 $end_time = strtotime($attempt['completed_at']);
                 if ($start_time && $end_time) {
-                    $time_taken = round(($end_time - $start_time) / 60, 1);
-                    if ($time_taken > 0) {
+                    $time_taken_seconds = $end_time - $start_time;
+                    $hours = floor($time_taken_seconds / 3600);
+                    $minutes = floor(($time_taken_seconds % 3600) / 60);
+                    $seconds = $time_taken_seconds % 60;
+                    
+                    if ($time_taken_seconds > 0) {
                         echo '<dt class="col-sm-4">Time Taken:</dt>';
-                        echo '<dd class="col-sm-8">' . $time_taken . ' minutes</dd>';
+                        echo '<dd class="col-sm-8">';
+                        if ($hours > 0) {
+                            echo sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+                        } elseif ($minutes > 0) {
+                            echo sprintf('%dm %ds', $minutes, $seconds);
+                        } else {
+                            echo sprintf('%ds', $seconds);
+                        }
+                        echo '</dd>';
                     }
                 }
                 ?>

@@ -39,7 +39,7 @@ try {
                     aa.id as attempt_id,
                     aa.score,
                     aa.status,
-                    aa.created_at as started_at,
+                    aa.started_at as started_at,
                     aa.completed_at,
                     a.assessment_title,
                     a.difficulty,
@@ -49,7 +49,7 @@ try {
                 JOIN assessments a ON aa.assessment_id = a.id
                 JOIN courses c ON a.course_id = c.id
                 WHERE aa.student_id = ?
-                ORDER BY aa.created_at DESC
+                ORDER BY aa.started_at DESC
                 LIMIT 5
             ";
             $stmt = $db->prepare($attempts_query);
@@ -58,27 +58,23 @@ try {
             
             // Get detailed answers for each attempt
             foreach ($attempts as &$attempt) {
+                // Get answers from JSON data in assessment_attempts table
                 $answers_query = "
-                    SELECT 
-                        aqa.*,
-                        aq.question_text,
-                        aq.question_type,
-                        aq.points,
-                        aq.options,
-                        aq.correct_answer
-                    FROM assessment_question_answers aqa
-                    JOIN assessment_questions aq ON aqa.question_id = aq.id
-                    WHERE aqa.attempt_id = ?
-                    ORDER BY aq.question_order
+                    SELECT answers
+                    FROM assessment_attempts 
+                    WHERE id = ?
                 ";
                 $stmt = $db->prepare($answers_query);
                 $stmt->execute([$attempt['attempt_id']]);
-                $answers = $stmt->fetchAll();
+                $answers_json = $stmt->fetchColumn();
+                
+                // Parse JSON answers
+                $answers = $answers_json ? json_decode($answers_json, true) : [];
                 
                 // Process answers to format them better
                 foreach ($answers as &$answer) {
-                    $answer['formatted_answer'] = formatStudentAnswer($answer);
-                    $answer['formatted_correct_answer'] = formatCorrectAnswer($answer);
+                    $answer['formatted_answer'] = isset($answer['student_answer']) ? $answer['student_answer'] : '';
+                    $answer['formatted_correct_answer'] = isset($answer['correct_answer']) ? $answer['correct_answer'] : '';
                 }
                 
                 $attempt['answers'] = $answers;
@@ -109,7 +105,7 @@ try {
                     aa.id as attempt_id,
                     aa.score,
                     aa.status,
-                    aa.created_at as started_at,
+                    aa.started_at as started_at,
                     aa.completed_at,
                     a.assessment_title,
                     a.difficulty,
@@ -119,7 +115,7 @@ try {
                 JOIN assessments a ON aa.assessment_id = a.id
                 JOIN courses c ON a.course_id = c.id
                 WHERE aa.student_id = ?
-                ORDER BY aa.created_at DESC
+                ORDER BY aa.started_at DESC
             ";
             $stmt = $db->prepare($attempts_query);
             $stmt->execute([$student_id]);
@@ -127,27 +123,23 @@ try {
             
             // Get detailed answers for each attempt
             foreach ($attempts as &$attempt) {
+                // Get answers from JSON data in assessment_attempts table
                 $answers_query = "
-                    SELECT 
-                        aqa.*,
-                        aq.question_text,
-                        aq.question_type,
-                        aq.points,
-                        aq.options,
-                        aq.correct_answer
-                    FROM assessment_question_answers aqa
-                    JOIN assessment_questions aq ON aqa.question_id = aq.id
-                    WHERE aqa.attempt_id = ?
-                    ORDER BY aq.question_order
+                    SELECT answers
+                    FROM assessment_attempts 
+                    WHERE id = ?
                 ";
                 $stmt = $db->prepare($answers_query);
                 $stmt->execute([$attempt['attempt_id']]);
-                $answers = $stmt->fetchAll();
+                $answers_json = $stmt->fetchColumn();
+                
+                // Parse JSON answers
+                $answers = $answers_json ? json_decode($answers_json, true) : [];
                 
                 // Process answers to format them better
                 foreach ($answers as &$answer) {
-                    $answer['formatted_answer'] = formatStudentAnswer($answer);
-                    $answer['formatted_correct_answer'] = formatCorrectAnswer($answer);
+                    $answer['formatted_answer'] = isset($answer['student_answer']) ? $answer['student_answer'] : '';
+                    $answer['formatted_correct_answer'] = isset($answer['correct_answer']) ? $answer['correct_answer'] : '';
                 }
                 
                 $attempt['answers'] = $answers;

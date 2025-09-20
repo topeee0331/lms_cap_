@@ -1047,6 +1047,183 @@ if (!defined('NO_HTML_OUTPUT')) {
             border-bottom: none;
         }
 
+        /* Real-time Calendar Widget Styles */
+        .calendar-widget {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem !important;
+            border-radius: 999px;
+            margin: 0 0.18rem;
+            transition: var(--transition);
+            background: none;
+            box-shadow: none;
+            cursor: pointer;
+            color: #374151 !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+        
+        .calendar-widget:hover {
+            color: var(--main-green) !important;
+            background: rgba(46,94,78,0.10);
+            transform: translateY(-2px) scale(1.06);
+            box-shadow: 0 2px 8px rgba(46,94,78,0.06);
+        }
+        
+        .calendar-widget i {
+            font-size: 1.1rem;
+            color: var(--main-green);
+            filter: drop-shadow(0 1px 2px rgba(46,94,78,0.1));
+        }
+        
+        .calendar-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.2;
+        }
+        
+        .calendar-date {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        
+        .calendar-time {
+            font-weight: 500;
+            color: #6b7280;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 991.98px) {
+            .calendar-widget {
+                padding: 0.5rem 0.8rem !important;
+            }
+            
+            .calendar-widget i {
+                font-size: 1rem;
+            }
+        }
+        
+        @media (max-width: 767.98px) {
+            .calendar-widget {
+                padding: 0.4rem 0.6rem !important;
+                margin: 0 0.1rem;
+            }
+        }
+
+        /* Calendar Modal Styles */
+        .calendar-container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .calendar-header h4 {
+            color: var(--main-green);
+            font-weight: 600;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .calendar-day-header {
+            background: var(--main-green);
+            color: white;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .calendar-day {
+            background: white;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .calendar-day:hover {
+            background: rgba(46, 94, 78, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .calendar-day.other-month {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+        
+        .calendar-day.today {
+            background: var(--main-green);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .calendar-day.today:hover {
+            background: var(--accent-green);
+        }
+        
+        .calendar-day.selected {
+            background: var(--accent-green);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .today-indicator {
+            width: 12px;
+            height: 12px;
+            background: var(--main-green);
+            border-radius: 50%;
+        }
+        
+        .calendar-day-number {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .calendar-day-events {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 6px;
+            height: 6px;
+            background: #dc3545;
+            border-radius: 50%;
+            display: none;
+        }
+        
+        .calendar-day.has-events .calendar-day-events {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-day {
+                min-height: 50px;
+                padding: 0.5rem 0.25rem;
+            }
+            
+            .calendar-day-number {
+                font-size: 0.9rem;
+            }
+        }
+
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -1222,6 +1399,17 @@ if (!defined('NO_HTML_OUTPUT')) {
                 
                 <ul class="navbar-nav">
                     <?php if (isLoggedIn()): ?>
+                        <!-- Real-time Calendar -->
+                        <li class="nav-item">
+                            <div class="nav-link calendar-widget" id="calendarWidget" data-bs-toggle="modal" data-bs-target="#calendarModal">
+                                <i class="bi bi-calendar3"></i>
+                                <div class="calendar-info d-none d-lg-inline">
+                                    <div class="calendar-date" id="currentDate"></div>
+                                    <div class="calendar-time" id="currentTime"></div>
+                                </div>
+                            </div>
+                        </li>
+
                         <?php
                         // Fetch unread announcements for the logged-in user
                         $user_id = $_SESSION['user_id'] ?? null;
@@ -1279,7 +1467,6 @@ if (!defined('NO_HTML_OUTPUT')) {
                              </a>
                         </li>
                         <?php endif; ?>
-
                         
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle profile-section<?php if (in_array($current_page, ['profile.php', 'logout.php'])) echo ' active'; ?>" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -1520,6 +1707,55 @@ if (!defined('NO_HTML_OUTPUT')) {
                     <a href="<?php echo SITE_URL; ?>/student/enrollment_requests.php" class="btn btn-success">
                         <i class="bi bi-check-circle me-1"></i>View Enrollment Requests
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Modal -->
+    <div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="calendarModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        <h5 class="modal-title mb-0" id="calendarModalLabel">Calendar</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="calendar-container">
+                        <div class="calendar-header d-flex justify-content-between align-items-center mb-3">
+                            <button class="btn btn-outline-primary" id="prevMonth">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <h4 class="mb-0" id="currentMonthYear"></h4>
+                            <button class="btn btn-outline-primary" id="nextMonth">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Calendar will be generated here -->
+                        </div>
+                        <div class="calendar-info mt-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center">
+                                        <div class="today-indicator me-2"></div>
+                                        <small class="text-muted">Today</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <small class="text-muted" id="currentDateTime"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -3746,6 +3982,171 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 500);
 });
+
+// Real-time Calendar Widget
+function updateCalendar() {
+    const now = new Date();
+    
+    // Format date
+    const dateOptions = { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    };
+    const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+    
+    // Format time
+    const timeOptions = { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    };
+    const formattedTime = now.toLocaleTimeString('en-US', timeOptions);
+    
+    // Update DOM elements
+    const dateElement = document.getElementById('currentDate');
+    const timeElement = document.getElementById('currentTime');
+    
+    if (dateElement) {
+        dateElement.textContent = formattedDate;
+    }
+    if (timeElement) {
+        timeElement.textContent = formattedTime;
+    }
+}
+
+// Initialize calendar on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateCalendar();
+    
+    // Update every second for real-time effect
+    setInterval(updateCalendar, 1000);
+    
+    // Initialize calendar modal
+    initializeCalendarModal();
+});
+
+// Calendar Modal Functionality
+let currentDate = new Date();
+let selectedDate = null;
+
+function initializeCalendarModal() {
+    // Generate calendar when modal is shown
+    $('#calendarModal').on('show.bs.modal', function() {
+        generateCalendar();
+        updateModalDateTime();
+    });
+    
+    // Navigation buttons
+    $('#prevMonth').on('click', function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        generateCalendar();
+    });
+    
+    $('#nextMonth').on('click', function() {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        generateCalendar();
+    });
+    
+}
+
+function generateCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // Update month/year display
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    $('#currentMonthYear').text(`${monthNames[month]} ${year}`);
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Day headers
+    const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    let calendarHTML = '';
+    
+    // Add day headers
+    dayHeaders.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+        const prevMonthDay = new Date(year, month, -startingDayOfWeek + i + 1);
+        calendarHTML += `
+            <div class="calendar-day other-month">
+                <div class="calendar-day-number">${prevMonthDay.getDate()}</div>
+            </div>
+        `;
+    }
+    
+    // Add days of the current month
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cellDate = new Date(year, month, day);
+        const isToday = cellDate.toDateString() === today.toDateString();
+        const isSelected = selectedDate && cellDate.toDateString() === selectedDate.toDateString();
+        
+        calendarHTML += `
+            <div class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" 
+                 data-date="${cellDate.toISOString().split('T')[0]}">
+                <div class="calendar-day-number">${day}</div>
+                <div class="calendar-day-events"></div>
+            </div>
+        `;
+    }
+    
+    // Add empty cells for days after the last day of the month
+    const totalCells = 42; // 6 weeks * 7 days
+    const remainingCells = totalCells - (startingDayOfWeek + daysInMonth);
+    for (let i = 1; i <= remainingCells; i++) {
+        const nextMonthDay = new Date(year, month + 1, i);
+        calendarHTML += `
+            <div class="calendar-day other-month">
+                <div class="calendar-day-number">${nextMonthDay.getDate()}</div>
+            </div>
+        `;
+    }
+    
+    $('#calendarGrid').html(calendarHTML);
+    
+    // Add click handlers for calendar days
+    $('.calendar-day').on('click', function() {
+        const dateString = $(this).data('date');
+        if (dateString) {
+            selectedDate = new Date(dateString);
+            $('.calendar-day').removeClass('selected');
+            $(this).addClass('selected');
+        }
+    });
+}
+
+function updateModalDateTime() {
+    const now = new Date();
+    const dateOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    const timeOptions = { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true 
+    };
+    
+    const formattedDateTime = `${now.toLocaleDateString('en-US', dateOptions)} at ${now.toLocaleTimeString('en-US', timeOptions)}`;
+    $('#currentDateTime').text(formattedDateTime);
+}
 </script>
 </body>
 </html>

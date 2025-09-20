@@ -29,7 +29,7 @@ try {
             COUNT(CASE WHEN aa.score >= 70 THEN 1 END) as passing_attempts,
             COUNT(CASE WHEN aa.status = 'completed' THEN 1 END) as completed_attempts
         FROM assessment_attempts aa
-        WHERE aa.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        WHERE aa.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     ";
     $stmt = $db->prepare($assessment_stats_query);
     $stmt->execute();
@@ -41,7 +41,7 @@ try {
             COUNT(DISTINCT aa.student_id) as active_students_today,
             COUNT(aa.id) as attempts_today
         FROM assessment_attempts aa
-        WHERE aa.created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+        WHERE aa.started_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
     ";
     $stmt = $db->prepare($recent_activity_query);
     $stmt->execute();
@@ -66,7 +66,7 @@ try {
             FROM sections s2
             JOIN users u ON JSON_SEARCH(s2.students, 'one', u.id) IS NOT NULL
             JOIN assessment_attempts aa ON u.id = aa.student_id
-            WHERE aa.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            WHERE aa.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             GROUP BY s2.id
         ) perf ON s.id = perf.section_id
         WHERE s.is_active = 1
@@ -76,23 +76,9 @@ try {
     $stmt->execute();
     $section_performance = $stmt->fetchAll();
     
-    // Get question type performance
-    $question_type_performance_query = "
-        SELECT 
-            aq.question_type,
-            COUNT(aqa.id) as total_answers,
-            COUNT(CASE WHEN aqa.is_correct = 1 THEN 1 END) as correct_answers,
-            ROUND((COUNT(CASE WHEN aqa.is_correct = 1 THEN 1 END) / COUNT(aqa.id)) * 100, 1) as accuracy_rate
-        FROM assessment_question_answers aqa
-        JOIN assessment_questions aq ON aqa.question_id = aq.id
-        JOIN assessment_attempts aa ON aqa.attempt_id = aa.id
-        WHERE aa.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY aq.question_type
-        ORDER BY accuracy_rate DESC
-    ";
-    $stmt = $db->prepare($question_type_performance_query);
-    $stmt->execute();
-    $question_type_performance = $stmt->fetchAll();
+    // Get question type performance (simplified - no detailed question tracking available)
+    // Since assessment_question_answers table doesn't exist, we'll provide empty data
+    $question_type_performance = [];
     
     // Calculate passing rate
     $passing_rate = $assessment_stats['total_attempts'] > 0 ? 

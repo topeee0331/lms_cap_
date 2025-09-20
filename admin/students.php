@@ -7,7 +7,117 @@ require_once '../includes/header.php';
 ?>
 
 <style>
-/* Statistics Cards Styling */
+/* Import Google Fonts for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Enhanced Students Page Styling - Inspired by Admin Dashboard */
+:root {
+    --main-green: #2E5E4E;
+    --accent-green: #7DCB80;
+    --highlight-yellow: #FFE066;
+    --off-white: #F7FAF7;
+    --white: #FFFFFF;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+    --border-light: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --transition: all 0.3s ease;
+}
+
+/* Page Background */
+.page-container {
+    background: var(--off-white);
+    min-height: 100vh;
+}
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: var(--main-green);
+    border-radius: var(--border-radius-xl);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Inter', sans-serif;
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Decorative Elements */
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent-green);
+    border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+}
+
+/* Statistics Cards Styling - Inspired by Dashboard */
 .stats-card {
     transition: all 0.3s ease;
     border-radius: 12px;
@@ -77,30 +187,204 @@ require_once '../includes/header.php';
     color: white !important;
 }
 
-/* Scrollable Table Container */
-.table-scrollable {
-    max-height: 500px;
+/* Table Container with Scrollable Table */
+.table-container {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.table-container .card-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid var(--accent-green);
+    padding: 1.25rem 1.5rem;
+}
+
+.table-container .card-header h5 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Scrollable Table */
+.scrollable-table {
+    overflow-x: auto;
+    max-height: 600px;
     overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
 }
 
-.table-scrollable::-webkit-scrollbar {
+.scrollable-table::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
-.table-scrollable::-webkit-scrollbar-track {
+.scrollable-table::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+.scrollable-table::-webkit-scrollbar-thumb {
+    background: var(--main-green);
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-green);
+}
+
+.scrollable-table {
+    scrollbar-width: thin;
+    scrollbar-color: var(--main-green) #f1f1f1;
+}
+
+/* Table Styling */
+.table {
+    margin-bottom: 0;
+    min-width: 1000px; /* Ensure minimum width for proper display */
+}
+
+.table thead th {
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--accent-green);
+    font-weight: 600;
+    color: var(--text-dark);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.table tbody td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Back Button */
+.back-btn {
+    background: var(--main-green);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: var(--transition);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.back-btn:hover {
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-1px);
+}
+
+/* Action Buttons */
+.btn-sm {
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: var(--transition);
+    border: none;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+}
+
+/* Solid Action Button Styles */
+.btn-outline-info {
+    background: #0dcaf0;
+    color: white;
+    border: none;
+}
+
+.btn-outline-info:hover {
+    background: #0aa2c0;
+    color: white;
+}
+
+.btn-outline-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+}
+
+.btn-outline-secondary:hover {
+    background: #5c636a;
+    color: white;
+}
+
+.btn-outline-success {
+    background: #198754;
+    color: white;
+    border: none;
+}
+
+.btn-outline-success:hover {
+    background: #146c43;
+    color: white;
+}
+
+.btn-outline-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+}
+
+.btn-outline-danger:hover {
+    background: #bb2d3b;
+    color: white;
+}
+
+/* Add Student Button */
+.add-student-btn {
+    background: var(--main-green);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.add-student-btn:hover {
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-1px);
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: var(--border-radius-lg);
+    border: none;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 1rem;
+    }
+    
+    .table-container .card-header {
+        padding: 1rem;
+    }
 }
 </style>
 
@@ -256,17 +540,38 @@ foreach ($students as $stu) {
     }
 }
 ?>
-<div class="container py-4" style="margin-top: 80px;">
-    <div class="row mb-4">
-        <div class="col-12">
-            <?php if (!empty($message)): ?>
-                <div class="alert alert-<?= $message_type ?> alert-dismissible fade show" role="alert">
-                    <?= $message ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<div class="page-container">
+    <div class="container-fluid py-4">
+        <!-- Enhanced Welcome Section -->
+        <div class="welcome-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="welcome-title">Manage Students</h1>
+                    <p class="welcome-subtitle">Create, edit, and manage student accounts and their academic status</p>
+                    <a href="dashboard.php" class="back-btn">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                    </a>
                 </div>
-            <?php endif; ?>
-            <!-- Statistics Cards -->
-            <div class="row mb-4">
+                <div class="col-md-4 text-md-end">
+                    <div class="welcome-decoration">
+                        <i class="bi bi-mortarboard"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                </div>
+            </div>
+            <div class="accent-line"></div>
+        </div>
+
+        <?php if (!empty($message)): ?>
+            <div class="alert alert-<?= $message_type ?> alert-dismissible fade show" role="alert">
+                <i class="bi bi-<?= $message_type === 'success' ? 'check-circle' : 'exclamation-triangle' ?> me-2"></i>
+                <?= $message ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
                 <div class="col-md-3 mb-3">
                     <div class="card stats-card stats-primary border-0 shadow-sm h-100">
                         <div class="card-body text-center p-3">
@@ -336,15 +641,22 @@ foreach ($students as $stu) {
                 </div>
             </div>
             <div class="d-flex justify-content-end mb-3">
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addStudentModal"><i class="bi bi-plus-circle me-2"></i>Add Student</button>
+                <button class="btn add-student-btn" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                    <i class="bi bi-plus-circle me-2"></i>Add Student
+                </button>
             </div>
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Students List</h5>
+            <div class="card table-container">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5>
+                            <i class="bi bi-mortarboard me-2"></i>Students List
+                        </h5>
+                        <span class="badge bg-primary fs-6"><?= $total_students ?> students</span>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-scrollable">
-                        <table class="table table-bordered align-middle mb-0">
+                    <div class="scrollable-table">
+                        <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th>Student ID</th>

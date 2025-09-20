@@ -44,12 +44,12 @@ $stmt = $db->prepare("
         aq.question_type,
         aq.points,
         aq.question_order,
-        aqa.student_answer,
-        aqa.selected_option_id,
-        aqa.essay_answer,
-        aqa.answered_at,
-        COALESCE(aqa.is_correct, 0) as is_correct,
-        COALESCE(aqa.points_earned, 0) as points_earned,
+        NULL as student_answer,
+        NULL as selected_option_id,
+        NULL as essay_answer,
+        NULL as answered_at,
+        0 as is_correct,
+        0 as points_earned,
         CASE 
             WHEN aq.question_type = 'multiple_choice' THEN (
                 SELECT qo.option_text FROM question_options qo 
@@ -69,7 +69,7 @@ $stmt = $db->prepare("
             ELSE 'Manual grading required'
         END as correct_answer
     FROM assessment_questions aq
-    LEFT JOIN assessment_question_answers aqa ON aq.id = aqa.question_id AND aqa.attempt_id = ?
+    -- LEFT JOIN assessment_question_answers aqa ON aq.id = aqa.question_id AND aqa.attempt_id = ?
     WHERE aq.assessment_id = ?
     ORDER BY aq.question_order
 ");

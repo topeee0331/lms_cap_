@@ -9,115 +9,261 @@ require_once '../config/database.php';
 ?>
 
 <style>
-/* Statistics Cards Styling */
+/* Import Google Fonts for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Enhanced Unlock Accounts Page Styling - Inspired by Admin Dashboard */
+:root {
+    --main-green: #2E5E4E;
+    --accent-green: #7DCB80;
+    --highlight-yellow: #FFE066;
+    --off-white: #F7FAF7;
+    --white: #FFFFFF;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+    --border-light: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --transition: all 0.3s ease;
+}
+
+/* Page Background */
+.page-container {
+    background: var(--off-white);
+    min-height: 100vh;
+}
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: var(--main-green);
+    border-radius: var(--border-radius-xl);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Inter', sans-serif;
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Decorative Elements */
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent-green);
+    border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+}
+
+/* Statistics Cards */
 .stats-card {
-    transition: all 0.3s ease;
-    border-radius: 12px;
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    transition: var(--transition);
     overflow: hidden;
 }
 
 .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .stats-icon {
-    width: 60px;
-    height: 60px;
-    transition: all 0.3s ease;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
 }
 
-.stats-card:hover .stats-icon {
-    transform: scale(1.1);
+/* Card Headers */
+.card-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--accent-green);
+    padding: 1.25rem 1.5rem;
 }
 
-.stats-primary {
-    background: #0d6efd !important;
-    border-left: 4px solid #0a58ca !important;
-    color: white !important;
-}
-
-.stats-success {
-    background: #198754 !important;
-    border-left: 4px solid #146c43 !important;
-    color: white !important;
-}
-
-.stats-info {
-    background: #0dcaf0 !important;
-    border-left: 4px solid #0aa2c0 !important;
-    color: white !important;
-}
-
-.stats-warning {
-    background: #ffc107 !important;
-    border-left: 4px solid #ffca2c !important;
-    color: #000 !important;
-}
-
-.stats-secondary {
-    background: #6c757d !important;
-    border-left: 4px solid #5c636a !important;
-    color: white !important;
-}
-
-.stats-danger {
-    background: #dc3545 !important;
-    border-left: 4px solid #b02a37 !important;
-    color: white !important;
-}
-
-.stats-danger-alt {
-    background: #e91e63 !important;
-    border-left: 4px solid #d81b60 !important;
-    color: white !important;
-}
-
-.stats-purple {
-    background: #9c27b0 !important;
-    border-left: 4px solid #7b1fa2 !important;
-    color: white !important;
+.card-header h5 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 1.1rem;
 }
 
 /* Scrollable Table Container */
-.table-scrollable {
+.scrollable-table {
     max-height: 500px;
     overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius);
 }
 
-.table-scrollable::-webkit-scrollbar {
+.scrollable-table::-webkit-scrollbar {
     width: 8px;
 }
 
-.table-scrollable::-webkit-scrollbar-track {
+.scrollable-table::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb {
-    background: #2E5E4E;
+.scrollable-table::-webkit-scrollbar-thumb {
+    background: var(--main-green);
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb:hover {
-    background: #7DCB80;
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-green);
 }
 
-/* Firefox scrollbar styling */
-.table-scrollable {
+.scrollable-table {
     scrollbar-width: thin;
-    scrollbar-color: #2E5E4E #f1f1f1;
+    scrollbar-color: var(--main-green) #f1f1f1;
 }
 
 /* Ensure table header stays visible */
-.table-scrollable .table thead th {
+.scrollable-table .table thead th {
     position: sticky;
     top: 0;
     background-color: #f8f9fa;
     z-index: 10;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 2px solid var(--border-light);
+}
+
+/* Back Button */
+.back-btn {
+    background: var(--main-green);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: var(--transition);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.back-btn:hover {
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-1px);
+}
+
+/* Action Buttons */
+.btn-sm {
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: var(--transition);
+    border: none;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+}
+
+/* Solid Action Button Styles */
+.btn-success {
+    background: #198754;
+    color: white;
+    border: none;
+}
+
+.btn-success:hover {
+    background: #146c43;
+    color: white;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+    border: none;
+}
+
+.btn-warning:hover {
+    background: #ffca2c;
+    color: #000;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .card-header {
+        padding: 1rem;
+    }
 }
 </style>
 
@@ -250,22 +396,27 @@ function getRemainingLockout($seconds_ago) {
 }
 ?>
 
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <!-- Page Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="h2 mb-1 text-dark fw-bold">
-                        <i class="bi bi-shield-lock-fill text-primary me-3"></i>
-                        Account Unlock Management
-                    </h1>
-                    <p class="text-muted mb-0">Manage locked accounts and IP addresses</p>
+<div class="page-container">
+    <div class="container-fluid py-4">
+        <!-- Enhanced Welcome Section -->
+        <div class="welcome-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="welcome-title">Account Unlock Management</h1>
+                    <p class="welcome-subtitle">Manage locked accounts and IP addresses for security</p>
+                    <a href="dashboard.php" class="back-btn">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                    </a>
                 </div>
-                <a href="dashboard.php" class="btn btn-outline-primary btn-lg">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Admin
-                </a>
+                <div class="col-md-4 text-md-end">
+                    <div class="welcome-decoration">
+                        <i class="bi bi-shield-lock-fill"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                </div>
             </div>
+            <div class="accent-line"></div>
+        </div>
                 
                 <?php if ($message): ?>
                     <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
@@ -274,74 +425,70 @@ function getRemainingLockout($seconds_ago) {
                     </div>
                 <?php endif; ?>
                 
-                <!-- Statistics Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-3 mb-3">
-                        <div class="card stats-card stats-primary border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-3">
-                                <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-envelope-fill fs-4"></i>
-                                    </div>
-                                </div>
-                                <h3 class="fw-bold mb-1 text-white"><?php echo count($locked_emails); ?></h3>
-                                <p class="text-white mb-0 small fw-medium">Locked Emails</p>
-                            </div>
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="stats-icon bg-primary text-white mx-auto">
+                            <i class="bi bi-envelope-fill"></i>
                         </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="card stats-card stats-warning border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-3">
-                                <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-network-wired fs-4"></i>
-                                    </div>
-                                </div>
-                                <h3 class="fw-bold mb-1 text-white"><?php echo count($locked_ips); ?></h3>
-                                <p class="text-white mb-0 small fw-medium">Locked IPs</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="card stats-card stats-danger border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-3">
-                                <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
-                                    </div>
-                                </div>
-                                <h3 class="fw-bold mb-1 text-white"><?php echo MAX_LOGIN_ATTEMPTS; ?></h3>
-                                <p class="text-white mb-0 small fw-medium">Max Attempts</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="card stats-card stats-info border-0 shadow-sm h-100">
-                            <div class="card-body text-center p-3">
-                                <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-clock-fill fs-4"></i>
-                                    </div>
-                                </div>
-                                <h3 class="fw-bold mb-1 text-white"><?php echo floor(LOGIN_LOCKOUT_DURATION / 60); ?>m</h3>
-                                <p class="text-white mb-0 small fw-medium">Lockout Duration</p>
-                            </div>
-                        </div>
+                        <h3 class="fw-bold mb-1 text-dark"><?php echo count($locked_emails); ?></h3>
+                        <p class="text-muted mb-0 small fw-medium">Locked Emails</p>
                     </div>
                 </div>
-                
-                <!-- Locked Emails -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-primary bg-opacity-10 border-0 py-3">
-                        <h5 class="mb-0 text-primary fw-bold">
-                            <i class="bi bi-envelope-fill me-2"></i>Locked Email Accounts
-                        </h5>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="stats-icon bg-warning text-white mx-auto">
+                            <i class="bi bi-network-wired"></i>
+                        </div>
+                        <h3 class="fw-bold mb-1 text-dark"><?php echo count($locked_ips); ?></h3>
+                        <p class="text-muted mb-0 small fw-medium">Locked IPs</p>
                     </div>
-                    <div class="card-body">
-                        <?php if (empty($locked_emails)): ?>
-                            <p class="text-muted text-center py-3">No email accounts are currently locked.</p>
-                        <?php else: ?>
-                            <div class="table-scrollable">
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="stats-icon bg-danger text-white mx-auto">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <h3 class="fw-bold mb-1 text-dark"><?php echo MAX_LOGIN_ATTEMPTS; ?></h3>
+                        <p class="text-muted mb-0 small fw-medium">Max Attempts</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="stats-icon bg-info text-white mx-auto">
+                            <i class="bi bi-clock-fill"></i>
+                        </div>
+                        <h3 class="fw-bold mb-1 text-dark"><?php echo floor(LOGIN_LOCKOUT_DURATION / 60); ?>m</h3>
+                        <p class="text-muted mb-0 small fw-medium">Lockout Duration</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+                
+        <!-- Locked Emails -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-envelope-fill me-2"></i>Locked Email Accounts
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <?php if (empty($locked_emails)): ?>
+                    <div class="text-center py-5">
+                        <i class="bi bi-envelope-check fs-1 text-muted mb-3"></i>
+                        <h5 class="text-muted">No email accounts are currently locked</h5>
+                        <p class="text-muted">All email accounts are accessible.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="scrollable-table">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -390,22 +537,26 @@ function getRemainingLockout($seconds_ago) {
                                     </tbody>
                                 </table>
                             </div>
-                        <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Locked IPs -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-network-wired me-2"></i>Locked IP Addresses
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <?php if (empty($locked_ips)): ?>
+                    <div class="text-center py-5">
+                        <i class="bi bi-shield-check fs-1 text-muted mb-3"></i>
+                        <h5 class="text-muted">No IP addresses are currently locked</h5>
+                        <p class="text-muted">All IP addresses are accessible.</p>
                     </div>
-                </div>
-                
-                <!-- Locked IPs -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
-                        <h5 class="mb-0 text-warning fw-bold">
-                            <i class="bi bi-network-wired me-2"></i>Locked IP Addresses
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <?php if (empty($locked_ips)): ?>
-                            <p class="text-muted text-center py-3">No IP addresses are currently locked.</p>
-                        <?php else: ?>
-                            <div class="table-scrollable">
+                <?php else: ?>
+                    <div class="scrollable-table">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -454,17 +605,17 @@ function getRemainingLockout($seconds_ago) {
                                     </tbody>
                                 </table>
                             </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                
-                <!-- Bulk Actions -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-success bg-opacity-10 border-0 py-3">
-                        <h5 class="mb-0 text-success fw-bold">
-                            <i class="bi bi-tools me-2"></i>Bulk Actions
-                        </h5>
-                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Bulk Actions -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-tools me-2"></i>Bulk Actions
+                </h5>
+            </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
@@ -492,30 +643,30 @@ function getRemainingLockout($seconds_ago) {
                     </div>
                 </div>
                 
-                <!-- Recent Activity -->
-                <div class="card border-0 shadow-sm mt-4">
-                    <div class="card-header bg-info bg-opacity-10 border-0 py-3">
-                        <h5 class="mb-0 text-info fw-bold">
-                            <i class="bi bi-clock-history me-2"></i>Recent Login Activity
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <?php
-                        try {
-                            $stmt = $pdo->query("
-                                SELECT 
-                                    ip_address, 
-                                    email, 
-                                    success, 
-                                    attempt_time, 
-                                    user_agent
-                                FROM login_attempts 
-                                ORDER BY attempt_time DESC 
-                                LIMIT 20
-                            ");
-                            $recent_attempts = $stmt->fetchAll();
-                        ?>
-                                                         <div class="table-scrollable">
+        <!-- Recent Activity -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-clock-history me-2"></i>Recent Login Activity
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <?php
+                try {
+                    $stmt = $pdo->query("
+                        SELECT 
+                            ip_address, 
+                            email, 
+                            success, 
+                            attempt_time, 
+                            user_agent
+                        FROM login_attempts 
+                        ORDER BY attempt_time DESC 
+                        LIMIT 20
+                    ");
+                    $recent_attempts = $stmt->fetchAll();
+                ?>
+                <div class="scrollable-table">
                                  <table class="table table-sm align-middle mb-0">
                                      <thead class="table-light">
                                          <tr>
@@ -547,16 +698,15 @@ function getRemainingLockout($seconds_ago) {
                                     </tbody>
                                 </table>
                             </div>
-                        <?php
-                        } catch (Exception $e) {
-                            echo "<p class='text-muted'>Unable to load recent activity.</p>";
-                        }
-                        ?>
-                    </div>
-                </div>
+                <?php
+                } catch (Exception $e) {
+                    echo "<div class='text-center py-5'><p class='text-muted'>Unable to load recent activity.</p></div>";
+                }
+                ?>
             </div>
         </div>
     </div>
+</div>
 
 <script>
     // Auto-refresh every 30 seconds to show updated status

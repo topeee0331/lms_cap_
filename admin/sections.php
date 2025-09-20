@@ -6,45 +6,430 @@ require_once '../includes/header.php';
 ?>
 
 <style>
-/* Scrollable Table Container */
-.table-scrollable {
+/* Import Google Fonts for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Enhanced Sections Page Styling - Inspired by Admin Dashboard */
+:root {
+    --main-green: #2E5E4E;
+    --accent-green: #7DCB80;
+    --highlight-yellow: #FFE066;
+    --off-white: #F7FAF7;
+    --white: #FFFFFF;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+    --border-light: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --transition: all 0.3s ease;
+}
+
+/* Page Background */
+.page-container {
+    background: var(--off-white);
+    min-height: 100vh;
+}
+
+/* Enhanced Welcome Section */
+.welcome-section {
+    background: var(--main-green);
+    border-radius: var(--border-radius-xl);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Inter', sans-serif;
+}
+
+.welcome-subtitle {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Decorative Elements */
+.welcome-decoration {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.welcome-decoration i {
+    font-size: 1.5rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.floating-shapes {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.welcome-section .accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent-green);
+    border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+}
+
+/* Statistics Cards Styling - Inspired by Dashboard */
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.stats-primary {
+    background: #0d6efd;
+    border-left: 4px solid #0a58ca;
+    color: white;
+}
+
+.stats-success {
+    background: #198754;
+    border-left: 4px solid #146c43;
+    color: white;
+}
+
+.stats-info {
+    background: #0dcaf0;
+    border-left: 4px solid #0aa2c0;
+    color: white;
+}
+
+.stats-warning {
+    background: #ffc107;
+    border-left: 4px solid #ffca2c;
+    color: #000;
+}
+
+.stats-secondary {
+    background: #6c757d;
+    border-left: 4px solid #5c636a;
+    color: white;
+}
+
+.stats-danger {
+    background: #dc3545;
+    border-left: 4px solid #b02a37;
+    color: white;
+}
+
+.stats-danger-alt {
+    background: #e91e63;
+    border-left: 4px solid #d81b60;
+    color: white;
+}
+
+.stats-purple {
+    background: #9c27b0;
+    border-left: 4px solid #7b1fa2;
+    color: white;
+}
+
+/* Search and Filter Section */
+.search-filter-card {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.search-filter-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid var(--accent-green);
+    padding: 1.25rem 1.5rem;
+}
+
+.search-filter-card .card-header h5 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Table Container with Scrollable Table */
+.table-container {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.table-container .card-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid var(--accent-green);
+    padding: 1.25rem 1.5rem;
+}
+
+.table-container .card-header h5 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Scrollable Table */
+.scrollable-table {
+    overflow-x: auto;
     max-height: 600px;
     overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
 }
 
-.table-scrollable::-webkit-scrollbar {
+.scrollable-table::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
-.table-scrollable::-webkit-scrollbar-track {
+.scrollable-table::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb {
-    background: #2E5E4E;
+.scrollable-table::-webkit-scrollbar-thumb {
+    background: var(--main-green);
     border-radius: 4px;
 }
 
-.table-scrollable::-webkit-scrollbar-thumb:hover {
-    background: #7DCB80;
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-green);
 }
 
-/* Firefox scrollbar styling */
-.table-scrollable {
+.scrollable-table {
     scrollbar-width: thin;
-    scrollbar-color: #2E5E4E #f1f1f1;
+    scrollbar-color: var(--main-green) #f1f1f1;
 }
 
-/* Ensure table header stays visible */
-.table-scrollable .table thead th {
+/* Table Styling */
+.table {
+    margin-bottom: 0;
+    min-width: 1200px; /* Ensure minimum width for proper display */
+}
+
+.table thead th {
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--accent-green);
+    font-weight: 600;
+    color: var(--text-dark);
+    white-space: nowrap;
     position: sticky;
     top: 0;
-    background-color: #f8f9fa;
     z-index: 10;
-    border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.table tbody td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Back Button */
+.back-btn {
+    background: var(--main-green);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: var(--transition);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.back-btn:hover {
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-1px);
+}
+
+/* Action Buttons */
+.btn-sm {
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: var(--transition);
+    border: none;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+}
+
+/* Solid Action Button Styles */
+.btn-outline-info {
+    background: #0dcaf0;
+    color: white;
+    border: none;
+}
+
+.btn-outline-info:hover {
+    background: #0aa2c0;
+    color: white;
+}
+
+.btn-outline-primary {
+    background: #0d6efd;
+    color: white;
+    border: none;
+}
+
+.btn-outline-primary:hover {
+    background: #0b5ed7;
+    color: white;
+}
+
+.btn-outline-warning {
+    background: #ffc107;
+    color: #000;
+    border: none;
+}
+
+.btn-outline-warning:hover {
+    background: #ffca2c;
+    color: #000;
+}
+
+.btn-outline-success {
+    background: #198754;
+    color: white;
+    border: none;
+}
+
+.btn-outline-success:hover {
+    background: #146c43;
+    color: white;
+}
+
+.btn-outline-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+}
+
+.btn-outline-danger:hover {
+    background: #bb2d3b;
+    color: white;
+}
+
+.btn-outline-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+}
+
+.btn-outline-secondary:hover {
+    background: #5c636a;
+    color: white;
+}
+
+/* Add Section Button */
+.add-section-btn {
+    background: var(--main-green);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.add-section-btn:hover {
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-1px);
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: var(--border-radius-lg);
+    border: none;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 1rem;
+    }
+    
+    .search-filter-card .card-header,
+    .table-container .card-header {
+        padding: 1rem;
+    }
 }
 </style>
 
@@ -689,18 +1074,30 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
 }
 </style>
 
-<div class="container-fluid py-4">
-    <!-- Navigation Back to Dashboard -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <a href="../admin/dashboard.php" class="btn btn-outline-primary mb-3">
-                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-            </a>
+<div class="page-container">
+    <div class="container-fluid py-4">
+        <!-- Enhanced Welcome Section -->
+        <div class="welcome-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="welcome-title">Manage Sections</h1>
+                    <p class="welcome-subtitle">Create, edit, and manage student sections and class assignments</p>
+                    <a href="dashboard.php" class="back-btn">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="welcome-decoration">
+                        <i class="bi bi-collection"></i>
+                    </div>
+                    <div class="floating-shapes"></div>
+                </div>
+            </div>
+            <div class="accent-line"></div>
         </div>
-    </div>
 
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-primary border-0 shadow-sm h-100">
                 <div class="card-body text-center p-3">
@@ -1012,31 +1409,31 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                         </div>
                     </div>
 
-                    <!-- Section Performance Table -->
-                    <div class="card border-0">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0 fw-bold text-dark">
-                                <i class="bi bi-bar-chart me-2"></i>Section Performance Rankings
+                    <!-- Section Performance Table - Compact & Scrollable -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="mb-0 fw-bold text-dark small">
+                                <i class="bi bi-bar-chart me-1"></i>Section Performance Rankings
                             </h6>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead class="table-light">
+                            <div class="scrollable-table" style="max-height: 300px;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light sticky-top">
                                         <tr>
-                                            <th class="border-0">Rank</th>
-                                            <th class="border-0">Section</th>
-                                            <th class="border-0">Students</th>
-                                            <th class="border-0">Avg Score</th>
-                                            <th class="border-0">Attempts</th>
-                                            <th class="border-0">Passing Rate</th>
-                                            <th class="border-0">Performance</th>
+                                            <th class="border-0 py-1 small">#</th>
+                                            <th class="border-0 py-1 small">Section</th>
+                                            <th class="border-0 py-1 small text-center">Students</th>
+                                            <th class="border-0 py-1 small text-center">Score</th>
+                                            <th class="border-0 py-1 small text-center">Attempts</th>
+                                            <th class="border-0 py-1 small text-center">Pass Rate</th>
+                                            <th class="border-0 py-1 small text-center">Performance</th>
                                         </tr>
                                     </thead>
                                     <tbody id="sectionPerformanceTable">
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted py-4">
-                                                <i class="bi bi-hourglass-split me-2"></i>Loading performance data...
+                                            <td colspan="7" class="text-center text-muted py-3 small">
+                                                <i class="bi bi-hourglass-split me-1"></i>Loading performance data...
                                             </td>
                                         </tr>
                                     </tbody>
@@ -1049,32 +1446,30 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
         </div>
     </div>
 
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-0 fw-semibold">
-                                <i class="bi bi-collection me-2"></i>Section Management
-                            </h4>
-                            <p class="text-muted mb-0 small">Manage sections with year levels and active/inactive status</p>
-                        </div>
-                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSectionModal">
-                            <i class="bi bi-plus-circle me-2"></i>Add Section
-                        </button>
-                        </div>
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="h4 mb-0 text-dark">
+                        <i class="bi bi-collection me-2"></i>Section Management
+                    </h2>
+                    <button class="btn add-section-btn" data-bs-toggle="modal" data-bs-target="#addSectionModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add Section
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Filters above the table -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body py-3">
+        <!-- Filters above the table -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card search-filter-card">
+                    <div class="card-header">
+                        <h5>
+                            <i class="bi bi-funnel me-2"></i>Filter Sections
+                        </h5>
+                    </div>
+                    <div class="card-body py-3">
                     <form method="get" class="row g-3 align-items-end">
                         <div class="col-md-2">
                             <label for="year_filter" class="form-label fw-semibold">Year Level:</label>
@@ -1126,35 +1521,35 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
         </div>
     </div>
 
-    <!-- Sections List -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-semibold">
-                            <i class="bi bi-list-ul me-2"></i>All Sections
-                        </h5>
-                        <div class="d-flex gap-2">
-                            <span class="badge bg-primary fs-6"><?= count($filtered_sections) ?> sections</span>
-                            <?php if ($period_filter): ?>
-                                <span class="badge bg-info fs-6">Filtered by Period</span>
-                            <?php endif; ?>
+        <!-- Sections List -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card table-container">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5>
+                                <i class="bi bi-list-ul me-2"></i>All Sections
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary fs-6"><?= count($filtered_sections) ?> sections</span>
+                                <?php if ($period_filter): ?>
+                                    <span class="badge bg-info fs-6">Filtered by Period</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    <?php if (empty($filtered_sections)): ?>
-                        <div class="text-center py-5">
-                            <i class="bi bi-collection fs-1 text-muted mb-3"></i>
-                            <h5 class="text-muted">No sections found</h5>
-                            <p class="text-muted">Start by adding your first section for this course.</p>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSectionModal">
-                                <i class="bi bi-plus-circle me-2"></i>Add Section
-                            </button>
-                        </div>
-                    <?php else: ?>
-                        <div class="table-scrollable">
+                    <div class="card-body p-0">
+                        <?php if (empty($filtered_sections)): ?>
+                            <div class="text-center py-5">
+                                <i class="bi bi-collection fs-1 text-muted mb-3"></i>
+                                <h5 class="text-muted">No sections found</h5>
+                                <p class="text-muted">Start by adding your first section for this course.</p>
+                                <button class="btn add-section-btn" data-bs-toggle="modal" data-bs-target="#addSectionModal">
+                                    <i class="bi bi-plus-circle me-2"></i>Add Section
+                                </button>
+                            </div>
+                        <?php else: ?>
+                            <div class="scrollable-table">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
@@ -1562,7 +1957,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                 </tbody>
                             </table>
                         </div>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2709,7 +3105,7 @@ function updateSectionPerformance(sections) {
     const tbody = document.getElementById('sectionPerformanceTable');
     
     if (sections.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-info-circle me-2"></i>No performance data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-2 small"><i class="bi bi-info-circle me-1"></i>No performance data available</td></tr>';
         return;
     }
     
@@ -2723,28 +3119,28 @@ function updateSectionPerformance(sections) {
         
         html += `
             <tr>
-                <td>
-                    <span class="badge bg-${rank <= 3 ? 'primary' : 'secondary'} text-white">
+                <td class="py-1">
+                    <span class="badge bg-${rank <= 3 ? 'primary' : 'secondary'} text-white small">
                         #${rank}
                     </span>
                 </td>
-                <td>
-                    <div class="fw-semibold">${section.section_name}</div>
+                <td class="py-1">
+                    <div class="fw-semibold small">${section.section_name}</div>
                 </td>
-                <td>
-                    <span class="badge bg-info text-white">${section.student_count}</span>
+                <td class="py-1 text-center">
+                    <span class="badge bg-info text-white small">${section.student_count}</span>
                 </td>
-                <td>
-                    <span class="badge bg-${performanceClass} text-white">${section.avg_score}%</span>
+                <td class="py-1 text-center">
+                    <span class="badge bg-${performanceClass} text-white small">${section.avg_score}%</span>
                 </td>
-                <td>
-                    <span class="badge bg-secondary text-white">${section.total_attempts}</span>
+                <td class="py-1 text-center">
+                    <span class="badge bg-secondary text-white small">${section.total_attempts}</span>
                 </td>
-                <td>
-                    <span class="badge bg-${passingClass} text-white">${section.passing_rate}%</span>
+                <td class="py-1 text-center">
+                    <span class="badge bg-${passingClass} text-white small">${section.passing_rate}%</span>
                 </td>
-                <td>
-                    <div class="progress" style="height: 8px;">
+                <td class="py-1 text-center">
+                    <div class="progress" style="height: 6px; width: 60px; margin: 0 auto;">
                         <div class="progress-bar bg-${performanceClass}" style="width: ${section.avg_score}%"></div>
                     </div>
                 </td>

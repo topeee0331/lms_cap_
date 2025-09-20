@@ -40,20 +40,15 @@ if (!$attempt) {
     exit();
 }
 
-// Get student's answers for this attempt
+// Get student's answers for this attempt from JSON data
 $stmt = $db->prepare("
-    SELECT 
-        aqa.*,
-        aq.question_text,
-        aq.question_type,
-        aq.points
-    FROM assessment_question_answers aqa
-    JOIN assessment_questions aq ON aqa.question_id = aq.id
-    WHERE aqa.attempt_id = ?
-    ORDER BY aq.question_order
+    SELECT answers
+    FROM assessment_attempts 
+    WHERE id = ?
 ");
 $stmt->execute([$attempt_id]);
-$answers = $stmt->fetchAll();
+$answers_json = $stmt->fetchColumn();
+$answers = $answers_json ? json_decode($answers_json, true) : [];
 ?>
 
 <div class="row">

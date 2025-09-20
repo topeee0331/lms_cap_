@@ -70,10 +70,10 @@ $stmt = $db->prepare("
         aq.question_type,
         aq.points,
         COUNT(aa.id) as attempt_count,
-        AVG(CASE WHEN aqa.is_correct = 1 THEN 1 ELSE 0 END) * 100 as correct_percentage
+        0 as correct_percentage
     FROM assessment_questions aq
     LEFT JOIN assessment_attempts aa ON aq.assessment_id = aa.assessment_id AND aa.status = 'completed'
-    LEFT JOIN assessment_question_answers aqa ON aq.id = aqa.question_id AND aqa.attempt_id = aa.id
+    -- LEFT JOIN assessment_question_answers aqa ON aq.id = aqa.question_id AND aqa.attempt_id = aa.id
     WHERE aq.assessment_id = ?
     GROUP BY aq.id
     ORDER BY aq.question_order

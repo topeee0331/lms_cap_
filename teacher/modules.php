@@ -946,7 +946,7 @@ usort($all_modules, function($a, $b) {
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="course-info">
+                                        <div class="course-info clickable-content" data-course-id="<?php echo $module['course_id'] ?? ''; ?>" title="Click to view course">
                                             <span class="badge bg-primary mb-1 d-block"><?php echo htmlspecialchars($module['course_title'] ?? 'Unknown Course'); ?></span>
                                             <?php if (!empty($module['course_code'])): ?>
                                                 <small class="text-muted d-block"><?php echo htmlspecialchars($module['course_code']); ?></small>
@@ -957,7 +957,7 @@ usort($all_modules, function($a, $b) {
                                         <span class="badge bg-secondary fs-6"><?php echo $module['module_order'] ?? 1; ?></span>
                                     </td>
                                     <td>
-                                        <div class="text-center">
+                                        <div class="text-center clickable-content" data-module-id="<?php echo $module['id']; ?>" data-redirect="videos" title="Click to manage videos">
                                             <span class="badge bg-info fs-6"><?php echo $module['video_count'] ?? 0; ?></span>
                                             <?php if (($module['video_count'] ?? 0) > 0): ?>
                                                 <small class="text-muted d-block">videos</small>
@@ -965,7 +965,7 @@ usort($all_modules, function($a, $b) {
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="text-center">
+                                        <div class="text-center clickable-content" data-module-id="<?php echo $module['id']; ?>" data-redirect="assessments" title="Click to manage assessments">
                                             <span class="badge bg-warning text-dark fs-6"><?php echo $module['assessment_count'] ?? 0; ?></span>
                                             <?php if (($module['assessment_count'] ?? 0) > 0): ?>
                                                 <small class="text-muted d-block">quizzes</small>
@@ -1010,7 +1010,7 @@ usort($all_modules, function($a, $b) {
                                 </div>
                                     </td>
                                     <td>
-                                        <div class="text-center">
+                                        <div class="text-center clickable-content" data-module-id="<?php echo $module['id']; ?>" data-redirect="files" title="Click to view files">
                                             <?php if (isset($module['file']) && !empty($module['file']['filename'])): ?>
                                                 <span class="badge bg-success fs-6">
                                                     <i class="bi bi-paperclip me-1"></i>1
@@ -1465,7 +1465,7 @@ function toggleModuleStatus(moduleId, shouldLock) {
     }
     
     // Find the module data to get course_id
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
+    const allModules = <?php echo json_encode($all_modules ?: [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
     const module = allModules.find(m => m.id == moduleId);
     
     if (!module) {
@@ -1592,7 +1592,7 @@ function toggleModuleLock(moduleId, courseId, isLocked, event) {
 // Global scope functions
 function deleteModule(moduleId) {
     // Find the module data
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
+    const allModules = <?php echo json_encode($all_modules ?: [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
     const module = allModules.find(m => m.id == moduleId);
     
     if (!module) {
@@ -1722,7 +1722,7 @@ function deleteModuleOld(moduleId, moduleTitle, courseId, event) {
 // Global scope functions
 function editModule(moduleId) {
     // Find the module data
-    const allModules = <?php echo json_encode($all_modules ?: []); ?>;
+    const allModules = <?php echo json_encode($all_modules ?: [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
     const module = allModules.find(m => m.id == moduleId);
     
     if (!module) {
@@ -2111,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function setOrderForCourse(courseId) {
         // Get the next available order for this course
-        const courseModules = <?php echo json_encode($course_modules_map); ?>;
+        const courseModules = <?php echo json_encode($course_modules_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
         if (courseModules[courseId]) {
             const nextOrder = getNextAvailableOrder(courseModules[courseId]);
             createOrderInput.value = nextOrder;
@@ -2131,7 +2131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateAndSubmitModule() {
         const moduleTitle = createModuleTitle.value.trim();
         const courseId = createCourseSelect.value;
-        const courseModules = <?php echo json_encode($course_modules_map); ?>;
+        const courseModules = <?php echo json_encode($course_modules_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
         
         // Check if course is selected
         if (!courseId) {
@@ -2638,6 +2638,104 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 1000);
         });
     });
+});
+
+// Make table content clickable using event delegation
+$(document).ready(function() {
+    console.log('🚀 Initializing clickable content...');
+    
+    // Make module rows clickable to redirect to module videos
+    $('.module-row').each(function() {
+        $(this).css('cursor', 'pointer');
+        
+        $(this).on('mouseenter', function() {
+            $(this).css({
+                'background-color': '#f8f9fa',
+                'transform': 'translateY(-1px)',
+                'box-shadow': '0 2px 8px rgba(0,0,0,0.1)'
+            });
+        });
+        
+        $(this).on('mouseleave', function() {
+            $(this).css({
+                'background-color': '',
+                'transform': '',
+                'box-shadow': ''
+            });
+        });
+        
+        $(this).on('click', function(e) {
+            // Don't redirect if clicking on action buttons, their children, or clickable content
+            if ($(e.target).closest('.btn, button, a, .clickable-content').length > 0) {
+                return;
+            }
+            
+            const moduleId = $(this).attr('data-module-id');
+            if (moduleId) {
+                // Redirect to module videos page
+                window.location.href = `module_videos.php?module_id=${moduleId}`;
+            }
+        });
+    });
+    
+    // Add event delegation for clickable content
+    $(document).on('click', '.clickable-content', function(e) {
+        console.log('🎯 Clickable content clicked!', this);
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const moduleId = $(this).attr('data-module-id');
+        const courseId = $(this).attr('data-course-id');
+        const redirect = $(this).attr('data-redirect');
+        
+        console.log('📊 Click data:', { moduleId, courseId, redirect });
+        
+        if (redirect === 'videos') {
+            console.log('🎬 Redirecting to videos...');
+            window.location.href = 'module_videos.php';
+        } else if (redirect === 'assessments') {
+            console.log('📝 Redirecting to assessments...');
+            window.location.href = 'module_assessments.php';
+        } else if (redirect === 'files' && moduleId) {
+            console.log('📁 Showing files modal...');
+            // Show module files modal (reuse existing function)
+            const moduleData = {
+                id: moduleId,
+                module_title: $(this).closest('tr').find('.module-info h6').text().trim()
+            };
+            showModuleFiles(moduleId, moduleData);
+        } else if (courseId) {
+            console.log('📚 Redirecting to courses...');
+            // Redirect to courses page
+            window.location.href = 'courses.php';
+        } else {
+            console.log('❌ No matching redirect found');
+        }
+    });
+    
+    // Add hover effects for clickable content
+    $(document).on('mouseenter', '.clickable-content', function() {
+        $(this).css({
+            'background-color': 'rgba(46, 94, 78, 0.1)',
+            'border-radius': '6px',
+            'transform': 'scale(1.02)'
+        });
+    });
+    
+    $(document).on('mouseleave', '.clickable-content', function() {
+        $(this).css({
+            'background-color': '',
+            'border-radius': '',
+            'transform': ''
+        });
+    });
+    
+    // Add cursor pointer to all clickable content
+    const clickableContents = $('.clickable-content');
+    console.log('🔍 Found clickable contents:', clickableContents.length);
+    clickableContents.css('cursor', 'pointer');
+    
+    console.log('✅ Clickable content initialization complete');
 });
 </script>
 
@@ -3743,6 +3841,132 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: #17a2b8;
     border-color: #17a2b8;
     color: white;
+}
+
+/* Enhanced Clickable Module Row Styles */
+.module-row {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.module-row:hover {
+    background-color: #f8f9fa !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-left-color: var(--accent-green) !important;
+}
+
+.module-row:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Add a subtle indicator that the row is clickable */
+.module-row::after {
+    content: '';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid #6c757d;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.module-row:hover::after {
+    opacity: 1;
+}
+
+/* Ensure action buttons don't interfere with row click */
+.module-row .btn,
+.module-row button,
+.module-row a {
+    position: relative;
+    z-index: 10;
+}
+
+/* Smooth transitions for all interactive elements */
+.module-row td {
+    transition: all 0.3s ease;
+}
+
+/* Mobile responsiveness for clickable rows */
+@media (max-width: 768px) {
+    .module-row:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .module-row::after {
+        display: none;
+    }
+}
+
+/* Clickable Content Styles */
+.clickable-content {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0.5rem;
+    margin: -0.5rem;
+    border-radius: 6px;
+    position: relative;
+}
+
+.clickable-content:hover {
+    background-color: rgba(46, 94, 78, 0.1) !important;
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(46, 94, 78, 0.2);
+}
+
+.clickable-content:active {
+    transform: scale(0.98);
+    background-color: rgba(46, 94, 78, 0.2) !important;
+}
+
+/* Add subtle indicator for clickable content */
+.clickable-content::after {
+    content: '';
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid #6c757d;
+    border-top: 3px solid transparent;
+    border-bottom: 3px solid transparent;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.clickable-content:hover::after {
+    opacity: 1;
+}
+
+/* Ensure badges and text in clickable content are properly styled */
+.clickable-content .badge {
+    transition: all 0.3s ease;
+}
+
+.clickable-content:hover .badge {
+    transform: scale(1.05);
+}
+
+/* Mobile responsiveness for clickable content */
+@media (max-width: 768px) {
+    .clickable-content:hover {
+        transform: none;
+        box-shadow: 0 1px 4px rgba(46, 94, 78, 0.2);
+    }
+    
+    .clickable-content::after {
+        display: none;
+    }
 }
 </style>
 

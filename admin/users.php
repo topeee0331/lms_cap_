@@ -368,6 +368,77 @@ require_once '../includes/header.php';
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
+/* Real-time Search Indicator */
+.searching::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--main-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Filtering State for Dropdowns */
+.filtering {
+    background-color: rgba(46, 94, 78, 0.1) !important;
+    border-color: var(--main-green) !important;
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25) !important;
+}
+
+/* Success Alert Animation removed as requested */
+
+/* Statistics Card Animation */
+.stats-card h3 {
+    transition: all 0.3s ease;
+}
+
+.stats-card h3.updated {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* User Count Badge Animation */
+.badge.bg-primary {
+    transition: all 0.3s ease;
+}
+
+/* Form Loading State */
+.form-loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.form-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(46, 94, 78, 0.1), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
@@ -804,14 +875,21 @@ function get_user_sections($db, $user_id, $role, $sections) {
             <div class="col-12">
                 <div class="card search-filter-card">
                     <div class="card-body">
-                        <form method="GET" action="users.php" class="row g-3 align-items-end">
+                        <form method="GET" action="users.php" class="row g-3 align-items-end" id="filterForm">
                         <div class="col-md-3">
                             <label for="search" class="form-label fw-semibold">
                                 <i class="bi bi-search me-2"></i>Search Users
                             </label>
-                            <input type="text" class="form-control" id="search" name="search" 
-                                   placeholder="Search by name, email, or username..." 
-                                   value="<?= htmlspecialchars($search) ?>">
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       placeholder="Search by name, email, or username..." 
+                                       value="<?= htmlspecialchars($search) ?>" autocomplete="off">
+                                <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                                    <small class="text-muted" id="searchCounter" style="display: none;">
+                                        <span id="charCount">0</span> characters
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label for="role" class="form-label fw-semibold">
@@ -850,12 +928,12 @@ function get_user_sections($db, $user_id, $role, $sections) {
                             </select>
                         </div>
                         <div class="col-md-1">
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="button" class="btn btn-primary w-100" id="filterBtn">
                                 <i class="bi bi-search me-2"></i>Search
                             </button>
                         </div>
                         <div class="col-md-1">
-                            <a href="users.php" class="btn btn-outline-secondary w-100">
+                            <a href="users.php" class="btn btn-outline-secondary w-100" id="clearBtn">
                                 <i class="bi bi-arrow-clockwise me-2"></i>Reset
                             </a>
                         </div>
@@ -879,10 +957,17 @@ function get_user_sections($db, $user_id, $role, $sections) {
                             <h5>
                                 <i class="bi bi-people me-2"></i>Users Management
                             </h5>
-                            <span class="badge bg-primary fs-6"><?= count($users) ?> users found</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary fs-6"><?= count($users) ?> users found</span>
+                                <div id="loadingIndicator" style="display: none;">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card-body p-0" id="usersTableContainer">
                         <?php if ($message): ?>
                             <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show m-3" role="alert">
                                 <i class="bi bi-<?= $message_type === 'success' ? 'check-circle' : 'exclamation-triangle' ?> me-2"></i>
@@ -1475,6 +1560,227 @@ window.addEventListener('DOMContentLoaded', function() {
         group.style.display = 'none';
         teacherGroup.style.display = 'none';
     }
+});
+
+// Real-time filtering functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const roleSelect = document.getElementById('role');
+    const sectionSelect = document.getElementById('section');
+    const yearSelect = document.getElementById('year');
+    const filterBtn = document.getElementById('filterBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const usersTableContainer = document.getElementById('usersTableContainer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const userCountBadge = document.querySelector('.badge.bg-primary.fs-6');
+    
+    let searchTimeout;
+    
+    // Function to perform AJAX search
+    function performSearch() {
+        const search = searchInput.value.trim();
+        const role = roleSelect.value;
+        const section = sectionSelect.value;
+        const year = yearSelect.value;
+        
+        // Show loading indicator and disable form
+        loadingIndicator.style.display = 'block';
+        document.getElementById('filterForm').classList.add('form-loading');
+        usersTableContainer.querySelector('.scrollable-table, .text-center')?.style.setProperty('display', 'none');
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (role) params.append('role', role);
+        if (section) params.append('section', section);
+        if (year) params.append('year', year);
+        
+        // Make AJAX request
+        fetch(`ajax_get_users.php?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update users table with animation
+                    usersTableContainer.innerHTML = data.users_html;
+                    
+                    // Update user count badge with animation
+                    if (userCountBadge) {
+                        userCountBadge.style.transform = 'scale(1.1)';
+                        userCountBadge.textContent = `${data.total_users} users found`;
+                        setTimeout(() => {
+                            userCountBadge.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                    
+                    // Update statistics cards if available
+                    updateStatistics(data.stats);
+                    
+                    // Update URL without page reload
+                    const newUrl = new URL(window.location);
+                    newUrl.search = params.toString();
+                    window.history.pushState({}, '', newUrl);
+                    
+                    // Success feedback removed as requested
+                } else {
+                    console.error('Error:', data.error);
+                    showError('Failed to load users. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Failed to load users. Please try again.');
+            })
+            .finally(() => {
+                loadingIndicator.style.display = 'none';
+                document.getElementById('filterForm').classList.remove('form-loading');
+            });
+    }
+    
+    // Function to update statistics cards with animations
+    function updateStatistics(stats) {
+        // Update total users
+        const totalUsersElement = document.querySelector('.stats-primary h3');
+        if (totalUsersElement) {
+            animateNumberChange(totalUsersElement, stats.total_users);
+        }
+        
+        // Update admins
+        const adminsElement = document.querySelector('.stats-success h3');
+        if (adminsElement) {
+            animateNumberChange(adminsElement, stats.total_admins);
+        }
+        
+        // Update teachers
+        const teachersElement = document.querySelector('.stats-info h3');
+        if (teachersElement) {
+            animateNumberChange(teachersElement, stats.total_teachers);
+        }
+        
+        // Update students
+        const studentsElement = document.querySelector('.stats-warning h3');
+        if (studentsElement) {
+            animateNumberChange(studentsElement, stats.total_students);
+        }
+        
+        // Update irregular students
+        const irregularElement = document.querySelector('.stats-danger h3');
+        if (irregularElement) {
+            animateNumberChange(irregularElement, stats.irregular_students);
+        }
+        
+        // Update inactive teachers
+        const inactiveElement = document.querySelector('.stats-secondary h3');
+        if (inactiveElement) {
+            animateNumberChange(inactiveElement, stats.inactive_teachers);
+        }
+    }
+    
+    // Function to animate number changes
+    function animateNumberChange(element, newValue) {
+        const currentValue = parseInt(element.textContent) || 0;
+        const targetValue = parseInt(newValue) || 0;
+        
+        if (currentValue !== targetValue) {
+            element.classList.add('updated');
+            
+            // Animate the number change
+            let current = currentValue;
+            const increment = (targetValue - currentValue) / 20;
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= targetValue) || (increment < 0 && current <= targetValue)) {
+                    current = targetValue;
+                    clearInterval(timer);
+                    element.classList.remove('updated');
+                }
+                element.textContent = Math.round(current);
+            }, 50);
+        }
+    }
+    
+    // Success feedback function removed as requested
+    
+    // Function to show error message
+    function showError(message) {
+        usersTableContainer.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+                <h5 class="text-danger">Error</h5>
+                <p class="text-muted">${message}</p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Retry
+                </button>
+            </div>
+        `;
+    }
+    
+    // Real-time search with faster debouncing and character counter
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        
+        // Update character counter
+        const charCount = this.value.length;
+        const charCountElement = document.getElementById('charCount');
+        const searchCounter = document.getElementById('searchCounter');
+        
+        if (charCount > 0) {
+            charCountElement.textContent = charCount;
+            searchCounter.style.display = 'block';
+        } else {
+            searchCounter.style.display = 'none';
+        }
+        
+        // Show immediate visual feedback
+        searchInput.classList.add('searching');
+        
+        // Faster debouncing for better responsiveness
+        searchTimeout = setTimeout(() => {
+            searchInput.classList.remove('searching');
+            performSearch();
+        }, 200); // Reduced to 200ms for faster response
+    });
+    
+    // Immediate filtering for dropdowns with visual feedback
+    roleSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    sectionSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    yearSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    // Filter button (for manual trigger)
+    filterBtn.addEventListener('click', performSearch);
+    
+    // Clear button
+    clearBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        searchInput.value = '';
+        roleSelect.value = '';
+        sectionSelect.value = '';
+        yearSelect.value = '';
+        performSearch();
+    });
+    
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        searchInput.value = urlParams.get('search') || '';
+        roleSelect.value = urlParams.get('role') || '';
+        sectionSelect.value = urlParams.get('section') || '';
+        yearSelect.value = urlParams.get('year') || '';
+        performSearch();
+    });
 });
 </script>
 

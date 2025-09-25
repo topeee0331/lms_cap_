@@ -416,6 +416,296 @@ require_once '../includes/header.php';
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
+/* Enhanced Modal Styling */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    overflow: hidden;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    background: var(--main-green);
+    border: none;
+    padding: 1.5rem;
+}
+
+.modal-title {
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin: 0;
+}
+
+.modal-body {
+    padding: 2rem;
+    background: #fafbfc;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+.modal-footer {
+    background: #f8f9fa;
+    border-top: 2px solid #e9ecef;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    min-height: 80px;
+    align-items: center;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+}
+
+.modal-footer .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+/* Enhanced Form Styling */
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--main-green);
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.15);
+}
+
+/* Course Search and Selection */
+.course-search-container {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.course-search-input {
+    padding-right: 2.5rem;
+}
+
+.course-search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    display: none;
+    z-index: 10;
+}
+
+.course-search-clear:hover {
+    color: var(--main-green);
+}
+
+.courses-selection-container {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.course-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.course-item:hover {
+    background: #e9ecef;
+    border-color: var(--accent-green);
+}
+
+.course-item.selected {
+    background: rgba(46, 94, 78, 0.1);
+    border-color: var(--main-green);
+}
+
+.course-checkbox {
+    margin-right: 0.75rem;
+    transform: scale(1.1);
+}
+
+.course-info {
+    flex: 1;
+}
+
+.course-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.course-code {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.course-description {
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin: 0.25rem 0 0 0;
+    font-style: italic;
+}
+
+/* Course Count Badge */
+.courses-count-badge {
+    background: var(--main-green);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* Loading States */
+.courses-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.courses-loading .spinner-border {
+    width: 2rem;
+    height: 2rem;
+    border-width: 0.2rem;
+}
+
+/* No Courses State */
+.no-courses-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.no-courses-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #dee2e6;
+}
+
+/* Selected Courses Summary */
+.selected-courses-summary {
+    background: rgba(46, 94, 78, 0.05);
+    border: 1px solid rgba(46, 94, 78, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.selected-courses-count {
+    font-weight: 600;
+    color: var(--main-green);
+    margin-bottom: 0.5rem;
+}
+
+.selected-courses-list {
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.selected-course-tag {
+    display: inline-block;
+    background: var(--main-green);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    font-size: 0.75rem;
+}
+
+/* Enhanced Button Styling */
+.btn-primary {
+    background: var(--main-green);
+    border: 2px solid var(--main-green);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-primary:hover {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(46, 94, 78, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    border: 2px solid #6c757d;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-secondary:hover {
+    background: #5c636a;
+    border-color: #5c636a;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Form Section Styling */
+.form-section {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.form-section-title {
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent-green);
+    display: flex;
+    align-items: center;
+}
+
+.form-section-title i {
+    margin-right: 0.5rem;
+    color: var(--main-green);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
@@ -429,6 +719,20 @@ require_once '../includes/header.php';
     .search-filter-card .card-header,
     .table-container .card-header {
         padding: 1rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+        max-height: calc(90vh - 120px);
+    }
+    
+    .courses-selection-container {
+        max-height: 150px;
+    }
+    
+    .modal-footer {
+        padding: 1rem;
+        min-height: 60px;
     }
 }
 </style>
@@ -1965,110 +2269,140 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
     </div>
 </div>
 
-    <!-- Add Section Modal -->
+    <!-- Enhanced Add Section Modal -->
     <div class="modal fade" id="addSectionModal" tabindex="-1" aria-labelledby="addSectionLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
-            <form method="post" action="sections.php">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="addSectionLabel">
-                        <i class="bi bi-plus-circle me-2"></i>Add New Section
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <form method="post" action="sections.php" id="addSectionForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addSectionLabel">
+                            <i class="bi bi-plus-circle me-2"></i>Create New Section
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                        <div class="mb-3">
-                                <label for="section_year_add" class="form-label fw-semibold">
-                                    <i class="bi bi-calendar me-2"></i>Year Level
-                                </label>
-                                <select class="form-select" id="section_year_add" name="section_year" required onchange="updateSectionCodeDropdown()">
-                                    <option value="">Select Year</option>
-                                    <option value="1">1st Year</option>
-                                    <option value="2">2nd Year</option>
-                                    <option value="3">3rd Year</option>
-                                    <option value="4">4th Year</option>
-                                </select>
+                        <!-- Section Information -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-info-circle"></i>
+                                Section Information
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                        <div class="mb-3">
-                                <label for="section_code_add" class="form-label fw-semibold">
-                                    <i class="bi bi-collection me-2"></i>Section Code
-                                </label>
-                                <select class="form-select" id="section_code_add" name="section_code" required>
-                                    <option value="">Select Section Code</option>
-                                    <?php
-                                    // Default: show all enabled, JS will update on year change
-                                    foreach (range('A', 'Z') as $letter) {
-                                        echo "<option value=\"$letter\">$letter</option>";
-                                    }
-                                    ?>
-                                </select>
-                                <small class="text-muted">Choose a unique section code (A-Z) for the selected year</small>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="section_year_add" class="form-label">
+                                            <i class="bi bi-calendar me-2"></i>Year Level
+                                        </label>
+                                        <select class="form-select" id="section_year_add" name="section_year" required onchange="updateSectionCodeDropdown()">
+                                            <option value="">Select Year Level</option>
+                                            <option value="1">1st Year</option>
+                                            <option value="2">2nd Year</option>
+                                            <option value="3">3rd Year</option>
+                                            <option value="4">4th Year</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="section_code_add" class="form-label">
+                                            <i class="bi bi-collection me-2"></i>Section Code
+                                        </label>
+                                        <select class="form-select" id="section_code_add" name="section_code" required>
+                                            <option value="">Select Section Code</option>
+                                            <?php
+                                            foreach (range('A', 'Z') as $letter) {
+                                                echo "<option value=\"$letter\">$letter</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                        <small class="text-muted">Choose a unique section code (A-Z) for the selected year</small>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="academic_period_add" class="form-label">
+                                            <i class="bi bi-calendar-week me-2"></i>Academic Period
+                                        </label>
+                                        <select class="form-select" id="academic_period_add" name="academic_period_id" required>
+                                            <option value="">Select Academic Period</option>
+                                            <?php foreach ($academic_periods as $period): ?>
+                                                <option value="<?= $period['id'] ?>">
+                                                    <?= htmlspecialchars($period['period_name']) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="section_description_add" class="form-label">
+                                            <i class="bi bi-text-paragraph me-2"></i>Description
+                                        </label>
+                                        <textarea class="form-control" id="section_description_add" name="section_description" rows="2" placeholder="Optional section description"></textarea>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="mb-3">
-                                <label for="academic_period_add" class="form-label fw-semibold">
-                                    <i class="bi bi-calendar-week me-2"></i>Academic Period
-                                </label>
-                                <select class="form-select" id="academic_period_add" name="academic_period_id" required>
-                                    <option value="">Select Academic Period</option>
-                                    <?php foreach ($academic_periods as $period): ?>
-                                        <option value="<?= $period['id'] ?>">
-                                            <?= htmlspecialchars($period['period_name']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active_add" name="is_active" checked>
+                                    <label class="form-check-label" for="is_active_add">
+                                        <i class="bi bi-toggle-on me-2"></i>Active Section
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="section_description_add" class="form-label fw-semibold">
-                            <i class="bi bi-text-paragraph me-2"></i>Description
-                        </label>
-                            <textarea class="form-control" id="section_description_add" name="section_description" rows="2"></textarea>
-                        </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_active_add" name="is_active" checked>
-                            <label class="form-check-label fw-semibold" for="is_active_add">
-                                <i class="bi bi-toggle-on me-2"></i>Active Section
-                            </label>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-book me-2"></i>Assign Courses
-                        </label>
-                        <select class="form-select" name="assigned_courses[]" multiple>
-                            <?php foreach ($courses_for_assignment as $course): ?>
-                                <option value="<?= $course['id'] ?>">
-                                    <?= htmlspecialchars($course['course_name'] . ' (' . $course['course_code'] . ')') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple courses.</small>
+
+                        <!-- Course Assignment -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-book"></i>
+                                Assign Courses
+                                <span class="courses-count-badge" id="coursesCountBadge" style="display: none;">0 courses</span>
+                            </div>
+                            
+                            <!-- Course Search -->
+                            <div class="course-search-container">
+                                <label for="courseSearchInput" class="form-label">
+                                    <i class="bi bi-search me-2"></i>Search Courses
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control course-search-input" id="courseSearchInput" 
+                                           placeholder="Type to search courses..." onkeyup="filterCourses()">
+                                    <button type="button" class="course-search-clear" id="courseSearchClear" onclick="clearCourseSearch()">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Course Selection Container -->
+                            <div class="courses-selection-container" id="coursesSelectionContainer">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-book fs-1"></i>
+                                    <p class="mb-0">Select a year level to load available courses</p>
+                                </div>
+                            </div>
+
+                            <!-- Selected Courses Summary -->
+                            <div class="selected-courses-summary" id="selectedCoursesSummary" style="display: none;">
+                                <div class="selected-courses-count" id="selectedCoursesCount">0 courses selected</div>
+                                <div class="selected-courses-list" id="selectedCoursesList"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle me-2"></i>Cancel
-                    </button>
-                    <button type="submit" name="add_section" class="btn btn-success">
-                        <i class="bi bi-check-circle me-2"></i>Add Section
-                    </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </button>
+                        <button type="submit" name="add_section" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Create Section
+                        </button>
                     </div>
                 </form>
+            </div>
         </div>
     </div>
-</div>
 
 <!-- Add Students Modal Template -->
 <div class="modal fade" id="addStudentsModalTemplate" tabindex="-1" aria-labelledby="addStudentsLabel" aria-hidden="true">
@@ -2141,6 +2475,10 @@ const usedCodesPerYear = <?php echo json_encode($used_codes_per_year); ?>;
 function updateSectionCodeDropdown() {
     const year = document.getElementById('section_year_add').value;
     const codeSelect = document.getElementById('section_code_add');
+    
+    // Load courses for the selected year level
+    loadCoursesForYear(year);
+    
     // Enable all first
     for (let opt of codeSelect.options) {
         opt.disabled = false;
@@ -2158,6 +2496,215 @@ function updateSectionCodeDropdown() {
         codeSelect.value = '';
     }
 }
+
+// Global variables for course management
+let allCourses = [];
+let filteredCourses = [];
+let selectedCourses = new Set();
+
+// Function to load courses for selected year level
+function loadCoursesForYear(yearLevel) {
+    const coursesContainer = document.getElementById('coursesSelectionContainer');
+    const coursesCountBadge = document.getElementById('coursesCountBadge');
+    const courseSearchInput = document.getElementById('courseSearchInput');
+    
+    if (!yearLevel) {
+        coursesContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-book fs-1"></i>
+                <p class="mb-0">Select a year level to load available courses</p>
+            </div>
+        `;
+        coursesCountBadge.style.display = 'none';
+        courseSearchInput.disabled = true;
+        return;
+    }
+    
+    // Show loading state
+    coursesContainer.innerHTML = `
+        <div class="courses-loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 mb-0">Loading courses for ${yearLevel}${yearLevel == '1' ? 'st' : yearLevel == '2' ? 'nd' : yearLevel == '3' ? 'rd' : 'th'} Year...</p>
+        </div>
+    `;
+    
+    // Make AJAX request to fetch courses
+    fetch(`ajax_get_courses_by_year.php?year_level=${yearLevel}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allCourses = data.courses || [];
+                filteredCourses = [...allCourses];
+                selectedCourses.clear();
+                
+                // Update courses count badge
+                if (allCourses.length > 0) {
+                    coursesCountBadge.textContent = `${allCourses.length} courses available`;
+                    coursesCountBadge.style.display = 'inline-block';
+                    courseSearchInput.disabled = false;
+                    renderCourses();
+                } else {
+                    coursesContainer.innerHTML = `
+                        <div class="no-courses-state">
+                            <i class="bi bi-book"></i>
+                            <h6>No courses available</h6>
+                            <p class="mb-0">No courses found for ${yearLevel}${yearLevel == '1' ? 'st' : yearLevel == '2' ? 'nd' : yearLevel == '3' ? 'rd' : 'th'} Year</p>
+                        </div>
+                    `;
+                    coursesCountBadge.style.display = 'none';
+                    courseSearchInput.disabled = true;
+                }
+            } else {
+                console.error('Error loading courses:', data.error);
+                coursesContainer.innerHTML = `
+                    <div class="text-center text-danger py-4">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <h6>Error loading courses</h6>
+                        <p class="mb-0">${data.error || 'Unknown error occurred'}</p>
+                    </div>
+                `;
+                coursesCountBadge.style.display = 'none';
+                courseSearchInput.disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            coursesContainer.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <h6>Error loading courses</h6>
+                    <p class="mb-0">Failed to load courses. Please try again.</p>
+                </div>
+            `;
+            coursesCountBadge.style.display = 'none';
+            courseSearchInput.disabled = true;
+        });
+}
+
+// Function to render courses in the container
+function renderCourses() {
+    const coursesContainer = document.getElementById('coursesSelectionContainer');
+    
+    if (filteredCourses.length === 0) {
+        coursesContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-search fs-1"></i>
+                <h6>No courses found</h6>
+                <p class="mb-0">Try adjusting your search terms</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let coursesHTML = '';
+    filteredCourses.forEach(course => {
+        const isSelected = selectedCourses.has(course.id);
+        coursesHTML += `
+            <div class="course-item ${isSelected ? 'selected' : ''}" onclick="toggleCourseSelection(${course.id})">
+                <input type="checkbox" class="course-checkbox" ${isSelected ? 'checked' : ''} 
+                       onchange="toggleCourseSelection(${course.id})" id="course_${course.id}">
+                <div class="course-info">
+                    <div class="course-name">${course.course_name}</div>
+                    <div class="course-code">${course.course_code}</div>
+                    ${course.description ? `<div class="course-description">${course.description}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    coursesContainer.innerHTML = coursesHTML;
+    updateSelectedCoursesSummary();
+}
+
+// Function to toggle course selection
+function toggleCourseSelection(courseId) {
+    if (selectedCourses.has(courseId)) {
+        selectedCourses.delete(courseId);
+    } else {
+        selectedCourses.add(courseId);
+    }
+    
+    // Update visual state
+    const courseItem = document.querySelector(`[onclick="toggleCourseSelection(${courseId})"]`);
+    const checkbox = document.getElementById(`course_${courseId}`);
+    
+    if (selectedCourses.has(courseId)) {
+        courseItem.classList.add('selected');
+        checkbox.checked = true;
+    } else {
+        courseItem.classList.remove('selected');
+        checkbox.checked = false;
+    }
+    
+    updateSelectedCoursesSummary();
+}
+
+// Function to filter courses based on search
+function filterCourses() {
+    const searchTerm = document.getElementById('courseSearchInput').value.toLowerCase();
+    const clearButton = document.getElementById('courseSearchClear');
+    
+    // Show/hide clear button
+    clearButton.style.display = searchTerm ? 'block' : 'none';
+    
+    if (searchTerm === '') {
+        filteredCourses = [...allCourses];
+    } else {
+        filteredCourses = allCourses.filter(course => 
+            course.course_name.toLowerCase().includes(searchTerm) ||
+            course.course_code.toLowerCase().includes(searchTerm) ||
+            (course.description && course.description.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    renderCourses();
+}
+
+// Function to clear course search
+function clearCourseSearch() {
+    document.getElementById('courseSearchInput').value = '';
+    document.getElementById('courseSearchClear').style.display = 'none';
+    filterCourses();
+}
+
+// Function to update selected courses summary
+function updateSelectedCoursesSummary() {
+    const summary = document.getElementById('selectedCoursesSummary');
+    const count = document.getElementById('selectedCoursesCount');
+    const list = document.getElementById('selectedCoursesList');
+    
+    if (selectedCourses.size === 0) {
+        summary.style.display = 'none';
+        return;
+    }
+    
+    summary.style.display = 'block';
+    count.textContent = `${selectedCourses.size} course${selectedCourses.size !== 1 ? 's' : ''} selected`;
+    
+    // Create hidden inputs for selected courses
+    const existingInputs = document.querySelectorAll('input[name="assigned_courses[]"]');
+    existingInputs.forEach(input => input.remove());
+    
+    let listHTML = '';
+    selectedCourses.forEach(courseId => {
+        const course = allCourses.find(c => c.id == courseId);
+        if (course) {
+            listHTML += `<span class="selected-course-tag">${course.course_name}</span>`;
+            
+            // Add hidden input for form submission
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'assigned_courses[]';
+            hiddenInput.value = courseId;
+            document.getElementById('addSectionForm').appendChild(hiddenInput);
+        }
+    });
+    
+    list.innerHTML = listHTML;
+}
+
 // Generic functions for all sections
 function filterStudents(sectionId) {
     try {

@@ -520,7 +520,7 @@ require_once '../includes/header.php';
                                 </thead>
                                 <tbody>
                                     <?php foreach ($assessments as $index => $assessment): ?>
-                                        <tr class="assessment-row" data-assessment-id="<?= $assessment['id'] ?>">
+                                        <tr class="assessment-row clickable-row" data-assessment-id="<?= $assessment['id'] ?>" onclick="viewAssessmentStats('<?= $assessment['id'] ?>')">
                                             <td class="assessment-cell">
                                                 <div class="assessment-info">
                                                     <div class="assessment-title">
@@ -628,7 +628,7 @@ require_once '../includes/header.php';
                                                 </div>
                                             </td>
                                             <td class="actions-cell">
-                                                <div class="action-buttons">
+                                                <div class="action-buttons" onclick="event.stopPropagation();">
                                                     <a href="assessment_edit.php?id=<?php echo $assessment['id']; ?>" 
                                                        class="btn btn-action btn-edit" title="Edit Assessment">
                                                         <i class="bi bi-pencil"></i>
@@ -1295,6 +1295,42 @@ require_once '../includes/header.php';
     animation: pulse 0.6s ease-in-out;
 }
 
+/* Clickable row styling */
+.clickable-row {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clickable-row:hover {
+    background-color: rgba(44, 85, 48, 0.05) !important;
+    transform: translateX(4px);
+    box-shadow: 0 4px 15px rgba(44, 85, 48, 0.1);
+}
+
+.clickable-row:hover .assessment-title h6 {
+    color: var(--main-green);
+    transform: translateX(2px);
+}
+
+.clickable-row:hover .course-name,
+.clickable-row:hover .module-name {
+    color: var(--main-green);
+}
+
+.clickable-row:hover .difficulty-badge,
+.clickable-row:hover .time-badge,
+.clickable-row:hover .attempts-badge,
+.clickable-row:hover .score-badge {
+    transform: scale(1.05);
+}
+
+/* Action buttons hover effect */
+.action-buttons:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.25rem;
+}
+
 @keyframes pulse {
     0% { transform: translateX(4px) scale(1); }
     50% { transform: translateX(4px) scale(1.02); }
@@ -1424,6 +1460,11 @@ require_once '../includes/header.php';
 </div>
 
 <script>
+function viewAssessmentStats(assessmentId) {
+    // Redirect to assessment statistics page
+    window.location.href = `assessment_statistics.php?id=${assessmentId}`;
+}
+
 function toggleStatus(assessmentId, isActive) {
     const action = isActive ? 'activate' : 'deactivate';
     if (confirm(`Are you sure you want to ${action} this assessment?`)) {

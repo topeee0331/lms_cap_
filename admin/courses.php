@@ -404,6 +404,149 @@ requireRole('admin');
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
+/* Loading States */
+#loadingIndicator {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(2px);
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Search Input Enhancements */
+#search {
+    transition: all 0.3s ease;
+}
+
+#search:focus {
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+    border-color: var(--main-green);
+}
+
+/* Filter Button States */
+#filterBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Status Badge Colors */
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+/* Filter Form Enhancements */
+.search-filter-card .form-control:focus,
+.search-filter-card .form-select:focus {
+    border-color: var(--main-green);
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+}
+
+/* Loading State for Form */
+.form-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.form-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--main-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Real-time Search Indicator */
+.searching::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--main-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Filtering State for Dropdowns */
+.filtering {
+    background-color: rgba(46, 94, 78, 0.1) !important;
+    border-color: var(--main-green) !important;
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25) !important;
+}
+
+/* Success Alert Animation removed as requested */
+
+/* Statistics Card Animation */
+.stats-card h3 {
+    transition: all 0.3s ease;
+}
+
+.stats-card h3.updated {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Course Count Badge Animation */
+.badge.bg-primary {
+    transition: all 0.3s ease;
+}
+
+/* Form Loading State */
+.form-loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.form-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(46, 94, 78, 0.1), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
@@ -546,9 +689,13 @@ if ($academic_year_filter > 0) {
 }
 
 if ($status_filter === 'archived') {
-    $where_conditions[] = "c.is_archived = 1";
+    $where_conditions[] = "(c.is_archived = 1 OR c.status = 'archived')";
 } elseif ($status_filter === 'active') {
-    $where_conditions[] = "c.is_archived = 0";
+    $where_conditions[] = "(c.is_archived = 0 AND (c.status = 'active' OR c.status IS NULL))";
+} elseif ($status_filter === 'inactive') {
+    $where_conditions[] = "c.status = 'inactive'";
+} elseif ($status_filter === 'draft') {
+    $where_conditions[] = "c.status = 'draft'";
 }
 
 if (!empty($year_level_filter)) {
@@ -574,8 +721,13 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $courses = $stmt->fetchAll();
 
-// Get academic years for filter
-$stmt = $db->prepare('SELECT id, CONCAT(academic_year, " - ", semester_name) as period_name FROM academic_periods ORDER BY academic_year DESC, semester_name');
+// Get academic years for filter (only those with courses)
+$stmt = $db->prepare('
+    SELECT DISTINCT ap.id, CONCAT(ap.academic_year, " - ", ap.semester_name) as period_name 
+    FROM academic_periods ap
+    INNER JOIN courses c ON ap.id = c.academic_period_id
+    ORDER BY ap.academic_year DESC, ap.semester_name
+');
 $stmt->execute();
 $academic_periods = $stmt->fetchAll();
 
@@ -593,19 +745,21 @@ $active_period_stmt = $db->prepare('SELECT * FROM academic_periods WHERE is_acti
 $active_period_stmt->execute();
 $active_periods = $active_period_stmt->fetchAll();
 
-// Fetch distinct year levels for the year level dropdown
-$year_level_stmt = $db->query('SELECT DISTINCT year_level FROM sections WHERE is_active = 1 ORDER BY year_level');
+// Fetch distinct year levels for the year level dropdown from courses table
+$year_level_stmt = $db->query('SELECT DISTINCT year_level FROM courses WHERE year_level IS NOT NULL AND year_level != "" ORDER BY CAST(year_level AS UNSIGNED)');
 $year_levels = $year_level_stmt ? $year_level_stmt->fetchAll(PDO::FETCH_COLUMN) : [];
 
-// Get statistics
+// Get statistics with improved status logic
 $stats_stmt = $db->prepare("
     SELECT 
         COUNT(*) as total_courses,
-        COUNT(CASE WHEN is_archived = 0 THEN 1 END) as active_courses,
-        COUNT(CASE WHEN is_archived = 1 THEN 1 END) as archived_courses,
+        COUNT(CASE WHEN (is_archived = 0 AND (status = 'active' OR status IS NULL)) THEN 1 END) as active_courses,
+        COUNT(CASE WHEN (is_archived = 1 OR status = 'archived') THEN 1 END) as archived_courses,
+        COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_courses,
+        COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_courses,
         COUNT(DISTINCT teacher_id) as unique_teachers,
         COUNT(DISTINCT academic_period_id) as periods_with_courses,
-        SUM(CASE WHEN is_archived = 0 THEN 1 ELSE 0 END) as current_courses
+        SUM(CASE WHEN (is_archived = 0 AND (status = 'active' OR status IS NULL)) THEN 1 ELSE 0 END) as current_courses
     FROM courses
 ");
 $stats_stmt->execute();
@@ -755,19 +909,32 @@ $total_stats = $total_stats_stmt->fetch();
             <div class="col-12">
                 <div class="card search-filter-card">
                     <div class="card-header">
-                        <h5>
-                            <i class="bi bi-search me-2"></i>Search & Filter
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5>
+                                <i class="bi bi-search me-2"></i>Search & Filter
+                            </h5>
+                            <div id="activeFilters" class="d-flex flex-wrap gap-1" style="display: none !important;">
+                                <!-- Active filters will be displayed here -->
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
-                    <form method="get" class="row g-3">
+                    <form method="get" class="row g-3" id="filterForm">
                         <div class="col-md-3">
                             <label for="search" class="form-label fw-semibold">
                                 <i class="bi bi-search me-2"></i>Search
                             </label>
-                            <input type="text" class="form-control" id="search" name="search" 
-                                   value="<?php echo htmlspecialchars($search); ?>" 
-                                   placeholder="Search by course name, code, or description">
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       value="<?php echo htmlspecialchars($search); ?>" 
+                                       placeholder="Search by course name, code, or description"
+                                       autocomplete="off">
+                                <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                                    <small class="text-muted" id="searchCounter" style="display: none;">
+                                        <span id="charCount">0</span> characters
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label for="academic_year" class="form-label fw-semibold">
@@ -804,16 +971,18 @@ $total_stats = $total_stats_stmt->fetch();
                             <select class="form-select" id="status" name="status">
                                 <option value="">All Status</option>
                                 <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                                <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                <option value="draft" <?php echo $status_filter === 'draft' ? 'selected' : ''; ?>>Draft</option>
                                 <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">&nbsp;</label>
                             <div class="d-grid gap-2 d-md-flex">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="button" class="btn btn-primary" id="filterBtn">
                                     <i class="bi bi-funnel me-2"></i>Filter
                                 </button>
-                                <a href="courses.php" class="btn btn-outline-secondary">
+                                <a href="courses.php" class="btn btn-outline-secondary" id="clearBtn">
                                     <i class="bi bi-x-circle me-2"></i>Clear
                                 </a>
                             </div>
@@ -836,9 +1005,17 @@ $total_stats = $total_stats_stmt->fetch();
                             <span class="badge bg-primary fs-6"><?php echo count($courses); ?> courses</span>
                         </div>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card-body p-0" id="coursesTableContainer">
+                        <!-- Loading indicator -->
+                        <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading courses...</p>
+                        </div>
+                        
                         <?php if (empty($courses)): ?>
-                            <div class="text-center py-5">
+                            <div class="text-center py-5" id="noCoursesMessage">
                                 <i class="bi bi-book fs-1 text-muted mb-3"></i>
                                 <h5 class="text-muted">No courses found</h5>
                                 <p class="text-muted">Start by creating your first course.</p>
@@ -847,7 +1024,7 @@ $total_stats = $total_stats_stmt->fetch();
                                 </button>
                             </div>
                         <?php else: ?>
-                            <div class="scrollable-table">
+                            <div class="scrollable-table" id="coursesTable">
                                 <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
@@ -1330,6 +1507,271 @@ function deleteCourse(courseId, courseName) {
         document.getElementById('deleteCourseForm').submit();
     }
 }
+
+// Real-time filtering functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const academicYearSelect = document.getElementById('academic_year');
+    const yearLevelSelect = document.getElementById('year_level');
+    const statusSelect = document.getElementById('status');
+    const filterBtn = document.getElementById('filterBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const coursesTableContainer = document.getElementById('coursesTableContainer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const courseCountBadge = document.querySelector('.badge.bg-primary.fs-6');
+    
+    let searchTimeout;
+    
+    // Function to perform AJAX search
+    function performSearch() {
+        const search = searchInput.value.trim();
+        const academicYear = academicYearSelect.value;
+        const yearLevel = yearLevelSelect.value;
+        const status = statusSelect.value;
+        
+        // Show loading indicator and disable form
+        loadingIndicator.style.display = 'block';
+        document.getElementById('filterForm').classList.add('form-loading');
+        coursesTableContainer.querySelector('.scrollable-table, #noCoursesMessage')?.style.setProperty('display', 'none');
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (academicYear) params.append('academic_year', academicYear);
+        if (yearLevel) params.append('year_level', yearLevel);
+        if (status) params.append('status', status);
+        
+        // Make AJAX request
+        fetch(`ajax_get_courses.php?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update courses table with animation
+                    coursesTableContainer.innerHTML = data.courses_html;
+                    
+                    // Update course count badge with animation
+                    if (courseCountBadge) {
+                        courseCountBadge.style.transform = 'scale(1.1)';
+                        courseCountBadge.textContent = `${data.total_courses} courses`;
+                        setTimeout(() => {
+                            courseCountBadge.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                    
+                    // Update statistics cards if available
+                    updateStatistics(data.stats, data.total_stats);
+                    
+                    // Update URL without page reload
+                    const newUrl = new URL(window.location);
+                    newUrl.search = params.toString();
+                    window.history.pushState({}, '', newUrl);
+                    
+                    // Success feedback removed as requested
+                } else {
+                    console.error('Error:', data.error);
+                    showError('Failed to load courses. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Failed to load courses. Please try again.');
+            })
+            .finally(() => {
+                loadingIndicator.style.display = 'none';
+                document.getElementById('filterForm').classList.remove('form-loading');
+            });
+    }
+    
+    // Function to update statistics cards with animations
+    function updateStatistics(stats, totalStats) {
+        // Update total courses
+        const totalCoursesElement = document.querySelector('.stats-primary h3');
+        if (totalCoursesElement) {
+            animateNumberChange(totalCoursesElement, stats.total_courses);
+        }
+        
+        // Update active courses
+        const activeCoursesElement = document.querySelector('.stats-success h3');
+        if (activeCoursesElement) {
+            animateNumberChange(activeCoursesElement, stats.active_courses);
+        }
+        
+        // Update total students
+        const totalStudentsElement = document.querySelector('.stats-info h3');
+        if (totalStudentsElement) {
+            animateNumberChange(totalStudentsElement, totalStats.total_students);
+        }
+        
+        // Update total modules
+        const totalModulesElement = document.querySelector('.stats-warning h3');
+        if (totalModulesElement) {
+            animateNumberChange(totalModulesElement, totalStats.total_modules);
+        }
+        
+        // Update unique teachers
+        const uniqueTeachersElement = document.querySelector('.stats-danger h3');
+        if (uniqueTeachersElement) {
+            animateNumberChange(uniqueTeachersElement, stats.unique_teachers);
+        }
+        
+        // Update archived courses
+        const archivedCoursesElement = document.querySelector('.stats-secondary h3');
+        if (archivedCoursesElement) {
+            animateNumberChange(archivedCoursesElement, stats.archived_courses);
+        }
+    }
+    
+    // Function to animate number changes
+    function animateNumberChange(element, newValue) {
+        const currentValue = parseInt(element.textContent) || 0;
+        const targetValue = parseInt(newValue) || 0;
+        
+        if (currentValue !== targetValue) {
+            element.classList.add('updated');
+            
+            // Animate the number change
+            let current = currentValue;
+            const increment = (targetValue - currentValue) / 20;
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= targetValue) || (increment < 0 && current <= targetValue)) {
+                    current = targetValue;
+                    clearInterval(timer);
+                    element.classList.remove('updated');
+                }
+                element.textContent = Math.round(current);
+            }, 50);
+        }
+    }
+    
+    // Success feedback function removed as requested
+    
+    // Function to update active filters display
+    function updateActiveFilters() {
+        const activeFiltersContainer = document.getElementById('activeFilters');
+        const search = searchInput.value.trim();
+        const academicYear = academicYearSelect.value;
+        const yearLevel = yearLevelSelect.value;
+        const status = statusSelect.value;
+        
+        let activeFilters = [];
+        
+        if (search) {
+            activeFilters.push(`<span class="badge bg-primary">Search: "${search}"</span>`);
+        }
+        if (academicYear) {
+            const selectedOption = academicYearSelect.options[academicYearSelect.selectedIndex];
+            activeFilters.push(`<span class="badge bg-info">Academic Year: ${selectedOption.text}</span>`);
+        }
+        if (yearLevel) {
+            activeFilters.push(`<span class="badge bg-warning">Year Level: ${yearLevel}</span>`);
+        }
+        if (status) {
+            const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+            activeFilters.push(`<span class="badge bg-secondary">Status: ${statusText}</span>`);
+        }
+        
+        if (activeFilters.length > 0) {
+            activeFiltersContainer.innerHTML = activeFilters.join(' ');
+            activeFiltersContainer.style.display = 'flex';
+        } else {
+            activeFiltersContainer.style.display = 'none';
+        }
+    }
+    
+    // Function to show error message
+    function showError(message) {
+        coursesTableContainer.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+                <h5 class="text-danger">Error</h5>
+                <p class="text-muted">${message}</p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Retry
+                </button>
+            </div>
+        `;
+    }
+    
+    // Real-time search with faster debouncing and character counter
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        
+        // Update character counter
+        const charCount = this.value.length;
+        const charCountElement = document.getElementById('charCount');
+        const searchCounter = document.getElementById('searchCounter');
+        
+        if (charCount > 0) {
+            charCountElement.textContent = charCount;
+            searchCounter.style.display = 'block';
+        } else {
+            searchCounter.style.display = 'none';
+        }
+        
+        // Update active filters display
+        updateActiveFilters();
+        
+        // Show immediate visual feedback
+        searchInput.classList.add('searching');
+        
+        // Faster debouncing for better responsiveness
+        searchTimeout = setTimeout(() => {
+            searchInput.classList.remove('searching');
+            performSearch();
+        }, 200); // Reduced to 200ms for faster response
+    });
+    
+    // Immediate filtering for dropdowns with visual feedback
+    academicYearSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        updateActiveFilters();
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    yearLevelSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        updateActiveFilters();
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    statusSelect.addEventListener('change', function() {
+        this.classList.add('filtering');
+        updateActiveFilters();
+        performSearch();
+        setTimeout(() => this.classList.remove('filtering'), 1000);
+    });
+    
+    // Filter button (for manual trigger)
+    filterBtn.addEventListener('click', performSearch);
+    
+    // Clear button
+    clearBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        searchInput.value = '';
+        academicYearSelect.value = '';
+        yearLevelSelect.value = '';
+        statusSelect.value = '';
+        updateActiveFilters();
+        performSearch();
+    });
+    
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        searchInput.value = urlParams.get('search') || '';
+        academicYearSelect.value = urlParams.get('academic_year') || '';
+        yearLevelSelect.value = urlParams.get('year_level') || '';
+        statusSelect.value = urlParams.get('status') || '';
+        updateActiveFilters();
+        performSearch();
+    });
+    
+    // Initialize active filters on page load
+    updateActiveFilters();
+});
 
 // Academic period change event handler (no longer needed since we have a single select)
 </script>

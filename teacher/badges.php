@@ -163,18 +163,64 @@ $badge_stats = $stmt->fetch();
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+/* Import Google Fonts for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Enhanced Welcome Section */
+/* System Color Variables - Matching Other Pages */
+:root {
+    --main-green: #2E5E4E;      /* Deep, modern green */
+    --accent-green: #7DCB80;    /* Light, fresh green */
+    --highlight-yellow: #FFE066;/* Softer yellow for highlights */
+    --off-white: #F7FAF7;       /* Clean, soft background */
+    --white: #FFFFFF;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+    --border-light: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global Styles */
+body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--off-white);
+    min-height: 100vh;
+}
+
+.container-fluid {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    background: transparent;
+}
+
+/* Enhanced Welcome Section with Animations */
 .welcome-section {
-    background: #2E5E4E;
-    border-radius: 20px;
+    background: var(--main-green);
+    border-radius: var(--border-radius-xl);
     padding: 2rem;
     margin-bottom: 2rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(-30px);
+    animation: slideInDown 0.8s ease-out forwards;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .welcome-section::before {
@@ -191,11 +237,12 @@ $badge_stats = $stmt->fetch();
 .welcome-title {
     color: white;
     font-size: 2.5rem;
-    font-weight: 800;
+    font-weight: 700;
     margin-bottom: 0.5rem;
     position: relative;
-    z-index: 1;
+    z-index: 2;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Inter', sans-serif;
 }
 
 .welcome-subtitle {
@@ -203,7 +250,8 @@ $badge_stats = $stmt->fetch();
     font-size: 1.1rem;
     margin-bottom: 0;
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    font-family: 'Inter', sans-serif;
 }
 
 .welcome-actions {
@@ -282,20 +330,40 @@ $badge_stats = $stmt->fetch();
     border-radius: 0 0 20px 20px;
 }
 
-/* Enhanced Statistics Cards */
+/* Enhanced Statistics Cards with Animations */
 .stats-card {
-    background: #F7FAF7;
-    border: 1px solid #7DCB80;
-    border-radius: 15px;
+    background: var(--white);
+    border: 2px solid var(--accent-green);
+    border-radius: var(--border-radius-lg);
     padding: 1.5rem;
     text-align: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out forwards;
 }
 
+.stats-card:nth-child(1) { animation-delay: 0.1s; }
+.stats-card:nth-child(2) { animation-delay: 0.2s; }
+.stats-card:nth-child(3) { animation-delay: 0.3s; }
+.stats-card:nth-child(4) { animation-delay: 0.4s; }
+
 .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    border-color: var(--main-green);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .stats-card .card-title {
@@ -348,22 +416,43 @@ $badge_stats = $stmt->fetch();
     z-index: 1;
 }
 
-/* Enhanced Badge Cards */
+/* Enhanced Badge Cards with Animations */
 .badge-card {
-    background: white;
-    border: 1px solid #E8F5E8;
-    border-radius: 15px;
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius-lg);
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
     height: 100%;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: slideInUp 0.6s ease-out forwards;
 }
 
+.badge-card:nth-child(1) { animation-delay: 0.1s; }
+.badge-card:nth-child(2) { animation-delay: 0.2s; }
+.badge-card:nth-child(3) { animation-delay: 0.3s; }
+.badge-card:nth-child(4) { animation-delay: 0.4s; }
+.badge-card:nth-child(5) { animation-delay: 0.5s; }
+.badge-card:nth-child(6) { animation-delay: 0.6s; }
+
 .badge-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    border-color: #7DCB80;
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    border-color: var(--accent-green);
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .badge-card .badge-icon {
@@ -428,24 +517,42 @@ $badge_stats = $stmt->fetch();
     font-size: 0.85rem;
 }
 
-/* Enhanced Create Badge Button */
+/* Enhanced Create Badge Button with Animations */
 .create-badge-btn {
-    background: #7DCB80;
+    background: var(--main-green);
     color: white;
     border: none;
-    border-radius: 25px;
+    border-radius: var(--border-radius-xl);
     padding: 0.75rem 2rem;
     font-weight: 700;
     font-size: 1.1rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(125, 203, 128, 0.3);
+    transition: var(--transition);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+}
+
+.create-badge-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.create-badge-btn:hover::before {
+    left: 100%;
 }
 
 .create-badge-btn:hover {
-    background: #2E5E4E;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(125, 203, 128, 0.4);
-    color: white;
+    background: var(--accent-green);
+    color: var(--main-green);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(125, 203, 128, 0.4);
 }
 
 /* Enhanced Empty State */
@@ -474,16 +581,141 @@ $badge_stats = $stmt->fetch();
     margin-bottom: 0;
 }
 
+/* Additional Animations */
+.badges-card {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: slideInUp 0.6s ease-out 0.5s forwards;
+}
+
+.table tbody tr {
+    transition: var(--transition);
+}
+
+.table tbody tr:hover {
+    background-color: var(--off-white);
+    transform: translateX(5px);
+}
+
+.badge {
+    transition: var(--transition);
+}
+
+.badge:hover {
+    transform: scale(1.1);
+}
+
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Ripple effect for buttons */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple 600ms linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Pulse animation for decorative elements */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.welcome-decoration i {
+    animation: pulse 2s infinite;
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.floating-shapes {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Modal animations */
+.modal-content {
+    border-radius: var(--border-radius);
+    border: 2px solid var(--accent-green);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.modal-header {
+    background: var(--main-green);
+    color: var(--white);
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    background: var(--off-white);
+    border-top: 1px solid var(--border-light);
+    padding: 1rem 1.5rem;
+}
+
+.form-control, .form-select {
+    border: 2px solid var(--border-light);
+    border-radius: var(--border-radius);
+    font-family: 'Inter', sans-serif;
+    transition: var(--transition);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-family: 'Inter', sans-serif;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
         font-size: 2rem;
     }
     
+    .welcome-subtitle {
+        font-size: 1rem;
+    }
+    
     .quick-stats {
         flex-direction: column;
         gap: 1rem;
         width: 100%;
+        margin-top: 1rem;
     }
     
     .action-buttons {
@@ -492,6 +724,90 @@ $badge_stats = $stmt->fetch();
     
     .action-buttons .btn {
         width: 100%;
+    }
+    
+    .floating-shapes {
+        display: none;
+    }
+    
+    .welcome-decoration {
+        display: none;
+    }
+    
+    .badge-card {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .welcome-title {
+        font-size: 1.5rem;
+    }
+    
+    .welcome-subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .stats-card {
+        padding: 1rem;
+    }
+    
+    .create-badge-btn {
+        font-size: 1rem;
+        padding: 0.6rem 1.5rem;
+    }
+    
+    .badge-card {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .welcome-title {
+        font-size: 1.25rem;
+    }
+    
+    .welcome-section {
+        padding: 1.5rem;
+    }
+    
+    .stats-card {
+        padding: 0.75rem;
+    }
+    
+    .create-badge-btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-header {
+        padding: 1rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem;
     }
 }
 </style>
@@ -624,8 +940,21 @@ $badge_stats = $stmt->fetch();
                                 <?php foreach ($badges as $badge): ?>
                                 <tr>
                                     <td>
-                                        <img src="../uploads/badges/<?php echo htmlspecialchars($badge['badge_icon'] ?: 'default.png'); ?>" 
-                                             alt="icon" style="height:40px;" class="rounded">
+                                        <?php
+                                        $badge_icon = $badge['badge_icon'] ?: 'default.png';
+                                        $icon_path = "../uploads/badges/" . htmlspecialchars($badge_icon);
+                                        $icon_exists = !empty($badge['badge_icon']) && file_exists(__DIR__ . "/../uploads/badges/" . $badge['badge_icon']);
+                                        ?>
+                                        <?php if ($icon_exists): ?>
+                                            <img src="<?php echo $icon_path; ?>" 
+                                                 alt="<?php echo htmlspecialchars($badge['badge_name']); ?>" 
+                                                 style="height:40px;" class="rounded">
+                                        <?php else: ?>
+                                            <div class="d-inline-flex align-items-center justify-content-center bg-gradient text-white rounded-circle" 
+                                                 style="width: 40px; height: 40px; background: linear-gradient(135deg, #7DCB80, #2E5E4E); box-shadow: 0 2px 8px rgba(125, 203, 128, 0.3);">
+                                                <i class="fas fa-trophy" style="font-size: 18px;"></i>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="fw-bold"><?php echo htmlspecialchars($badge['badge_name']); ?></div>
@@ -1207,6 +1536,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize enhanced badges table scrolling
     enhanceBadgesTableScrolling();
+    
+    // Add scroll-triggered animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animationPlayState = 'running';
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all animated elements
+    const animatedElements = document.querySelectorAll('.stats-card, .badge-card, .badges-card, .welcome-section');
+    animatedElements.forEach(el => {
+        observer.observe(el);
+    });
+    
+    // Add ripple effect to buttons
+    function createRipple(event) {
+        const button = event.currentTarget;
+        const circle = document.createElement('span');
+        const diameter = Math.max(button.clientWidth, button.clientHeight);
+        const radius = diameter / 2;
+        
+        circle.style.width = circle.style.height = `${diameter}px`;
+        circle.style.left = `${event.clientX - button.offsetLeft - radius}px`;
+        circle.style.top = `${event.clientY - button.offsetTop - radius}px`;
+        circle.classList.add('ripple');
+        
+        const ripple = button.getElementsByClassName('ripple')[0];
+        if (ripple) {
+            ripple.remove();
+        }
+        
+        button.appendChild(circle);
+    }
+    
+    // Add ripple effect to all buttons
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', createRipple);
+    });
 });
 </script>
 

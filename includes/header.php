@@ -375,6 +375,15 @@ if (!defined('NO_HTML_OUTPUT')) {
             animation: dropdownFadeIn 0.3s ease-out;
             z-index: 1050 !important;
             position: absolute;
+            top: 100%;
+            left: 0;
+            display: none; /* Let Bootstrap handle the display */
+            float: left;
+            font-size: 1rem;
+            color: #212529;
+            text-align: left;
+            list-style: none;
+            background-clip: padding-box;
         }
         
         @keyframes dropdownFadeIn {
@@ -805,26 +814,7 @@ if (!defined('NO_HTML_OUTPUT')) {
             object-fit: cover;
         }
         
-        /* Ensure dropdowns work properly */
-        .navbar-nav .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            z-index: 1050 !important;
-            display: none;
-            float: left;
-            min-width: 10rem;
-            padding: 0.5rem 0;
-            margin: 0.125rem 0 0;
-            font-size: 1rem;
-            color: #212529;
-            text-align: left;
-            list-style: none;
-            background-color: #fff;
-            background-clip: padding-box;
-            border: 1px solid rgba(0, 0, 0, 0.15);
-            border-radius: 0.375rem;
-        }
+        /* Ensure dropdowns work properly - consolidated with modern styling above */
         
         .navbar-nav .dropdown-menu.show {
             display: block !important;
@@ -837,12 +827,10 @@ if (!defined('NO_HTML_OUTPUT')) {
             display: block !important;
             opacity: 1 !important;
             visibility: visible !important;
+            transform: translateY(0) !important;
         }
         
-        /* Force dropdown visibility */
-        .navbar-nav .dropdown-menu {
-            display: none !important;
-        }
+        /* Force dropdown visibility - removed conflicting rule */
         
         .navbar-nav .dropdown-menu.show {
             display: block !important;
@@ -859,6 +847,28 @@ if (!defined('NO_HTML_OUTPUT')) {
             border-right: 0.3em solid transparent;
             border-bottom: 0;
             border-left: 0.3em solid transparent;
+        }
+        
+        /* Ensure dropdown positioning and visibility */
+        .navbar-nav .nav-item.dropdown {
+            position: relative;
+        }
+        
+        .navbar-nav .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            right: auto !important;
+            transform: none !important;
+            z-index: 1050 !important;
+        }
+        
+        /* Force dropdown to be visible when shown */
+        .navbar-nav .dropdown-menu.show {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
         }
         
         .dropdown-item {
@@ -1283,20 +1293,10 @@ if (!defined('NO_HTML_OUTPUT')) {
                                     </a></li>
                                 </ul>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link<?php if ($current_page == 'enrollment_requests.php') echo ' active'; ?>" href="<?php echo SITE_URL; ?>/student/enrollment_requests.php" id="student-enrollment-requests-link">
-                                    <i class="bi bi-clock-history"></i> Enrollment Requests
-                                </a>
-                            </li>
                         <?php elseif ($_SESSION['role'] === 'teacher'): ?>
                             <li class="nav-item">
                                 <a class="nav-link<?php if ($current_page == 'dashboard.php') echo ' active'; ?>" href="<?php echo SITE_URL; ?>/teacher/dashboard.php" id="teacher-dashboard-link">
                                     <i class="bi bi-speedometer2"></i> Dashboard
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link<?php if ($current_page == 'enrollment_requests.php') echo ' active'; ?>" href="<?php echo SITE_URL; ?>/teacher/enrollment_requests.php" id="teacher-enrollment-requests-link">
-                                    <i class="bi bi-clock-history"></i> Enrollment Requests
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -3966,6 +3966,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('🧪 Testing teacher activity dropdown...');
             console.log('Dropdown element:', teacherDropdown);
             console.log('Dropdown classes:', teacherDropdown.className);
+            console.log('Dropdown data-bs-toggle:', teacherDropdown.getAttribute('data-bs-toggle'));
             
             var menu = teacherDropdown.nextElementSibling;
             if (menu) {
@@ -3974,6 +3975,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Menu display style:', window.getComputedStyle(menu).display);
                 console.log('Menu visibility style:', window.getComputedStyle(menu).visibility);
                 console.log('Menu opacity style:', window.getComputedStyle(menu).opacity);
+                console.log('Menu position style:', window.getComputedStyle(menu).position);
+                console.log('Menu z-index style:', window.getComputedStyle(menu).zIndex);
+                
+                // Test click functionality
+                teacherDropdown.addEventListener('click', function(e) {
+                    console.log('🎯 Teacher dropdown clicked!');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Toggle the menu manually
+                    if (menu.classList.contains('show')) {
+                        menu.classList.remove('show');
+                        console.log('📤 Hiding dropdown menu');
+                    } else {
+                        // Close other dropdowns first
+                        document.querySelectorAll('.dropdown-menu.show').forEach(function(openMenu) {
+                            if (openMenu !== menu) {
+                                openMenu.classList.remove('show');
+                            }
+                        });
+                        menu.classList.add('show');
+                        console.log('📥 Showing dropdown menu');
+                    }
+                });
+                
+                // Ensure the dropdown is properly initialized
+                if (typeof bootstrap !== 'undefined') {
+                    try {
+                        var dropdownInstance = new bootstrap.Dropdown(teacherDropdown);
+                        console.log('✅ Teacher activity dropdown initialized successfully');
+                    } catch (error) {
+                        console.error('❌ Error initializing teacher activity dropdown:', error);
+                    }
+                }
             } else {
                 console.error('❌ Menu element not found!');
             }

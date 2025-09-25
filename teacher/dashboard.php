@@ -119,6 +119,34 @@ $stmt = $db->prepare("
 $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
 $recent_announcements = $stmt->fetchAll();
 
+// Get pending enrollment requests for this teacher
+$stmt = $db->prepare("
+    SELECT er.*, c.course_name, c.course_code, u.first_name, u.last_name, u.username, u.identifier as neust_student_id,
+           er.requested_at, er.status, er.rejection_reason,
+           CASE WHEN JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL THEN 1 ELSE 0 END as is_section_assigned,
+           u.is_irregular,
+           s.section_name, s.year_level as academic_year
+    FROM enrollment_requests er
+    JOIN courses c ON er.course_id = c.id
+    JOIN users u ON er.student_id = u.id
+    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+    WHERE c.teacher_id = ? AND er.status = 'pending' AND c.academic_period_id = ?
+    ORDER BY er.requested_at DESC
+    LIMIT 5
+");
+$stmt->execute([$_SESSION['user_id'], $selected_period_id]);
+$pending_enrollment_requests = $stmt->fetchAll();
+
+// Get count of pending enrollment requests
+$stmt = $db->prepare("
+    SELECT COUNT(*) as pending_count
+    FROM enrollment_requests er
+    JOIN courses c ON er.course_id = c.id
+    WHERE c.teacher_id = ? AND er.status = 'pending' AND c.academic_period_id = ?
+");
+$stmt->execute([$_SESSION['user_id'], $selected_period_id]);
+$enrollment_requests_count = $stmt->fetch()['pending_count'];
+
 
 
 function getRandomIconClass($userId) {
@@ -136,19 +164,67 @@ function getRandomBgClass($userId) {
 ?>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<!-- Font Awesome for icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+/* Import Google Fonts for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Enhanced Welcome Section */
+/* System Color Variables - Matching Courses Page */
+:root {
+    --main-green: #2E5E4E;      /* Deep, modern green */
+    --accent-green: #7DCB80;    /* Light, fresh green */
+    --highlight-yellow: #FFE066;/* Softer yellow for highlights */
+    --off-white: #F7FAF7;       /* Clean, soft background */
+    --white: #FFFFFF;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+    --border-light: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global Styles */
+body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--off-white);
+    min-height: 100vh;
+}
+
+.container-fluid {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    background: transparent;
+}
+
+/* Enhanced Welcome Section with Animations */
 .welcome-section {
-    background: #2E5E4E;
-    border-radius: 20px;
+    background: var(--main-green);
+    border-radius: var(--border-radius-xl);
     padding: 2rem;
     margin-bottom: 2rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(-30px);
+    animation: slideInDown 0.8s ease-out forwards;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .welcome-section::before {
@@ -165,11 +241,12 @@ function getRandomBgClass($userId) {
 .welcome-title {
     color: white;
     font-size: 2.5rem;
-    font-weight: 800;
+    font-weight: 700;
     margin-bottom: 0.5rem;
     position: relative;
-    z-index: 1;
+    z-index: 2;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Inter', sans-serif;
 }
 
 .welcome-subtitle {
@@ -177,7 +254,8 @@ function getRandomBgClass($userId) {
     font-size: 1.1rem;
     margin-bottom: 0;
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    font-family: 'Inter', sans-serif;
 }
 
 .welcome-actions {
@@ -299,16 +377,35 @@ function getRandomBgClass($userId) {
     border-radius: 0 0 20px 20px;
 }
 
-/* Statistics Cards Styling */
+/* Statistics Cards Styling with Animations */
 .stats-card {
-    transition: all 0.3s ease;
-    border-radius: 12px;
+    transition: var(--transition);
+    border-radius: var(--border-radius-lg);
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out forwards;
 }
 
+.stats-card:nth-child(1) { animation-delay: 0.1s; }
+.stats-card:nth-child(2) { animation-delay: 0.2s; }
+.stats-card:nth-child(3) { animation-delay: 0.3s; }
+.stats-card:nth-child(4) { animation-delay: 0.4s; }
+
 .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .stats-icon {
@@ -368,20 +465,64 @@ function getRandomBgClass($userId) {
     border-left: 4px solid #7b1fa2;
     color: white;
 }
+/* Quick Actions with Animations */
+.quick-actions-card {
+    opacity: 0;
+    transform: translateX(-30px);
+    animation: slideInLeft 0.6s ease-out 0.2s forwards;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
 .quickaction-btn {
     border-color: var(--main-green) !important;
     color: var(--main-green) !important;
     font-weight: 600;
     background: #fff;
-    transition: background 0.18s, color 0.18s, border 0.18s;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
 }
+
+.quickaction-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(125, 203, 128, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.quickaction-btn:hover::before {
+    left: 100%;
+}
+
 .quickaction-btn:hover, .quickaction-btn:focus {
     background: var(--main-green) !important;
     color: #fff !important;
     border-color: var(--main-green) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
+
 .quickaction-btn i {
     color: var(--accent-green) !important;
+    transition: var(--transition);
+}
+
+.quickaction-btn:hover i {
+    transform: scale(1.1);
 }
 
 /* Scrollable Container Styles */
@@ -415,12 +556,306 @@ function getRandomBgClass($userId) {
     scrollbar-color: #2E5E4E #f1f1f1;
 }
 
+/* Red dot indicator styling */
+.red-dot {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 12px;
+    height: 12px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    border: 2px solid white;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Activity Cards with Animations */
+.activity-card {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: slideInUp 0.6s ease-out forwards;
+}
+
+.activity-card:nth-child(1) { animation-delay: 0.3s; }
+.activity-card:nth-child(2) { animation-delay: 0.4s; }
+.activity-card:nth-child(3) { animation-delay: 0.5s; }
+.activity-card:nth-child(4) { animation-delay: 0.6s; }
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.activity-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.enrollment-requests-card {
+    position: relative;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: slideInUp 0.6s ease-out 0.7s forwards;
+}
+
+.enrollment-requests-header {
+    position: relative;
+}
+
+/* Card hover effects */
+.card {
+    transition: var(--transition);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+/* List items animation */
+.list-group-item {
+    transition: var(--transition);
+}
+
+.list-group-item:hover {
+    background-color: var(--off-white);
+    transform: translateX(5px);
+}
+
+/* Badge animations */
+.badge {
+    transition: var(--transition);
+}
+
+.badge:hover {
+    transform: scale(1.1);
+}
+
+/* Pulse animation for red dot */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.red-dot {
+    animation: pulse 2s infinite;
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.floating-shapes {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Pulse animation for welcome decoration */
+.welcome-decoration i {
+    animation: pulse 2s infinite;
+}
+
+/* Ripple effect for buttons */
+.btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple 600ms linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1rem;
+    }
+    
+    .teacher-stats-display {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+        margin-top: 1rem;
+    }
+    
+    .academic-year-selector {
+        margin-top: 1rem;
+        width: 100%;
+    }
+    
+    .quick-actions-card .row {
+        justify-content: center;
+    }
+    
+    .col-md-2 {
+        flex: 0 0 auto;
+        width: 48%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .floating-shapes {
+        display: none;
+    }
+    
+    .welcome-decoration {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .welcome-title {
+        font-size: 1.5rem;
+    }
+    
+    .welcome-subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 1rem;
+    }
+    
+    .quickaction-btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .col-md-2 {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .activity-card .card-body {
+        padding: 1rem;
+    }
+    
+    .scrollable-container {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .welcome-title {
+        font-size: 1.25rem;
+    }
+    
+    .welcome-section {
+        padding: 1.5rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 0.75rem;
+    }
+    
+    .quickaction-btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+}
+
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.forEach(function (tooltipTriggerEl) {
         new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add scroll-triggered animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animationPlayState = 'running';
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all animated elements
+    const animatedElements = document.querySelectorAll('.stats-card, .activity-card, .quick-actions-card, .enrollment-requests-card, .welcome-section');
+    animatedElements.forEach(el => {
+        observer.observe(el);
+    });
+    
+    // Add ripple effect to buttons
+    function createRipple(event) {
+        const button = event.currentTarget;
+        const circle = document.createElement('span');
+        const diameter = Math.max(button.clientWidth, button.clientHeight);
+        const radius = diameter / 2;
+        
+        circle.style.width = circle.style.height = `${diameter}px`;
+        circle.style.left = `${event.clientX - button.offsetLeft - radius}px`;
+        circle.style.top = `${event.clientY - button.offsetTop - radius}px`;
+        circle.classList.add('ripple');
+        
+        const ripple = button.getElementsByClassName('ripple')[0];
+        if (ripple) {
+            ripple.remove();
+        }
+        
+        button.appendChild(circle);
+    }
+    
+    // Add ripple effect to all buttons
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', createRipple);
     });
 });
 </script>
@@ -474,22 +909,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="accent-line"></div>
             </div>
 
-            <!-- 4. Add the academic year dropdown to the dashboard UI (above the stats cards): -->
-            <div class="row mb-3">
-      <div class="col-12">
-        <form method="get" class="d-flex align-items-center">
-                          <label for="academic_period_id" class="me-2 fw-bold">Academic Period:</label>
-                <select name="academic_period_id" id="academic_period_id" class="form-select w-auto me-2" onchange="this.form.submit()">
-            <?php foreach ($all_years as $year): ?>
-              <option value="<?= $year['id'] ?>" <?= $selected_period_id == $year['id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($year['academic_year']) ?> - <?= htmlspecialchars($year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-          <noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
-        </form>
-      </div>
-    </div>
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
@@ -562,7 +981,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Quick Actions -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
+            <div class="card bg-white quick-actions-card">
                 <div class="card-header">
                     <h5 class="mb-0">Quick Actions</h5>
                 </div>
@@ -603,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="row">
         <!-- Recent Students -->
         <div class="col-lg-6 mb-4">
-            <div class="card recent-activity-card">
+            <div class="card bg-white activity-card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Recent Students</h5>
                     <a href="students.php" class="btn btn-sm btn-primary">View All</a>
@@ -638,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- Recent Courses -->
         <div class="col-lg-6 mb-4">
-            <div class="card recent-activity-card">
+            <div class="card bg-white activity-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Recent Courses</h5>
                     <a href="courses.php" class="btn btn-sm btn-primary">View All</a>
@@ -673,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Recent Announcements -->
     <div class="row">
         <div class="col-12">
-            <div class="card recent-announcements-card">
+            <div class="card bg-white activity-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Recent Announcements</h5>
                     <a href="announcements.php" class="btn btn-sm btn-primary">View All</a>
@@ -694,6 +1113,77 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <small class="text-muted"><?php echo formatDate($announcement['created_at']); ?></small>
                                     </div>
                                 </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Requests -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-white enrollment-requests-card">
+                <div class="card-header d-flex justify-content-between align-items-center enrollment-requests-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Enrollment Requests
+                        <?php if ($enrollment_requests_count > 0): ?>
+                            <span class="red-dot"></span>
+                        <?php endif; ?>
+                    </h5>
+                    <a href="enrollment_requests.php" class="btn btn-sm btn-primary">
+                        View All
+                        <?php if ($enrollment_requests_count > 0): ?>
+                            <span class="badge bg-danger ms-1"><?php echo $enrollment_requests_count; ?></span>
+                        <?php endif; ?>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($pending_enrollment_requests)): ?>
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
+                            <p class="mb-0">No pending enrollment requests</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="scrollable-container">
+                            <?php foreach ($pending_enrollment_requests as $request): ?>
+                            <div class="border-bottom pb-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['last_name']); ?>
+                                            <?php if ($request['is_irregular']): ?>
+                                                <span class="badge bg-warning text-dark ms-2">Irregular</span>
+                                            <?php endif; ?>
+                                        </h6>
+                                        <p class="text-muted mb-1">
+                                            <i class="bi bi-book me-1"></i>
+                                            <?php echo htmlspecialchars($request['course_name']); ?>
+                                            <small class="text-muted">(<?php echo htmlspecialchars($request['course_code']); ?>)</small>
+                                        </p>
+                                        <small class="text-muted">
+                                            <i class="bi bi-person me-1"></i>
+                                            <?php echo htmlspecialchars($request['username']); ?>
+                                            <?php if ($request['neust_student_id']): ?>
+                                                - ID: <?php echo htmlspecialchars($request['neust_student_id']); ?>
+                                            <?php endif; ?>
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-clock me-1"></i>
+                                            <?php echo formatDate($request['requested_at']); ?>
+                                        </small>
+                                        <?php if ($request['section_name']): ?>
+                                            <small class="text-info d-block">
+                                                <i class="bi bi-people me-1"></i>
+                                                <?php echo htmlspecialchars($request['section_name']); ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
@@ -765,6 +1255,70 @@ document.addEventListener('DOMContentLoaded', function() {
             averageScoreElement.textContent = stats.average_score + '%';
         }
     };
+    
+    // Function to check enrollment requests and update red dot
+    function checkEnrollmentRequests() {
+        console.log('🔍 Checking enrollment requests...');
+        
+        // Make AJAX request to get enrollment requests count
+        fetch('<?php echo SITE_URL; ?>/ajax_get_enrollment_requests.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const count = data.pending_count || 0;
+                    console.log('📊 Enrollment requests count:', count);
+                    
+                    // Update red dot visibility
+                    const redDot = document.querySelector('.enrollment-requests-card .red-dot');
+                    const badge = document.querySelector('.enrollment-requests-card .badge');
+                    
+                    if (count > 0) {
+                        // Show red dot
+                        if (redDot) {
+                            redDot.style.display = 'block';
+                        } else {
+                            // Create red dot if it doesn't exist
+                            const header = document.querySelector('.enrollment-requests-header h5');
+                            if (header) {
+                                const newRedDot = document.createElement('span');
+                                newRedDot.className = 'red-dot';
+                                header.appendChild(newRedDot);
+                            }
+                        }
+                        
+                        // Update or create badge
+                        if (badge) {
+                            badge.textContent = count;
+                        } else {
+                            const viewAllBtn = document.querySelector('.enrollment-requests-card .btn-primary');
+                            if (viewAllBtn) {
+                                const newBadge = document.createElement('span');
+                                newBadge.className = 'badge bg-danger ms-1';
+                                newBadge.textContent = count;
+                                viewAllBtn.appendChild(newBadge);
+                            }
+                        }
+                    } else {
+                        // Hide red dot and badge
+                        if (redDot) {
+                            redDot.style.display = 'none';
+                        }
+                        if (badge) {
+                            badge.remove();
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error checking enrollment requests:', error);
+            });
+    }
+    
+    // Check enrollment requests on page load
+    checkEnrollmentRequests();
+    
+    // Check enrollment requests every 30 seconds
+    setInterval(checkEnrollmentRequests, 30000);
     
     console.log('🎉 Teacher dashboard initialization complete');
     

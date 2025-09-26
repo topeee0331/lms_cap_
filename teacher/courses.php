@@ -583,47 +583,6 @@ require_once '../includes/header.php';
         padding: 1.5rem;
     }
     
-    /* Scrollable modal body styling */
-    .modal-dialog-scrollable .modal-body {
-        max-height: 70vh;
-        overflow-y: auto;
-        padding-right: 1rem;
-    }
-    
-    /* Custom scrollbar styling for better UX */
-    .modal-dialog-scrollable .modal-body::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .modal-dialog-scrollable .modal-body::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
-    
-    .modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb {
-        background: var(--accent-green);
-        border-radius: 4px;
-    }
-    
-    .modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb:hover {
-        background: var(--main-green);
-    }
-    
-    /* Ensure list items have proper spacing in scrollable modal */
-    .modal-dialog-scrollable .list-group-item {
-        border-left: none;
-        border-right: none;
-        padding: 1rem;
-    }
-    
-    .modal-dialog-scrollable .list-group-item:first-child {
-        border-top: none;
-    }
-    
-    .modal-dialog-scrollable .list-group-item:last-child {
-        border-bottom: none;
-    }
-    
     .modal-footer {
         background: var(--off-white);
         border-top: 1px solid var(--border-light);
@@ -1350,7 +1309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
 
 <!-- Single Dynamic Students Modal -->
 <div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="studentsModalLabel">
@@ -1358,7 +1317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body">
                 <div id="studentsModalContent">
                     <div class="text-center">
                         <div class="spinner-border text-primary" role="status">

@@ -814,34 +814,6 @@ class PusherClient {
         // This would typically fetch the latest announcement count
         console.log('✅ Announcement count updated');
     }
-    
-    // ===== STUDENT DASHBOARD INITIALIZATION =====
-    
-    initializeStudentDashboard(userId) {
-        console.log('🎓 Initializing student dashboard for user:', userId);
-        
-        // Set the user ID if not already set
-        if (!this.currentUserId) {
-            this.currentUserId = userId;
-        }
-        
-        // Initialize enrollment request badges
-        this.initializeEnrollmentRequestBadges();
-        
-        // Set up any student-specific real-time features
-        this.setupStudentDashboardFeatures();
-        
-        console.log('✅ Student dashboard initialized successfully');
-    }
-    
-    setupStudentDashboardFeatures() {
-        console.log('🔧 Setting up student dashboard features...');
-        
-        // Add any student-specific dashboard features here
-        // For example: real-time progress updates, notification badges, etc.
-        
-        console.log('✅ Student dashboard features set up');
-    }
 }
 
 // Initialize PusherClient when DOM is ready - with delay to avoid conflicts

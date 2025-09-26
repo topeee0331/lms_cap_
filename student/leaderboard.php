@@ -11,6 +11,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
+// Include header for Bootstrap and navigation
+require_once '../includes/header.php';
+
 $db = new Database();
 $pdo = $db->getConnection();
 

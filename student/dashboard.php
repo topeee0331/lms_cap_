@@ -11,6 +11,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
+// Include header for Bootstrap and navigation
+require_once '../includes/header.php';
+
 // 1. Fetch all academic periods for the dropdown
 $ay_stmt = $pdo->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name');
 $ay_stmt->execute();
@@ -1672,15 +1675,26 @@ $stats['completed_modules'] = $completed_modules;
         </div>
     </div>
 
-    <!-- Include Pusher for real-time updates -->
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <script src="../assets/js/pusher-client.js"></script>
+    <!-- Pusher is already included in header.php -->
     <script>
         // Initialize Pusher for student dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            if (typeof PusherClient !== 'undefined') {
-                const pusherClient = new PusherClient();
-                pusherClient.initializeStudentDashboard(<?php echo $user_id; ?>);
+            // Wait for PusherClient to be available
+            if (typeof PusherClient !== 'undefined' && window.pusherClient) {
+                // Use the already initialized pusherClient
+                window.pusherClient.initializeStudentDashboard(<?php echo $user_id; ?>);
+            } else {
+                // Fallback: create a new instance if needed
+                setTimeout(function() {
+                    if (typeof PusherClient !== 'undefined') {
+                        const pusherConfig = window.pusherConfig || { available: false };
+                        const currentUserId = <?php echo $user_id; ?>;
+                        const currentUserRole = 'student';
+                        
+                        window.pusherClient = new PusherClient(pusherConfig, currentUserId, currentUserRole);
+                        window.pusherClient.initializeStudentDashboard(currentUserId);
+                    }
+                }, 200);
             }
         });
     </script>

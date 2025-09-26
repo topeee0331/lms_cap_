@@ -62,17 +62,17 @@ require_once '../includes/header.php';
     font-weight: 800;
     margin-bottom: 0.5rem;
     position: relative;
-    z-index: 3;
+    z-index: 1;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     font-family: 'Inter', sans-serif;
 }
 
 .welcome-subtitle {
-    color: white !important;
+    color: rgba(255,255,255,0.9);
     font-size: 1.1rem;
     margin-bottom: 1rem;
     position: relative;
-    z-index: 3;
+    z-index: 1;
 }
 
 /* Decorative Elements */
@@ -106,230 +106,6 @@ require_once '../includes/header.php';
     z-index: 0;
 }
 
-/* Minimal floating icon */
-.minimal-floating-icon {
-    position: absolute;
-    top: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
-    background: rgba(255,255,255,0.2);
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    animation: float 3s ease-in-out infinite;
-    backdrop-filter: blur(10px);
-}
-
-.minimal-floating-icon i {
-    font-size: 1.2rem;
-    color: rgba(255,255,255,0.9);
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-/* Additional floating elements */
-.floating-element {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 0;
-    backdrop-filter: blur(5px);
-    opacity: 0.5;
-    margin: 5px;
-}
-
-.floating-element i {
-    font-size: 1rem;
-    color: rgba(255,255,255,0.8);
-}
-
-/* Individual floating element positions and animations */
-.floating-element-1 {
-    top: 10%;
-    left: 8%;
-    animation: floatSlow 4s ease-in-out infinite;
-}
-
-.floating-element-2 {
-    top: 20%;
-    right: 12%;
-    animation: floatReverse 3.5s ease-in-out infinite;
-}
-
-.floating-element-3 {
-    top: 65%;
-    left: 3%;
-    animation: floatUp 5s ease-in-out infinite;
-}
-
-.floating-element-4 {
-    top: 75%;
-    right: 15%;
-    animation: floatDown 4.5s ease-in-out infinite;
-}
-
-.floating-element-5 {
-    top: 35%;
-    left: 15%;
-    animation: floatSide 6s ease-in-out infinite;
-}
-
-.floating-element-6 {
-    top: 45%;
-    right: 3%;
-    animation: floatRotate 5.5s ease-in-out infinite;
-}
-
-/* Center floating elements */
-.floating-element-7 {
-    top: 30%;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: floatCenter 4s ease-in-out infinite;
-}
-
-.floating-element-8 {
-    top: 40%;
-    left: 40%;
-    animation: floatPulse 3.8s ease-in-out infinite;
-}
-
-.floating-element-9 {
-    top: 50%;
-    left: 60%;
-    animation: floatBounce 4.2s ease-in-out infinite;
-}
-
-.floating-element-10 {
-    top: 60%;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: floatWave 5.8s ease-in-out infinite;
-}
-
-/* Different animation keyframes */
-@keyframes floatSlow {
-    0%, 100% {
-        transform: translateY(0px) translateX(0px);
-    }
-    50% {
-        transform: translateY(-15px) translateX(10px);
-    }
-}
-
-@keyframes floatReverse {
-    0%, 100% {
-        transform: translateY(0px) translateX(0px);
-    }
-    50% {
-        transform: translateY(15px) translateX(-10px);
-    }
-}
-
-@keyframes floatUp {
-    0%, 100% {
-        transform: translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateY(-20px) scale(1.1);
-    }
-}
-
-@keyframes floatDown {
-    0%, 100% {
-        transform: translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateY(20px) scale(0.9);
-    }
-}
-
-@keyframes floatSide {
-    0%, 100% {
-        transform: translateX(0px) rotate(0deg);
-    }
-    50% {
-        transform: translateX(15px) rotate(180deg);
-    }
-}
-
-@keyframes floatRotate {
-    0%, 100% {
-        transform: rotate(0deg) translateY(0px);
-    }
-    50% {
-        transform: rotate(180deg) translateY(-10px);
-    }
-}
-
-/* Center element animations */
-@keyframes floatCenter {
-    0%, 100% {
-        transform: translateX(-50%) translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateX(-50%) translateY(-15px) scale(1.1);
-    }
-}
-
-@keyframes floatPulse {
-    0%, 100% {
-        transform: scale(1) translateY(0px);
-        opacity: 0.5;
-    }
-    50% {
-        transform: scale(1.2) translateY(-8px);
-        opacity: 0.8;
-    }
-}
-
-@keyframes floatBounce {
-    0%, 100% {
-        transform: translateY(0px) rotate(0deg);
-    }
-    25% {
-        transform: translateY(-12px) rotate(90deg);
-    }
-    50% {
-        transform: translateY(-20px) rotate(180deg);
-    }
-    75% {
-        transform: translateY(-12px) rotate(270deg);
-    }
-}
-
-@keyframes floatWave {
-    0%, 100% {
-        transform: translateX(-50%) translateY(0px) rotate(0deg);
-    }
-    25% {
-        transform: translateX(-45%) translateY(-10px) rotate(90deg);
-    }
-    50% {
-        transform: translateX(-55%) translateY(-15px) rotate(180deg);
-    }
-    75% {
-        transform: translateX(-45%) translateY(-10px) rotate(270deg);
-    }
-}
-
 .welcome-section .accent-line {
     position: absolute;
     bottom: 0;
@@ -353,8 +129,8 @@ require_once '../includes/header.php';
 }
 
 .stats-icon {
-    width: 45px;
-    height: 45px;
+    width: 60px;
+    height: 60px;
     transition: all 0.3s ease;
 }
 
@@ -363,59 +139,51 @@ require_once '../includes/header.php';
 }
 
 .stats-primary {
-    background: white;
-    border-left: 4px solid #0d6efd;
-    color: #0d6efd;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #0d6efd;
+    border-left: 4px solid #0a58ca;
+    color: white;
 }
 
 .stats-success {
-    background: white;
-    border-left: 4px solid #198754;
-    color: #198754;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #198754;
+    border-left: 4px solid #146c43;
+    color: white;
 }
 
 .stats-info {
-    background: white;
-    border-left: 4px solid #0dcaf0;
-    color: #0dcaf0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #0dcaf0;
+    border-left: 4px solid #0aa2c0;
+    color: white;
 }
 
 .stats-warning {
-    background: white;
-    border-left: 4px solid #ffc107;
-    color: #ffc107;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #ffc107;
+    border-left: 4px solid #ffca2c;
+    color: #000;
 }
 
 .stats-secondary {
-    background: white;
-    border-left: 4px solid #6c757d;
-    color: #6c757d;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #6c757d;
+    border-left: 4px solid #5c636a;
+    color: white;
 }
 
 .stats-danger {
-    background: white;
-    border-left: 4px solid #dc3545;
-    color: #dc3545;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #dc3545;
+    border-left: 4px solid #b02a37;
+    color: white;
 }
 
 .stats-danger-alt {
-    background: white;
-    border-left: 4px solid #e91e63;
-    color: #e91e63;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #e91e63;
+    border-left: 4px solid #d81b60;
+    color: white;
 }
 
 .stats-purple {
-    background: white;
-    border-left: 4px solid #9c27b0;
-    color: #9c27b0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background: #9c27b0;
+    border-left: 4px solid #7b1fa2;
+    color: white;
 }
 
 /* Search and Filter Section */
@@ -533,8 +301,6 @@ require_once '../includes/header.php';
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    position: relative;
-    z-index: 3;
 }
 
 .back-btn:hover {
@@ -1397,8 +1163,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
 }
 
 .stats-icon {
-    width: 45px;
-    height: 45px;
+    width: 60px;
+    height: 60px;
     transition: all 0.3s ease;
 }
 
@@ -1407,59 +1173,43 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
 }
 
 .stats-primary {
-    background: white;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
     border-left: 4px solid #0d6efd;
-    color: #0d6efd;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-success {
-    background: white;
+    background: linear-gradient(135deg, #e8f5e8 0%, #f8f9fa 100%);
     border-left: 4px solid #198754;
-    color: #198754;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-info {
-    background: white;
+    background: linear-gradient(135deg, #e0f7fa 0%, #f8f9fa 100%);
     border-left: 4px solid #0dcaf0;
-    color: #0dcaf0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-warning {
-    background: white;
+    background: linear-gradient(135deg, #fff8e1 0%, #f8f9fa 100%);
     border-left: 4px solid #ffc107;
-    color: #ffc107;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-secondary {
-    background: white;
+    background: linear-gradient(135deg, #f5f5f5 0%, #f8f9fa 100%);
     border-left: 4px solid #6c757d;
-    color: #6c757d;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-danger {
-    background: white;
+    background: linear-gradient(135deg, #ffebee 0%, #f8f9fa 100%);
     border-left: 4px solid #dc3545;
-    color: #dc3545;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-danger-alt {
-    background: white;
+    background: linear-gradient(135deg, #fce4ec 0%, #f8f9fa 100%);
     border-left: 4px solid #e91e63;
-    color: #e91e63;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .stats-purple {
-    background: white;
+    background: linear-gradient(135deg, #f3e5f5 0%, #f8f9fa 100%);
     border-left: 4px solid #9c27b0;
-    color: #9c27b0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .bg-purple {
@@ -1645,42 +1395,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                         <i class="bi bi-collection"></i>
                     </div>
                     <div class="floating-shapes"></div>
-                    <!-- Minimal floating icon -->
-                    <div class="minimal-floating-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <!-- Additional floating elements -->
-                    <div class="floating-element floating-element-1">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
-                    <div class="floating-element floating-element-2">
-                        <i class="fas fa-book-open"></i>
-                    </div>
-                    <div class="floating-element floating-element-3">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="floating-element floating-element-4">
-                        <i class="fas fa-trophy"></i>
-                    </div>
-                    <div class="floating-element floating-element-5">
-                        <i class="fas fa-chart-bar"></i>
-                    </div>
-                    <div class="floating-element floating-element-6">
-                        <i class="fas fa-lightbulb"></i>
-                    </div>
-                    <!-- Center floating elements -->
-                    <div class="floating-element floating-element-7">
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <div class="floating-element floating-element-8">
-                        <i class="fas fa-puzzle-piece"></i>
-                    </div>
-                    <div class="floating-element floating-element-9">
-                        <i class="fas fa-rocket"></i>
-                    </div>
-                    <div class="floating-element floating-element-10">
-                        <i class="fas fa-brain"></i>
-                    </div>
                 </div>
             </div>
             <div class="accent-line"></div>
@@ -1690,104 +1404,104 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
         <div class="row mb-4">
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-primary border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-collection-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-primary"><?= $stats['total_sections'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_sections'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Total Sections</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-success border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-check-circle-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-success"><?= $stats['active_sections'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['active_sections'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Active Sections</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-info border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-calendar-check-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-info"><?= $stats['current_period_sections'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['current_period_sections'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Current Period</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-warning border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-people-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-warning"><?= $stats['total_students_assigned'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_students_assigned'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Students Assigned</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-secondary border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-mortarboard-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-secondary"><?= $stats['year_levels_covered'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['year_levels_covered'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Year Levels</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-danger border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-book-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-danger"><?= $stats['total_courses'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_courses'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Total Courses</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-danger-alt border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-x-circle-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-danger"><?= $stats['inactive_sections'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['inactive_sections'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Inactive Sections</p>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
             <div class="card stats-card stats-purple border-0 shadow-sm h-100">
-                <div class="card-body text-center p-2">
+                <div class="card-body text-center p-3">
                     <div class="d-flex align-items-center justify-content-center mb-3">
                         <div class="stats-icon bg-purple text-white rounded-circle d-flex align-items-center justify-content-center">
                             <i class="bi bi-people-fill fs-4"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold mb-1 text-purple"><?= $stats['total_teachers_assigned'] ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_teachers_assigned'] ?></h3>
                     <p class="text-muted mb-0 small fw-medium">Teachers Assigned</p>
                 </div>
             </div>

@@ -17,9 +17,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
-// Include header for Bootstrap and navigation
-require_once '../includes/header.php';
-
 // Get student information including irregular status
 $stmt = $pdo->prepare("SELECT is_irregular FROM users WHERE id = ?");
 $stmt->execute([$user_id]);

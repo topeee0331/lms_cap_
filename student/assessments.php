@@ -17,9 +17,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
-// Include header for Bootstrap and navigation
-require_once '../includes/header.php';
-
 // Get all course IDs the student is enrolled in
 $enrolled_stmt = $pdo->prepare('SELECT course_id FROM course_enrollments WHERE student_id = ? AND status = "active"');
 $enrolled_stmt->execute([$user_id]);

@@ -191,7 +191,7 @@ function getRandomBgClass($userId) {
     font-weight: 800;
     margin-bottom: 0.5rem;
     position: relative;
-    z-index: 3;
+    z-index: 1;
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     font-family: 'Inter', sans-serif;
 }
@@ -201,12 +201,12 @@ function getRandomBgClass($userId) {
     font-size: 1.1rem;
     margin-bottom: 1rem;
     position: relative;
-    z-index: 3;
+    z-index: 1;
 }
 
 .welcome-actions {
     position: relative;
-    z-index: 3;
+    z-index: 1;
 }
 
 /* Integrated Stats Display */
@@ -220,8 +220,6 @@ function getRandomBgClass($userId) {
     border-radius: var(--border-radius-xl);
     padding: 1rem 1.5rem;
     margin-top: 1rem;
-    position: relative;
-    z-index: 3;
 }
 
 .stat-item {
@@ -233,7 +231,7 @@ function getRandomBgClass($userId) {
     display: block;
     font-size: 2rem;
     font-weight: 800;
-    color: white;
+    color: var(--accent-green);
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -254,18 +252,16 @@ function getRandomBgClass($userId) {
     color: white;
     display: inline-block;
     margin-top: 1rem;
-    position: relative;
-    z-index: 3;
 }
 
 .academic-year-icon {
-    color: white !important;
+    color: var(--accent-green);
     margin-right: 0.5rem;
     font-size: 1.1rem;
 }
 
 .academic-year-label {
-    color: white !important;
+    color: rgba(255,255,255,0.9);
     margin-right: 0.75rem;
     font-weight: 600;
     margin-bottom: 0;
@@ -274,7 +270,7 @@ function getRandomBgClass($userId) {
 .academic-year-select {
     background: rgba(255,255,255,0.2);
     border: 1px solid rgba(255,255,255,0.3);
-    color: white !important;
+    color: white;
     border-radius: 15px;
     padding: 0.5rem 1rem;
     font-weight: 600;
@@ -321,230 +317,6 @@ function getRandomBgClass($userId) {
     background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
     border-radius: 50%;
     z-index: 0;
-}
-
-/* Minimal floating icon */
-.minimal-floating-icon {
-    position: absolute;
-    top: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
-    background: rgba(255,255,255,0.2);
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    animation: float 3s ease-in-out infinite;
-    backdrop-filter: blur(10px);
-}
-
-.minimal-floating-icon i {
-    font-size: 1.2rem;
-    color: rgba(255,255,255,0.9);
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-/* Additional floating elements */
-.floating-element {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 0;
-    backdrop-filter: blur(5px);
-    opacity: 0.5;
-    margin: 5px;
-}
-
-.floating-element i {
-    font-size: 1rem;
-    color: rgba(255,255,255,0.8);
-}
-
-/* Individual floating element positions and animations */
-.floating-element-1 {
-    top: 10%;
-    left: 8%;
-    animation: floatSlow 4s ease-in-out infinite;
-}
-
-.floating-element-2 {
-    top: 20%;
-    right: 12%;
-    animation: floatReverse 3.5s ease-in-out infinite;
-}
-
-.floating-element-3 {
-    top: 65%;
-    left: 3%;
-    animation: floatUp 5s ease-in-out infinite;
-}
-
-.floating-element-4 {
-    top: 75%;
-    right: 15%;
-    animation: floatDown 4.5s ease-in-out infinite;
-}
-
-.floating-element-5 {
-    top: 35%;
-    left: 15%;
-    animation: floatSide 6s ease-in-out infinite;
-}
-
-.floating-element-6 {
-    top: 45%;
-    right: 3%;
-    animation: floatRotate 5.5s ease-in-out infinite;
-}
-
-/* Center floating elements */
-.floating-element-7 {
-    top: 30%;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: floatCenter 4s ease-in-out infinite;
-}
-
-.floating-element-8 {
-    top: 40%;
-    left: 40%;
-    animation: floatPulse 3.8s ease-in-out infinite;
-}
-
-.floating-element-9 {
-    top: 50%;
-    left: 60%;
-    animation: floatBounce 4.2s ease-in-out infinite;
-}
-
-.floating-element-10 {
-    top: 60%;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: floatWave 5.8s ease-in-out infinite;
-}
-
-/* Different animation keyframes */
-@keyframes floatSlow {
-    0%, 100% {
-        transform: translateY(0px) translateX(0px);
-    }
-    50% {
-        transform: translateY(-15px) translateX(10px);
-    }
-}
-
-@keyframes floatReverse {
-    0%, 100% {
-        transform: translateY(0px) translateX(0px);
-    }
-    50% {
-        transform: translateY(15px) translateX(-10px);
-    }
-}
-
-@keyframes floatUp {
-    0%, 100% {
-        transform: translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateY(-20px) scale(1.1);
-    }
-}
-
-@keyframes floatDown {
-    0%, 100% {
-        transform: translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateY(20px) scale(0.9);
-    }
-}
-
-@keyframes floatSide {
-    0%, 100% {
-        transform: translateX(0px) rotate(0deg);
-    }
-    50% {
-        transform: translateX(15px) rotate(180deg);
-    }
-}
-
-@keyframes floatRotate {
-    0%, 100% {
-        transform: rotate(0deg) translateY(0px);
-    }
-    50% {
-        transform: rotate(180deg) translateY(-10px);
-    }
-}
-
-/* Center element animations */
-@keyframes floatCenter {
-    0%, 100% {
-        transform: translateX(-50%) translateY(0px) scale(1);
-    }
-    50% {
-        transform: translateX(-50%) translateY(-15px) scale(1.1);
-    }
-}
-
-@keyframes floatPulse {
-    0%, 100% {
-        transform: scale(1) translateY(0px);
-        opacity: 0.5;
-    }
-    50% {
-        transform: scale(1.2) translateY(-8px);
-        opacity: 0.8;
-    }
-}
-
-@keyframes floatBounce {
-    0%, 100% {
-        transform: translateY(0px) rotate(0deg);
-    }
-    25% {
-        transform: translateY(-12px) rotate(90deg);
-    }
-    50% {
-        transform: translateY(-20px) rotate(180deg);
-    }
-    75% {
-        transform: translateY(-12px) rotate(270deg);
-    }
-}
-
-@keyframes floatWave {
-    0%, 100% {
-        transform: translateX(-50%) translateY(0px) rotate(0deg);
-    }
-    25% {
-        transform: translateX(-45%) translateY(-10px) rotate(90deg);
-    }
-    50% {
-        transform: translateX(-55%) translateY(-15px) rotate(180deg);
-    }
-    75% {
-        transform: translateX(-45%) translateY(-10px) rotate(270deg);
-    }
 }
 
 .welcome-section .accent-line {
@@ -605,7 +377,7 @@ function getRandomBgClass($userId) {
 }
 
 .stats-card:hover .stats-icon {
-    transform: none;
+    transform: scale(1.1);
 }
 
 .stats-primary {
@@ -660,10 +432,10 @@ function getRandomBgClass($userId) {
 
 /* Quick Actions Section - Inspired by Teacher Dashboard */
 .quick-actions-card {
-    background: linear-gradient(135deg, #f8fffe 0%, #e8f5e8 100%);
+    background: var(--white);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-sm);
-    border: 1px solid var(--accent-green);
+    border: 1px solid var(--border-light);
     overflow: hidden;
 }
 
@@ -941,42 +713,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-cogs"></i>
                 </div>
                 <div class="floating-shapes"></div>
-                <!-- Minimal floating icon -->
-                <div class="minimal-floating-icon">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <!-- Additional floating elements -->
-                <div class="floating-element floating-element-1">
-                    <i class="fas fa-graduation-cap"></i>
-                </div>
-                <div class="floating-element floating-element-2">
-                    <i class="fas fa-book-open"></i>
-                </div>
-                <div class="floating-element floating-element-3">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="floating-element floating-element-4">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="floating-element floating-element-5">
-                    <i class="fas fa-chart-bar"></i>
-                </div>
-                <div class="floating-element floating-element-6">
-                    <i class="fas fa-lightbulb"></i>
-                </div>
-                <!-- Center floating elements -->
-                <div class="floating-element floating-element-7">
-                    <i class="fas fa-star"></i>
-                </div>
-                <div class="floating-element floating-element-8">
-                    <i class="fas fa-puzzle-piece"></i>
-                </div>
-                <div class="floating-element floating-element-9">
-                    <i class="fas fa-rocket"></i>
-                </div>
-                <div class="floating-element floating-element-10">
-                    <i class="fas fa-brain"></i>
-                </div>
                 <div class="accent-line"></div>
             </div>
 
@@ -987,7 +723,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card stats-card stats-primary border-0 shadow-sm h-100">
                             <div class="card-body text-center p-3">
                                 <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-white text-primary rounded-circle d-flex align-items-center justify-content-center">
+                                    <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
                                         <i class="bi bi-people fs-4"></i>
                                     </div>
                                 </div>
@@ -1003,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card stats-card stats-success border-0 shadow-sm h-100">
                             <div class="card-body text-center p-3">
                                 <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-white text-success rounded-circle d-flex align-items-center justify-content-center">
+                                    <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
                                         <i class="bi bi-book fs-4"></i>
                                     </div>
                                 </div>
@@ -1019,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card stats-card stats-info border-0 shadow-sm h-100">
                             <div class="card-body text-center p-3">
                                 <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-white text-info rounded-circle d-flex align-items-center justify-content-center">
+                                    <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
                                         <i class="bi bi-clipboard-check fs-4"></i>
                                     </div>
                                 </div>
@@ -1035,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card stats-card stats-warning border-0 shadow-sm h-100">
                             <div class="card-body text-center p-3">
                                 <div class="d-flex align-items-center justify-content-center mb-3">
-                                    <div class="stats-icon bg-white text-warning rounded-circle d-flex align-items-center justify-content-center">
+                                    <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
                                         <i class="bi bi-graph-up fs-4"></i>
                                     </div>
                                 </div>

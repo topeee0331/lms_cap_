@@ -944,9 +944,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("UPDATE sections SET students = ? WHERE id = ?");
             $stmt->execute([$students_json, $section_id]);
             
-            echo "<script>alert('Students added successfully!'); window.location.href='sections.php';</script>";
+            echo "<script>window.location.href='sections.php';</script>";
         } else {
-            echo "<script>alert('No students selected.'); window.location.href='sections.php';</script>";
+            echo "<script>window.location.href='sections.php';</script>";
         }
         exit;
     }

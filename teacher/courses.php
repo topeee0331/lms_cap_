@@ -249,6 +249,56 @@ require_once '../includes/header.php';
         color: white;
     }
 
+    /* Year Level Section Headers */
+    .year-level-header {
+        background: linear-gradient(135deg, #2E5E4E 0%, #7DCB80 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        margin: 2rem 0 1.5rem 0;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(46, 94, 78, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .year-level-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
+    }
+
+    .year-level-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .year-level-subtitle {
+        font-size: 1rem;
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+
+    .year-level-decoration {
+        position: absolute;
+        top: 50%;
+        right: 2rem;
+        transform: translateY(-50%);
+        font-size: 3rem;
+        opacity: 0.3;
+        z-index: 0;
+    }
+
     /* Responsive Design */
     @media (max-width: 768px) {
         .welcome-title {
@@ -264,6 +314,15 @@ require_once '../includes/header.php';
         .course-stats {
             flex-direction: column;
             gap: 0.5rem;
+        }
+
+        .year-level-title {
+            font-size: 1.5rem;
+        }
+
+        .year-level-decoration {
+            font-size: 2rem;
+            right: 1rem;
         }
     }
 </style>
@@ -316,7 +375,7 @@ $course_sql = "SELECT c.*, ap.academic_year, ap.semester_name,
                ) student_counts ON student_counts.course_id = c.id
                
                WHERE c.teacher_id = ? AND c.academic_period_id = ? AND c.is_archived = 0
-               ORDER BY c.course_name";
+               ORDER BY c.year_level ASC, c.course_name ASC";
 $course_stmt = $db->prepare($course_sql);
 $course_stmt->execute([$teacher_id, $selected_year_id, $teacher_id, $selected_year_id]);
 $courses = $course_stmt->fetchAll();
@@ -705,131 +764,182 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                 </div>
             </div>
         <?php else: ?>
-            <?php foreach ($courses as $course): ?>
+            <?php
+            // Group courses by year level
+            $grouped_courses = [];
+            foreach ($courses as $course) {
+                $year_level = $course['year_level'] ?? 'N/A';
+                if (!isset($grouped_courses[$year_level])) {
+                    $grouped_courses[$year_level] = [];
+                }
+                $grouped_courses[$year_level][] = $course;
+            }
+            
+            // Sort year levels numerically
+            ksort($grouped_courses, SORT_NUMERIC);
+            
+            // Year level display names and icons
+            $year_display_info = [
+                '1' => ['name' => '1st Year', 'icon' => 'fas fa-graduation-cap', 'description' => 'Foundation courses and introductory subjects'],
+                '2' => ['name' => '2nd Year', 'icon' => 'fas fa-laptop-code', 'description' => 'Intermediate programming and core concepts'],
+                '3' => ['name' => '3rd Year', 'icon' => 'fas fa-database', 'description' => 'Advanced topics and specialized subjects'],
+                '4' => ['name' => '4th Year', 'icon' => 'fas fa-project-diagram', 'description' => 'Capstone projects and final year courses'],
+                'N/A' => ['name' => 'Unassigned', 'icon' => 'fas fa-question-circle', 'description' => 'Courses without assigned year level']
+            ];
+            ?>
+            
+            <?php foreach ($grouped_courses as $year_level => $year_courses): ?>
                 <?php
-                    $theme = $course_themes[$course['id'] % count($course_themes)];
+                $display_info = $year_display_info[$year_level] ?? $year_display_info['N/A'];
+                $course_count = count($year_courses);
                 ?>
-                <div class="col-lg-6 col-xl-4 mb-4">
-                    <div class="card course-card h-100">
-                        <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
-                            <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
-                            <h2 class="course-code-text">
-                                <?php echo htmlspecialchars($course['course_code']); ?>
-                            </h2>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0"><?php echo htmlspecialchars($course['course_name']); ?></h5>
-                                <?php 
-                                $year_level = $course['year_level'] ?? 'N/A';
-                                $year_colors = [
-                                    '1' => 'success',
-                                    '1st Year' => 'success',
-                                    '2' => 'info', 
-                                    '2nd Year' => 'info',
-                                    '3' => 'warning',
-                                    '3rd Year' => 'warning',
-                                    '4' => 'danger',
-                                    '4th Year' => 'danger'
-                                ];
-                                $badge_color = $year_colors[$year_level] ?? 'secondary';
-                                ?>
-                                <span class="badge bg-<?= $badge_color ?> fs-6">
-                                    <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
-                                </span>
+                
+                <!-- Year Level Header -->
+                <div class="col-12">
+                    <div class="year-level-header">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h2 class="year-level-title">
+                                    <i class="<?= $display_info['icon'] ?> me-2"></i>
+                                    <?= $display_info['name'] ?> Courses
+                                </h2>
+                                <p class="year-level-subtitle">
+                                    <?= $display_info['description'] ?> • <?= $course_count ?> course<?= $course_count !== 1 ? 's' : '' ?>
+                                </p>
                             </div>
-                            <p class="card-text text-muted">
-                                <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
-                            </p>
-                            
-                            <!-- Academic Year and Semester Info -->
-                            <div class="mb-2">
-                                <?php if (isset($course['academic_year'])): ?>
-                                    <span class="badge" style="background: var(--highlight-yellow); color: var(--main-green); font-weight: 700;"><?php echo htmlspecialchars($course['academic_year']); ?></span>
-                                <?php endif; ?>
-                                <?php if (isset($course['semester_name'])): ?>
-                                    <span class="badge bg-secondary"><?php echo htmlspecialchars($course['semester_name']); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <!-- Sections as Subjects -->
-                            <div class="mb-2">
-                                <strong>Sections:</strong>
-                                <?php
-                                // Minimalist section badge grid with 'View' text button and smaller font
-                                $course_sections = get_course_sections($db, $course['id']);
-                                if ($course_sections):
-                                    $max_sections = 9;
-                                    $display_sections = array_slice($course_sections, 0, $max_sections);
-                                ?>
-                                    <div class="row g-2 mb-2">
-                                        <?php foreach ($display_sections as $i => $sec):
-                                            $students = get_section_students($db, $sec['id']);
-                                            $student_count = count($students);
-                                        ?>
-                                            <div class="col-12 col-sm-6 col-md-4">
-                                                <span class="d-flex align-items-center justify-content-between w-100 mb-1 px-2 py-1" style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 1.2em; font-size: 0.92rem; min-height: 2em;">
-                                                    <span style="font-weight: 500; color: var(--main-green); letter-spacing: 0.5px;"><?= htmlspecialchars($sec['name']) ?></span>
-                                                    <span class="badge bg-light text-dark ms-2" style="font-size:0.82em; border-radius:1em; min-width:1.6em; border:1px solid #e5e7eb; color:var(--main-green);"> <?= $student_count ?> </span>
-                                                    <button type="button" class="btn btn-link p-0 ms-2" style="color:var(--main-green); border:none; background:none; font-size:0.95em; line-height:1; text-decoration:underline; font-weight:500;" title="View students" onclick="viewStudents(<?= $course['id'] ?>, <?= $sec['id'] ?>, '<?= htmlspecialchars($sec['name']) ?>', '<?= htmlspecialchars($course['course_name']) ?>')">
-                                                        View
-                                                    </button>
-                                                </span>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <?php if (count($course_sections) > $max_sections): ?>
-                                        <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="alert('Show all feature coming soon!')">Show all</a></small></div>
-                                    <?php endif; ?>
-                                <?php
-                                else:
-                                    echo '<span class="text-muted">None</span>';
-                                endif;
-                                ?>
-                            </div>
-                            <!-- Course Statistics -->
-                            <div class="row text-center mb-3">
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-primary"><?php echo $course['student_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Students</small>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-success"><?php echo $course['module_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Modules</small>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-info"><?php echo $course['video_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Videos</small>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <h6 class="mb-0 text-warning"><?php echo $course['assessment_count'] ?? 0; ?></h6>
-                                    <small class="text-muted">Assessments</small>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <?php if (isset($course['created_at'])): ?>
-                                    <small class="text-muted">Created <?php echo date('M j, Y', strtotime($course['created_at'])); ?></small>
-                                <?php endif; ?>
-                                <small class="text-muted">
-                                    Created by: <?php echo htmlspecialchars($course['creator_name'] . ' (' . $course['creator_username'] . ')'); ?>
-                                </small>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="d-grid gap-2">
-                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
-                                    <i class="bi bi-gear me-1"></i>Manage Course
-                                </a>
+                            <div class="year-level-decoration">
+                                <i class="<?= $display_info['icon'] ?>"></i>
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Courses for this year level -->
+                <?php foreach ($year_courses as $course): ?>
+                    <?php
+                        $theme = $course_themes[$course['id'] % count($course_themes)];
+                    ?>
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="card course-card h-100">
+                            <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
+                                <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
+                                <h2 class="course-code-text">
+                                    <?php echo htmlspecialchars($course['course_code']); ?>
+                                </h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0"><?php echo htmlspecialchars($course['course_name']); ?></h5>
+                                    <?php 
+                                    $year_colors = [
+                                        '1' => 'success',
+                                        '1st Year' => 'success',
+                                        '2' => 'info', 
+                                        '2nd Year' => 'info',
+                                        '3' => 'warning',
+                                        '3rd Year' => 'warning',
+                                        '4' => 'danger',
+                                        '4th Year' => 'danger'
+                                    ];
+                                    $badge_color = $year_colors[$year_level] ?? 'secondary';
+                                    ?>
+                                    <span class="badge bg-<?= $badge_color ?> fs-6">
+                                        <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
+                                    </span>
+                                </div>
+                                <p class="card-text text-muted">
+                                    <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
+                                </p>
+                                
+                                <!-- Academic Year and Semester Info -->
+                                <div class="mb-2">
+                                    <?php if (isset($course['academic_year'])): ?>
+                                        <span class="badge" style="background: var(--highlight-yellow); color: var(--main-green); font-weight: 700;"><?php echo htmlspecialchars($course['academic_year']); ?></span>
+                                    <?php endif; ?>
+                                    <?php if (isset($course['semester_name'])): ?>
+                                        <span class="badge bg-secondary"><?php echo htmlspecialchars($course['semester_name']); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Sections as Subjects -->
+                                <div class="mb-2">
+                                    <strong>Sections:</strong>
+                                    <?php
+                                    // Minimalist section badge grid with 'View' text button and smaller font
+                                    $course_sections = get_course_sections($db, $course['id']);
+                                    if ($course_sections):
+                                        $max_sections = 9;
+                                        $display_sections = array_slice($course_sections, 0, $max_sections);
+                                    ?>
+                                        <div class="row g-2 mb-2">
+                                            <?php foreach ($display_sections as $i => $sec):
+                                                $students = get_section_students($db, $sec['id']);
+                                                $student_count = count($students);
+                                            ?>
+                                                <div class="col-12 col-sm-6 col-md-4">
+                                                    <span class="d-flex align-items-center justify-content-between w-100 mb-1 px-2 py-1" style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 1.2em; font-size: 0.92rem; min-height: 2em;">
+                                                        <span style="font-weight: 500; color: var(--main-green); letter-spacing: 0.5px;"><?= htmlspecialchars($sec['name']) ?></span>
+                                                        <span class="badge bg-light text-dark ms-2" style="font-size:0.82em; border-radius:1em; min-width:1.6em; border:1px solid #e5e7eb; color:var(--main-green);"> <?= $student_count ?> </span>
+                                                        <button type="button" class="btn btn-link p-0 ms-2" style="color:var(--main-green); border:none; background:none; font-size:0.95em; line-height:1; text-decoration:underline; font-weight:500;" title="View students" onclick="viewStudents(<?= $course['id'] ?>, <?= $sec['id'] ?>, '<?= htmlspecialchars($sec['name']) ?>', '<?= htmlspecialchars($course['course_name']) ?>')">
+                                                            View
+                                                        </button>
+                                                    </span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <?php if (count($course_sections) > $max_sections): ?>
+                                            <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="alert('Show all feature coming soon!')">Show all</a></small></div>
+                                        <?php endif; ?>
+                                    <?php
+                                    else:
+                                        echo '<span class="text-muted">None</span>';
+                                    endif;
+                                    ?>
+                                </div>
+                                <!-- Course Statistics -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-3">
+                                        <div class="border-end">
+                                            <h6 class="mb-0 text-primary"><?php echo $course['student_count'] ?? 0; ?></h6>
+                                            <small class="text-muted">Students</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="border-end">
+                                            <h6 class="mb-0 text-success"><?php echo $course['module_count'] ?? 0; ?></h6>
+                                            <small class="text-muted">Modules</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="border-end">
+                                            <h6 class="mb-0 text-info"><?php echo $course['video_count'] ?? 0; ?></h6>
+                                            <small class="text-muted">Videos</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <h6 class="mb-0 text-warning"><?php echo $course['assessment_count'] ?? 0; ?></h6>
+                                        <small class="text-muted">Assessments</small>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <?php if (isset($course['created_at'])): ?>
+                                        <small class="text-muted">Created <?php echo date('M j, Y', strtotime($course['created_at'])); ?></small>
+                                    <?php endif; ?>
+                                    <small class="text-muted">
+                                        Created by: <?php echo htmlspecialchars($course['creator_name'] . ' (' . $course['creator_username'] . ')'); ?>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
+                                        <i class="bi bi-gear me-1"></i>Manage Course
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>

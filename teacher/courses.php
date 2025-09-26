@@ -5,78 +5,14 @@ require_once '../includes/header.php';
 <!-- Font Awesome for icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
-    /* Import Google Fonts for professional typography */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    
-    /* System Color Variables - Matching Announcements Page */
-    :root {
-        --main-green: #2E5E4E;      /* Deep, modern green */
-        --accent-green: #7DCB80;    /* Light, fresh green */
-        --highlight-yellow: #FFE066;/* Softer yellow for highlights */
-        --off-white: #F7FAF7;       /* Clean, soft background */
-        --white: #FFFFFF;
-        --text-dark: #2c3e50;
-        --text-muted: #6c757d;
-        --border-light: #e9ecef;
-        --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-        --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
-        --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
-        --border-radius: 8px;
-        --border-radius-lg: 12px;
-        --border-radius-xl: 20px;
-        --transition: all 0.3s ease;
-    }
-    
-    /* Global Styles */
-    body {
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: var(--off-white);
-        min-height: 100vh;
-    }
-    
-    .container-fluid {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        background: transparent;
-    }
-    
-    .row:first-child {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-    }
-    
-    .mb-4 {
-        margin-bottom: 1.5rem !important;
-    }
-    
-    .mb-3 {
-        margin-bottom: 1rem !important;
-    }
-    
-    .card:last-child {
-        margin-bottom: 2rem !important;
-    }
-    
-    .text-center.py-5 {
-        padding-bottom: 3rem !important;
-        margin-bottom: 2rem !important;
-    }
-    
     .course-card {
-        transition: var(--transition);
+        transition: transform 0.2s, box-shadow 0.2s;
         height: 100%;
-        border: 1px solid var(--border-light);
-        border-radius: var(--border-radius);
-        box-shadow: var(--shadow-sm);
-        background: var(--white);
     }
-    
     .course-card:hover {
         transform: translateY(-5px);
-        box-shadow: var(--shadow-lg);
-        border-color: var(--accent-green);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
-    
     .course-image {
         height: 200px;
         object-fit: cover;
@@ -84,7 +20,7 @@ require_once '../includes/header.php';
     
     /* Creative Course Code Styling */
     .course-code-text {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Poppins', 'Arial', sans-serif;
         font-size: 2.8rem;
         font-weight: 800;
         color: rgba(255, 255, 255, 0.9);
@@ -94,77 +30,63 @@ require_once '../includes/header.php';
         z-index: 2;
     }
     
-    /* Enhanced Welcome Section - Matching Announcements Design with Animations */
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+    
+    /* Enhanced Welcome Section */
     .welcome-section {
-        background: var(--main-green);
-        border-radius: var(--border-radius-xl);
+        background: #2E5E4E;
+        border-radius: 20px;
         padding: 2rem;
         margin-bottom: 2rem;
         position: relative;
         overflow: hidden;
-        box-shadow: var(--shadow-lg);
-        opacity: 0;
-        transform: translateY(-30px);
-        animation: slideInDown 0.8s ease-out forwards;
-    }
-
-    @keyframes slideInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
     }
 
     .welcome-section::before {
-        content: "";
+        content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
-        opacity: 0.3;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
     }
 
     .welcome-title {
         color: white;
         font-size: 2.5rem;
-        font-weight: 700;
-        margin: 0;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
         position: relative;
-        z-index: 2;
+        z-index: 1;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        font-family: 'Inter', sans-serif;
     }
 
     .welcome-subtitle {
-        color: white !important;
+        color: rgba(255,255,255,0.9);
         font-size: 1.1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0;
         position: relative;
-        z-index: 2;
+        z-index: 1;
     }
 
     .welcome-actions {
         position: relative;
-        z-index: 2;
+        z-index: 1;
     }
 
     .quick-stats {
         display: flex;
         gap: 2rem;
         background: rgba(255,255,255,0.2);
-        border: 2px solid rgba(255,255,255,0.3);
+        border: 1px solid rgba(255,255,255,0.3);
         backdrop-filter: blur(10px);
-        border-radius: var(--border-radius);
+        border-radius: 20px;
         padding: 1rem 1.5rem;
         width: fit-content;
-        position: relative;
-        z-index: 2;
     }
 
     .stat-item {
@@ -175,10 +97,9 @@ require_once '../includes/header.php';
     .stat-number {
         display: block;
         font-size: 2rem;
-        font-weight: 700;
+        font-weight: 800;
         color: white;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        font-family: 'Inter', sans-serif;
     }
 
     .stat-label {
@@ -186,7 +107,6 @@ require_once '../includes/header.php';
         font-size: 0.9rem;
         color: rgba(255,255,255,0.9);
         margin-top: 0.25rem;
-        font-weight: 500;
     }
 
     .floating-shapes {
@@ -229,70 +149,34 @@ require_once '../includes/header.php';
         border-radius: 0 0 20px 20px;
     }
 
-    /* Enhanced Course Cards - Clean Design with Animations */
+    /* Enhanced Course Cards */
     .course-card {
-        background: var(--white);
-        border: 1px solid var(--border-light);
-        border-radius: var(--border-radius);
-        padding: 0;
+        background: white;
+        border: 1px solid #E8F5E8;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin-bottom: 1.5rem;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         height: 100%;
-        overflow: hidden;
-        position: relative;
-        opacity: 0;
-        transform: translateY(30px);
-        animation: slideInUp 0.6s ease-out forwards;
     }
-
-    .course-card:nth-child(1) { animation-delay: 0.1s; }
-    .course-card:nth-child(2) { animation-delay: 0.2s; }
-    .course-card:nth-child(3) { animation-delay: 0.3s; }
-    .course-card:nth-child(4) { animation-delay: 0.4s; }
-    .course-card:nth-child(5) { animation-delay: 0.5s; }
-    .course-card:nth-child(6) { animation-delay: 0.6s; }
 
     .course-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-        border-color: var(--accent-green);
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .course-card .card-header {
-        background: var(--white);
-        border-bottom: 1px solid var(--border-light);
-        padding: 1.25rem;
-        position: relative;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        border-color: #7DCB80;
     }
 
     .course-card .card-title {
-        color: var(--main-green);
+        color: #2E5E4E;
         font-weight: 700;
         font-size: 1.3rem;
         margin-bottom: 0.5rem;
-        font-family: 'Inter', sans-serif;
     }
 
     .course-card .card-text {
-        color: var(--text-muted);
+        color: #666;
         margin-bottom: 1rem;
-        font-family: 'Inter', sans-serif;
-    }
-
-    .course-card .card-body {
-        padding: 1.25rem;
     }
 
     .course-stats {
@@ -318,81 +202,51 @@ require_once '../includes/header.php';
         color: #666;
     }
 
-    /* Enhanced Academic Year Selector - Matching Announcements Design with Animations */
+    /* Enhanced Academic Year Selector */
     .academic-year-selector {
-        background: var(--white);
-        border: 2px solid var(--accent-green);
-        border-radius: var(--border-radius);
-        padding: 1.5rem;
+        background: #F7FAF7;
+        border: 1px solid #7DCB80;
+        border-radius: 15px;
+        padding: 1rem 1.5rem;
         margin-bottom: 2rem;
-        box-shadow: var(--shadow-sm);
-        position: relative;
-        opacity: 0;
-        transform: translateX(-30px);
-        animation: slideInLeft 0.6s ease-out 0.2s forwards;
-    }
-
-    @keyframes slideInLeft {
-        from {
-            opacity: 0;
-            transform: translateX(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    .academic-year-selector::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: var(--main-green);
-        border-radius: var(--border-radius) var(--border-radius) 0 0;
     }
 
     .academic-year-selector .form-label {
-        color: var(--main-green);
+        color: #2E5E4E;
         font-weight: 600;
         margin-bottom: 0.5rem;
-        font-family: 'Inter', sans-serif;
     }
 
     .academic-year-selector .form-select {
-        border: 2px solid var(--accent-green);
-        border-radius: var(--border-radius);
-        color: var(--text-dark);
-        font-weight: 500;
-        font-family: 'Inter', sans-serif;
+        border: 1px solid #7DCB80;
+        border-radius: 10px;
+        color: #2E5E4E;
+        font-weight: 600;
     }
 
     .academic-year-selector .form-select:focus {
-        border-color: var(--main-green);
-        box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+        border-color: #7DCB80;
+        box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
     }
 
-    /* Enhanced Create Course Button - Matching Announcements Design */
+    /* Enhanced Create Course Button */
     .create-course-btn {
-        background: var(--main-green);
+        background: #7DCB80;
         color: white;
         border: none;
-        border-radius: var(--border-radius);
+        border-radius: 25px;
         padding: 0.75rem 2rem;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: var(--transition);
-        box-shadow: var(--shadow-sm);
-        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(125, 203, 128, 0.3);
     }
 
     .create-course-btn:hover {
-        background: var(--accent-green);
-        color: var(--main-green);
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
+        background: #2E5E4E;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(125, 203, 128, 0.4);
+        color: white;
     }
 
     /* Responsive Design */
@@ -411,317 +265,6 @@ require_once '../includes/header.php';
             flex-direction: column;
             gap: 0.5rem;
         }
-        
-        .academic-year-selector {
-            padding: 1rem;
-        }
-        
-        .academic-year-selector .d-flex {
-            flex-direction: column;
-            gap: 1rem;
-        }
-        
-        .academic-year-selector .d-flex > div {
-            width: 100%;
-        }
-        
-        .academic-year-selector .form-select {
-            width: 100% !important;
-        }
-        
-        .create-course-btn {
-            width: 100%;
-            margin-top: 1rem;
-        }
-        
-        .course-card {
-            margin-bottom: 1rem;
-        }
-        
-        .welcome-section {
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .floating-shapes {
-            display: none;
-        }
-        
-        .welcome-decoration {
-            display: none;
-        }
-    }
-    
-    @media (max-width: 576px) {
-        .welcome-title {
-            font-size: 1.5rem;
-        }
-        
-        .welcome-subtitle {
-            font-size: 1rem;
-        }
-        
-        .course-code-text {
-            font-size: 2rem;
-        }
-        
-        .course-image {
-            height: 150px;
-        }
-        
-        .stat-number {
-            font-size: 1.5rem;
-        }
-        
-        .quick-stats {
-            padding: 0.75rem 1rem;
-        }
-        
-        .welcome-section {
-            padding: 1rem;
-        }
-        
-        .academic-year-selector {
-            padding: 0.75rem;
-        }
-        
-        .card-body {
-            padding: 1rem;
-        }
-        
-        .course-stats .col-3 {
-            margin-bottom: 0.5rem;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .container-fluid {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-        }
-        
-        .welcome-title {
-            font-size: 1.25rem;
-        }
-        
-        .course-code-text {
-            font-size: 1.5rem;
-        }
-        
-        .course-image {
-            height: 120px;
-        }
-        
-        .btn {
-            font-size: 0.9rem;
-            padding: 0.5rem 1rem;
-        }
-        
-        .modal-dialog {
-            margin: 0.5rem;
-        }
-        
-        .modal-body {
-            padding: 1rem;
-        }
-        
-        .modal-header {
-            padding: 1rem;
-        }
-        
-        .modal-footer {
-            padding: 1rem;
-        }
-        
-        .form-control, .form-select {
-            font-size: 16px; /* Prevent zoom on iOS */
-        }
-    }
-    
-    /* Additional mobile optimizations */
-    @media (max-width: 576px) {
-        .modal-dialog {
-            max-width: calc(100vw - 1rem);
-        }
-        
-        .btn {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .course-card .card-body {
-            padding: 0.75rem;
-        }
-        
-        .course-card .card-footer {
-            padding: 0.75rem;
-        }
-    }
-    
-    /* Enhanced Modal Styling - Matching Announcements Design */
-    .modal-content {
-        border-radius: var(--border-radius);
-        border: 2px solid var(--accent-green);
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-    }
-    
-    .modal-header {
-        background: var(--main-green);
-        color: var(--white);
-        border-bottom: none;
-        padding: 1.5rem;
-    }
-    
-    .modal-header .modal-title {
-        font-weight: 700;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .modal-body {
-        padding: 1.5rem;
-    }
-    
-    .modal-footer {
-        background: var(--off-white);
-        border-top: 1px solid var(--border-light);
-        padding: 1rem 1.5rem;
-    }
-    
-    .form-control, .form-select {
-        border: 2px solid var(--border-light);
-        border-radius: var(--border-radius);
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .form-control:focus, .form-select:focus {
-        border-color: var(--accent-green);
-        box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
-    }
-    
-    .form-label {
-        font-weight: 600;
-        color: var(--text-dark);
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Statistics Cards Animation */
-    .stats-card {
-        opacity: 0;
-        transform: translateY(20px);
-        animation: fadeInUp 0.6s ease-out forwards;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .stats-card:nth-child(1) { animation-delay: 0.1s; }
-    .stats-card:nth-child(2) { animation-delay: 0.2s; }
-    .stats-card:nth-child(3) { animation-delay: 0.3s; }
-    .stats-card:nth-child(4) { animation-delay: 0.4s; }
-
-    .stats-card:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Button Animations */
-    .create-course-btn {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .create-course-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-
-    .create-course-btn:hover::before {
-        left: 100%;
-    }
-
-    /* Course Image Animation */
-    .course-image {
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .course-image:hover {
-        transform: scale(1.05);
-    }
-
-    .course-image i {
-        transition: all 0.3s ease;
-    }
-
-    .course-image:hover i {
-        transform: scale(1.1);
-        opacity: 0.8;
-    }
-
-    /* Badge Animations */
-    .badge {
-        transition: all 0.3s ease;
-    }
-
-    .badge:hover {
-        transform: scale(1.1);
-    }
-
-    /* Loading Animation for Empty State */
-    .empty-state-card {
-        opacity: 0;
-        transform: scale(0.9);
-        animation: scaleIn 0.5s ease-out 0.3s forwards;
-    }
-
-    @keyframes scaleIn {
-        from {
-            opacity: 0;
-            transform: scale(0.9);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-
-    /* Pulse Animation for Icons */
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-
-    .welcome-decoration i {
-        animation: pulse 2s infinite;
-    }
-
-    /* Floating Animation for Decorative Elements */
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-    }
-
-    .floating-shapes {
-        animation: float 3s ease-in-out infinite;
     }
 </style>
 <?php
@@ -974,9 +517,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
             $stmt->execute([$course_name, $course_code, $description, $teacher_id, $academic_period_id, $selected_year_level]);
             $course_id = $db->lastInsertId();
             
-            // Set success message and redirect with JavaScript
-            $_SESSION['success_message'] = 'Course created successfully!';
-            echo "<script>window.location.href='courses.php?academic_period_id=" . $academic_period_id . "';</script>";
+            echo "<script>alert('Course created successfully!'); window.location.href='courses.php?academic_period_id=" . $academic_period_id . "';</script>";
             exit;
         } catch (PDOException $e) {
             // Handle any other database errors
@@ -1049,11 +590,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
     <div class="row mb-3">
         <div class="col-12">
             <div class="academic-year-selector">
-                <form method="get" class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
-                    <div class="d-flex flex-column flex-md-row align-items-md-center mb-3 mb-md-0">
-                        <i class="fas fa-calendar-alt me-2 mb-2 mb-md-0" style="color: #7DCB80; font-size: 1.2rem;"></i>
-                        <label for="academic_period_id" class="form-label mb-0 me-3 mb-2 mb-md-0">Academic Period:</label>
-                        <select name="academic_period_id" id="academic_period_id" class="form-select" style="min-width: 250px;" onchange="this.form.submit()">
+                <form method="get" class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-alt me-2" style="color: #7DCB80; font-size: 1.2rem;"></i>
+                        <label for="academic_period_id" class="form-label mb-0 me-3">Academic Period:</label>
+                        <select name="academic_period_id" id="academic_period_id" class="form-select w-auto" onchange="this.form.submit()">
                             <?php foreach ($all_years as $year): ?>
                                 <option value="<?= $year['id'] ?>" <?= $selected_year_id == $year['id'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($year['academic_year']) ?> - <?= htmlspecialchars($year['semester_name']) ?><?= !$year['is_active'] ? ' (Inactive)' : '' ?>
@@ -1061,22 +602,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="button" class="btn create-course-btn" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+                    <button class="btn create-course-btn" data-bs-toggle="modal" data-bs-target="#createCourseModal">
                         <i class="bi bi-plus-circle me-2"></i>Create Course
                     </button>
                 </form>
             </div>
         </div>
     </div>
-
-    <?php if (isset($_SESSION['success_message'])): ?>
-        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
-            <i class="bi bi-check-circle me-2"></i>
-            <?php echo htmlspecialchars($_SESSION['success_message']); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <?php unset($_SESSION['success_message']); ?>
-    <?php endif; ?>
 
     <?php if (!$is_acad_year_active): ?>
         <div class="alert alert-warning mb-4">
@@ -1094,13 +626,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
         
         ?>
         <div class="row mb-4">
-            <div class="col-6 col-md-3 mb-3">
-                <div class="card h-100 stats-card" style="background: var(--main-green); color: white; border: 2px solid var(--accent-green); border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 700;"><?php echo count($courses); ?></h4>
-                                <p class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 500;">Total Courses</p>
+                                <h4 class="mb-0"><?php echo count($courses); ?></h4>
+                                <p class="mb-0">Total Courses</p>
                             </div>
                             <div class="align-self-center">
                                 <i class="bi bi-book fs-1"></i>
@@ -1109,13 +641,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3 mb-3">
-                <div class="card h-100 stats-card" style="background: var(--accent-green); color: var(--main-green); border: 2px solid var(--main-green); border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 700;"><?php echo $total_students; ?></h4>
-                                <p class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 500;">Total Students</p>
+                                <h4 class="mb-0"><?php echo $total_students; ?></h4>
+                                <p class="mb-0">Total Students</p>
                             </div>
                             <div class="align-self-center">
                                 <i class="bi bi-people fs-1"></i>
@@ -1124,13 +656,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3 mb-3">
-                <div class="card h-100 stats-card" style="background: var(--highlight-yellow); color: var(--main-green); border: 2px solid var(--main-green); border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 700;"><?php echo $total_modules; ?></h4>
-                                <p class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 500;">Total Modules</p>
+                                <h4 class="mb-0"><?php echo $total_modules; ?></h4>
+                                <p class="mb-0">Total Modules</p>
                             </div>
                             <div class="align-self-center">
                                 <i class="bi bi-collection fs-1"></i>
@@ -1139,13 +671,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3 mb-3">
-                <div class="card h-100 stats-card" style="background: var(--white); color: var(--main-green); border: 2px solid var(--accent-green); border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 700;"><?php echo $total_videos; ?></h4>
-                                <p class="mb-0" style="font-family: 'Inter', sans-serif; font-weight: 500;">Total Videos</p>
+                                <h4 class="mb-0"><?php echo $total_videos; ?></h4>
+                                <p class="mb-0">Total Videos</p>
                             </div>
                             <div class="align-self-center">
                                 <i class="bi bi-play-circle fs-1"></i>
@@ -1161,12 +693,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
     <div class="row">
         <?php if (empty($courses)): ?>
             <div class="col-12">
-                <div class="card empty-state-card" style="border: 1px solid var(--border-light); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); background: var(--white);">
+                <div class="card">
                     <div class="card-body text-center py-5">
-                        <i class="bi bi-book fs-1 mb-3" style="color: var(--text-muted);"></i>
-                        <h5 style="color: var(--text-dark); font-family: 'Inter', sans-serif; font-weight: 700;">No Courses Found</h5>
-                        <p style="color: var(--text-muted); font-family: 'Inter', sans-serif;">No courses found for the selected academic year. Create your first course to get started.</p>
-                        <button class="btn create-course-btn" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+                        <i class="bi bi-book fs-1 text-muted mb-3"></i>
+                        <h5>No Courses Found</h5>
+                        <p class="text-muted">No courses found for the selected academic year. Create your first course to get started.</p>
+                        <button class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;" data-bs-toggle="modal" data-bs-target="#createCourseModal">
                             <i class="bi bi-plus-circle me-2"></i>Create Your First Course
                         </button>
                     </div>
@@ -1177,9 +709,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                 <?php
                     $theme = $course_themes[$course['id'] % count($course_themes)];
                 ?>
-                <div class="col-12 col-sm-6 col-lg-6 col-xl-4 mb-4">
+                <div class="col-lg-6 col-xl-4 mb-4">
                     <div class="card course-card h-100">
-                        <div class="card-header">
+                        <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
+                            <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
+                            <h2 class="course-code-text">
+                                <?php echo htmlspecialchars($course['course_code']); ?>
+                            </h2>
+                        </div>
+                        <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h5 class="card-title mb-0"><?php echo htmlspecialchars($course['course_name']); ?></h5>
                                 <?php 
@@ -1200,14 +738,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                                     <i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($year_level) ?> Year
                                 </span>
                             </div>
-                            <div class="course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 120px; position: relative; overflow: hidden; border-radius: var(--border-radius);">
-                                <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 6rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
-                                <h2 class="course-code-text" style="font-size: 2rem;">
-                                    <?php echo htmlspecialchars($course['course_code']); ?>
-                                </h2>
-                            </div>
-                        </div>
-                        <div class="card-body">
                             <p class="card-text text-muted">
                                 <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
                             </p>
@@ -1249,7 +779,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                                         <?php endforeach; ?>
                                     </div>
                                     <?php if (count($course_sections) > $max_sections): ?>
-                                        <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="event.preventDefault(); this.textContent='Feature coming soon!'; this.style.color='#6c757d';" style="cursor: pointer;">Show all</a></small></div>
+                                        <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="alert('Show all feature coming soon!')">Show all</a></small></div>
                                     <?php endif; ?>
                                 <?php
                                 else:
@@ -1291,9 +821,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                                 </small>
                             </div>
                         </div>
-                        <div class="card-footer" style="background: var(--white); border-top: 1px solid var(--border-light); padding: 1rem 1.25rem;">
+                        <div class="card-footer">
                             <div class="d-grid gap-2">
-                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn create-course-btn" style="background: var(--main-green); color: var(--white); font-weight: 600; border: none; border-radius: var(--border-radius);">
+                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
                                     <i class="bi bi-gear me-1"></i>Manage Course
                                 </a>
                             </div>
@@ -1333,7 +863,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
 
 <!-- Create Course Modal -->
 <div class="modal fade" id="createCourseModal" tabindex="-1" aria-labelledby="createCourseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="createCourseModalLabel">Create New Course</h5>
@@ -1547,39 +1077,9 @@ function validateCourseName() {
 
 // Add event listeners when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing course form...');
-    
     const courseCodeInput = document.getElementById('course_code');
     const courseNameInput = document.getElementById('course_name');
     const academicPeriodSelect = document.getElementById('academic_period_id');
-    const createCourseBtn = document.querySelector('[data-bs-target="#createCourseModal"]');
-    
-    // Debug modal functionality
-    if (createCourseBtn) {
-        console.log('Create course button found:', createCourseBtn);
-        createCourseBtn.addEventListener('click', function(e) {
-            console.log('Create course button clicked');
-            e.preventDefault();
-            
-            // Check if Bootstrap is available
-            if (typeof bootstrap !== 'undefined') {
-                console.log('Bootstrap is available, opening modal...');
-                const modal = new bootstrap.Modal(document.getElementById('createCourseModal'));
-                modal.show();
-            } else {
-                console.error('Bootstrap not available!');
-                // Fallback: try to show modal using data attributes
-                const modalElement = document.getElementById('createCourseModal');
-                if (modalElement) {
-                    modalElement.style.display = 'block';
-                    modalElement.classList.add('show');
-                    document.body.classList.add('modal-open');
-                }
-            }
-        });
-    } else {
-        console.error('Create course button not found!');
-    }
     
     if (courseCodeInput) {
         courseCodeInput.addEventListener('input', validateCourseCode);
@@ -1592,87 +1092,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (academicPeriodSelect) {
         academicPeriodSelect.addEventListener('change', validateCourseName);
     }
-    
-    // Initialize Bootstrap modals
-    if (typeof bootstrap !== 'undefined') {
-        console.log('Initializing Bootstrap modals...');
-        const modalElements = document.querySelectorAll('.modal');
-        modalElements.forEach(function(modalEl) {
-            new bootstrap.Modal(modalEl);
-        });
-    }
-    
-    // Add scroll-triggered animations
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-    
-    const observer = new IntersectionObserver(function(entries) {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.animationPlayState = 'running';
-            }
-        });
-    }, observerOptions);
-    
-    // Observe all animated elements
-    const animatedElements = document.querySelectorAll('.course-card, .stats-card, .welcome-section, .academic-year-selector');
-    animatedElements.forEach(el => {
-        observer.observe(el);
-    });
-    
-    // Add ripple effect to buttons
-    function createRipple(event) {
-        const button = event.currentTarget;
-        const circle = document.createElement('span');
-        const diameter = Math.max(button.clientWidth, button.clientHeight);
-        const radius = diameter / 2;
-        
-        circle.style.width = circle.style.height = `${diameter}px`;
-        circle.style.left = `${event.clientX - button.offsetLeft - radius}px`;
-        circle.style.top = `${event.clientY - button.offsetTop - radius}px`;
-        circle.classList.add('ripple');
-        
-        const ripple = button.getElementsByClassName('ripple')[0];
-        if (ripple) {
-            ripple.remove();
-        }
-        
-        button.appendChild(circle);
-    }
-    
-    // Add ripple effect to all buttons
-    const buttons = document.querySelectorAll('.btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', createRipple);
-    });
-    
-    // Add CSS for ripple effect
-    const style = document.createElement('style');
-    style.textContent = `
-        .btn {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.6);
-            transform: scale(0);
-            animation: ripple 600ms linear;
-            pointer-events: none;
-        }
-        
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-    `;
-    document.head.appendChild(style);
 });
 </script>
 

@@ -3959,7 +3959,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('✅ Dropdown initialization complete');
     
-    // Test the teacher activity dropdown specifically
+    // Test the teacher activity dropdown specifically (only on pages that have it)
     setTimeout(function() {
         var teacherDropdown = document.querySelector('#teacherActivityDropdown');
         if (teacherDropdown) {
@@ -3978,7 +3978,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('❌ Menu element not found!');
             }
         } else {
-            console.error('❌ Teacher activity dropdown not found!');
+            // Only log error if we're on a page that should have this dropdown
+            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('teacher')) {
+                console.error('❌ Teacher activity dropdown not found!');
+            }
         }
     }, 500);
 });

@@ -244,7 +244,7 @@ require_once '../includes/header.php';
 /* Table Styling */
 .table {
     margin-bottom: 0;
-    min-width: 1000px; /* Ensure minimum width for proper display */
+    min-width: 1200px; /* Ensure minimum width for proper display with section column */
 }
 
 .table thead th {
@@ -511,6 +511,21 @@ $stmt = $db->prepare("SELECT * FROM users WHERE role = 'student' ORDER BY last_n
 $stmt->execute();
 $students = $stmt->fetchAll();
 
+// Get section information for each student
+foreach ($students as &$student) {
+    $stmt = $db->prepare("
+        SELECT s.id as section_id, 
+               s.section_name, 
+               s.year_level,
+               s.description as section_description
+        FROM sections s
+        WHERE JSON_SEARCH(s.students, 'one', CAST(? AS CHAR)) IS NOT NULL
+        ORDER BY s.year_level, s.section_name
+    ");
+    $stmt->execute([$student['id']]);
+    $student['sections'] = $stmt->fetchAll();
+}
+
 // Assign IDs to existing students who don't have them
 foreach ($students as $student) {
     if (empty($student['identifier'])) {
@@ -527,6 +542,10 @@ $total_regular = 0;
 $total_irregular = 0;
 $active_students = 0;
 $inactive_students = 0;
+$students_with_sections = 0;
+$students_without_sections = 0;
+$section_counts = [];
+
 foreach ($students as $stu) {
     if ($stu['is_irregular']) {
         $total_irregular++;
@@ -537,6 +556,20 @@ foreach ($students as $stu) {
         $inactive_students++;
     } else {
         $active_students++;
+    }
+    
+    // Count students with/without sections
+    if (!empty($stu['sections']) && count($stu['sections']) > 0) {
+        $students_with_sections++;
+        foreach ($stu['sections'] as $section) {
+            $section_key = $section['year_level'] . ' - ' . $section['section_name'];
+            if (!isset($section_counts[$section_key])) {
+                $section_counts[$section_key] = 0;
+            }
+            $section_counts[$section_key]++;
+        }
+    } else {
+        $students_without_sections++;
     }
 }
 ?>
@@ -640,6 +673,34 @@ foreach ($students as $stu) {
                     </div>
                 </div>
             </div>
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card stats-purple border-0 shadow-sm h-100">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="stats-icon bg-purple text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-people-fill fs-4"></i>
+                                </div>
+                            </div>
+                            <h3 class="fw-bold mb-1 text-white"><?= $students_with_sections ?></h3>
+                            <p class="text-white mb-0 small fw-medium">With Sections</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card stats-warning border-0 shadow-sm h-100">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-person-x-fill fs-4"></i>
+                                </div>
+                            </div>
+                            <h3 class="fw-bold mb-1 text-white"><?= $students_without_sections ?></h3>
+                            <p class="text-white mb-0 small fw-medium">Without Sections</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="d-flex justify-content-end mb-3">
                 <button class="btn add-student-btn" data-bs-toggle="modal" data-bs-target="#addStudentModal">
                     <i class="bi bi-plus-circle me-2"></i>Add Student
@@ -662,6 +723,7 @@ foreach ($students as $stu) {
                                     <th>Student ID</th>
                                     <th>Username</th>
                                     <th>Full Name</th>
+                                    <th>Section</th>
                                     <th>Status</th>
                                     <th>Email</th>
                                     <th>Date Added</th>
@@ -680,6 +742,26 @@ foreach ($students as $stu) {
                                     </td>
                                     <td><?= htmlspecialchars($student['username']) ?></td>
                                     <td><?= htmlspecialchars($student['last_name'] . ', ' . $student['first_name']) ?></td>
+                                    <td>
+                                        <?php if (!empty($student['sections']) && count($student['sections']) > 0): ?>
+                                            <div class="d-flex flex-column">
+                                                <?php foreach ($student['sections'] as $section): ?>
+                                                    <span class="badge bg-primary mb-1">
+                                                        <i class="bi bi-mortarboard me-1"></i>
+                                                        Year <?= $section['year_level'] ?> - <?= htmlspecialchars($section['section_name']) ?>
+                                                    </span>
+                                                    <?php if (!empty($section['section_description'])): ?>
+                                                        <small class="text-muted"><?= htmlspecialchars($section['section_description']) ?></small>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                No Section
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?php if ($student['is_irregular']): ?>
                                             <span class="badge bg-danger">Irregular</span>
@@ -817,6 +899,39 @@ foreach ($students as $stu) {
                                                                 <i class="bi bi-person me-2"></i>Last Name
                                                             </label>
                                                             <p class="form-control-plaintext bg-light p-2 rounded"><?= htmlspecialchars($student['last_name']) ?></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-12">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">
+                                                                <i class="bi bi-mortarboard me-2"></i>Section Assignment<?= (!empty($student['sections']) && count($student['sections']) > 1) ? 's' : '' ?>
+                                                            </label>
+                                                            <div class="form-control-plaintext bg-light p-2 rounded">
+                                                                <?php if (!empty($student['sections']) && count($student['sections']) > 0): ?>
+                                                                    <?php foreach ($student['sections'] as $index => $section): ?>
+                                                                        <div class="d-flex align-items-center mb-2">
+                                                                            <span class="badge bg-primary fs-6 me-2">
+                                                                                <i class="bi bi-mortarboard me-1"></i>
+                                                                                Year <?= $section['year_level'] ?> - <?= htmlspecialchars($section['section_name']) ?>
+                                                                            </span>
+                                                                        </div>
+                                                                        <?php if (!empty($section['section_description'])): ?>
+                                                                            <small class="text-muted d-block mb-2"><?= htmlspecialchars($section['section_description']) ?></small>
+                                                                        <?php endif; ?>
+                                                                        <?php if ($index < count($student['sections']) - 1): ?>
+                                                                            <hr class="my-2">
+                                                                        <?php endif; ?>
+                                                                    <?php endforeach; ?>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-warning fs-6">
+                                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                                        No Section Assigned
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

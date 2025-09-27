@@ -100,6 +100,14 @@ if (!empty($course['modules'])) {
         $video_count = isset($module['videos']) ? count($module['videos']) : 0;
         $assessment_count = isset($module['assessments']) ? count($module['assessments']) : 0;
         
+        // Count files from both new multiple files structure and legacy single file structure
+        $file_count = 0;
+        if (isset($module['files']) && is_array($module['files'])) {
+            $file_count = count($module['files']);
+        } elseif (isset($module['file']) && !empty($module['file'])) {
+            $file_count = 1; // Legacy single file
+        }
+        
         // Check if module is completed
         $is_completed = isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1;
         $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_id]['completed_at'] : null;
@@ -160,10 +168,12 @@ if (!empty($course['modules'])) {
             'unlock_score' => $module['unlock_score'] ?? 70,
             'video_count' => $video_count,
             'assessment_count' => $assessment_count,
+            'file_count' => $file_count,
             'is_completed' => $is_completed,
             'completed_at' => $completed_at,
             'videos' => $module['videos'] ?? [],
             'assessments' => $module['assessments'] ?? [],
+            'files' => $module['files'] ?? [],
             'file' => $module['file'] ?? null,
             'can_complete' => $can_complete,
             'missing_requirements' => $missing_requirements
@@ -499,6 +509,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                     </div>
                 </div>
 
+                <!-- Course Statistics -->
+                <?php
+                // Calculate total counts across all modules
+                $total_videos = 0;
+                $total_assessments = 0;
+                $total_files = 0;
+                
+                foreach ($modules as $module) {
+                    $total_videos += $module['video_count'];
+                    $total_assessments += $module['assessment_count'];
+                    $total_files += $module['file_count'];
+                }
+                ?>
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-video fa-2x text-primary mb-2"></i>
+                                <h4 class="card-title"><?php echo $total_videos; ?></h4>
+                                <p class="card-text text-muted">Total Videos</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-question-circle fa-2x text-warning mb-2"></i>
+                                <h4 class="card-title"><?php echo $total_assessments; ?></h4>
+                                <p class="card-text text-muted">Total Assessments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-file fa-2x text-info mb-2"></i>
+                                <h4 class="card-title"><?php echo $total_files; ?></h4>
+                                <p class="card-text text-muted">Total Files</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-layer-group fa-2x text-success mb-2"></i>
+                                <h4 class="card-title"><?php echo $total_modules; ?></h4>
+                                <p class="card-text text-muted">Total Modules</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Modules -->
                 <div class="mb-4">
                     <h3>Course Modules</h3>
@@ -546,11 +608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                                                 <div class="col-4">
                                                     <small class="text-muted">
                                                         <i class="fas fa-paperclip"></i><br>
-                                                        <?php if (isset($module['file']) && !empty($module['file'])): ?>
-                                                            <span class="text-primary">1 file</span>
-                                                        <?php else: ?>
-                                                            0 files
-                                                        <?php endif; ?>
+                                                        <?php echo $module['file_count']; ?> file<?php echo $module['file_count'] != 1 ? 's' : ''; ?>
                                                     </small>
                                                 </div>
                                             </div>

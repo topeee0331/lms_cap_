@@ -29,9 +29,21 @@ try {
     foreach ($courses as $course) {
         $modules_data = json_decode($course['modules'], true) ?: [];
         foreach ($modules_data as $module) {
-            if ($module['id'] === $module_id && isset($module['file']) && $module['file']['filename'] === $filename) {
-                $module_found = true;
-                break 2;
+            if ($module['id'] === $module_id) {
+                // Check new multiple files structure first
+                if (isset($module['files']) && is_array($module['files'])) {
+                    foreach ($module['files'] as $file) {
+                        if ($file['filename'] === $filename) {
+                            $module_found = true;
+                            break 3;
+                        }
+                    }
+                }
+                // Fallback to old single file structure
+                elseif (isset($module['file']) && $module['file']['filename'] === $filename) {
+                    $module_found = true;
+                    break 2;
+                }
             }
         }
     }

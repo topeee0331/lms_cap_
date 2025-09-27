@@ -1114,7 +1114,33 @@ $module_files = []; // This would need to be implemented based on how files are 
                                 <p class="card-text"><?php echo nl2br(htmlspecialchars($module['module_description'] ?? 'No description available.')); ?></p>
 
                                 <!-- Module Files Section -->
-                                <?php if (isset($module['file']) && !empty($module['file'])): ?>
+                                <?php if (isset($module['files']) && !empty($module['files']) && is_array($module['files'])): ?>
+                                    <div class="mt-3">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-paperclip me-2"></i>Module Files (<?php echo count($module['files']); ?>)
+                                        </h6>
+                                        <?php foreach ($module['files'] as $file): ?>
+                                            <div class="d-flex align-items-center p-2 bg-light rounded hover-shadow mb-2" 
+                                                 style="transition: all 0.3s ease; cursor: pointer;"
+                                                 onclick="openFilePreview('<?php echo $module['id']; ?>', '<?php echo urlencode($file['filename']); ?>', '<?php echo urlencode($file['original_name']); ?>', '<?php echo $file['file_size']; ?>', '<?php echo $file['uploaded_at']; ?>')"
+                                                 onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                                 onmouseout="this.style.backgroundColor='#f8f9fa'">
+                                                <i class="fas fa-file me-2 text-primary"></i>
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold text-dark"><?php echo htmlspecialchars($file['original_name']); ?></div>
+                                                    <small class="text-muted">
+                                                        <?php echo round($file['file_size'] / 1024, 1); ?> KB • 
+                                                        Uploaded <?php echo date('M j, Y', strtotime($file['uploaded_at'])); ?>
+                                                    </small>
+                                                </div>
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-eye me-1"></i>Click to Preview
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php elseif (isset($module['file']) && !empty($module['file'])): ?>
+                                    <!-- Legacy single file support -->
                                     <div class="mt-3">
                                         <h6 class="text-primary">
                                             <i class="fas fa-paperclip me-2"></i>Module Files
@@ -1153,10 +1179,14 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     </div>
                                     <div class="col-md-3">
                                         <small class="text-muted">
-                                            <i class="fas fa-calendar"></i> Module <?php echo $module['module_order'] ?? 1; ?>
+                                            <i class="fas fa-file"></i> <?php echo (isset($module['files']) && is_array($module['files'])) ? count($module['files']) : (isset($module['file']) ? 1 : 0); ?> files
                                         </small>
                                     </div>
                                     <div class="col-md-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar"></i> Module <?php echo $module['module_order'] ?? 1; ?>
+                                        </small>
+                                    </div>
                                         <small class="text-muted">
                                             <i class="fas fa-clock"></i> 
                                             <?php 

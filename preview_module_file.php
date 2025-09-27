@@ -41,15 +41,30 @@ try {
     // Parse modules to find the specific module
     $modules = json_decode($course['modules'], true);
     $target_module = null;
+    $target_file = null;
     
     foreach ($modules as $module) {
-        if ($module['id'] === $module_id && isset($module['file']['filename']) && $module['file']['filename'] === $filename) {
+        if ($module['id'] === $module_id) {
             $target_module = $module;
-            break;
+            
+            // Check new multiple files structure first
+            if (isset($module['files']) && is_array($module['files'])) {
+                foreach ($module['files'] as $file) {
+                    if ($file['filename'] === $filename) {
+                        $target_file = $file;
+                        break 2;
+                    }
+                }
+            }
+            // Fallback to old single file structure
+            elseif (isset($module['file']['filename']) && $module['file']['filename'] === $filename) {
+                $target_file = $module['file'];
+                break;
+            }
         }
     }
     
-    if (!$target_module) {
+    if (!$target_module || !$target_file) {
         http_response_code(404);
         die('File not found in module.');
     }
@@ -69,9 +84,9 @@ try {
     // Set appropriate headers based on file type
     switch ($file_extension) {
         case 'pdf':
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: inline; filename="' . $original_name . '"');
-            break;
+            // Redirect to the enhanced PDF viewer
+            header('Location: pdf_viewer.php?module_id=' . urlencode($module_id) . '&filename=' . urlencode($filename) . '&original_name=' . urlencode($original_name));
+            exit;
             
         case 'jpg':
         case 'jpeg':

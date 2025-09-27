@@ -621,6 +621,22 @@ require_once '../includes/header.php';
     margin-top: 1rem;
 }
 
+/* Course Badge Styling */
+.course-badge {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.course-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    opacity: 0.9;
+}
+
+.course-badge:active {
+    transform: translateY(0);
+}
+
 .selected-courses-count {
     font-weight: 600;
     color: var(--main-green);
@@ -895,6 +911,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $students = $_POST['students'] ?? [];
         $teachers = $_POST['teachers'] ?? [];
         
+        // Check for regular students already assigned to other sections
+        if (!empty($students)) {
+            // Get all sections with their students to check for existing assignments
+            $stmt = $db->prepare("
+                SELECT id, students, year_level, section_name 
+                FROM sections 
+                WHERE students IS NOT NULL AND students != '[]' AND students != '' AND id != ?
+            ");
+            $stmt->execute([$section_id]);
+            $all_sections = $stmt->fetchAll();
+            
+            // Create a map of student assignments (student_id => [section_ids])
+            $student_assignments = [];
+            foreach ($all_sections as $sec) {
+                $section_students = json_decode($sec['students'], true) ?: [];
+                foreach ($section_students as $student_id) {
+                    if (!isset($student_assignments[$student_id])) {
+                        $student_assignments[$student_id] = [];
+                    }
+                    $student_assignments[$student_id][] = [
+                        'section_id' => $sec['id'],
+                        'year_level' => $sec['year_level'],
+                        'section_name' => $sec['section_name']
+                    ];
+                }
+            }
+            
+            // Check each student being assigned
+            $invalid_regular_students = [];
+            foreach ($students as $student_id) {
+                // Get student info to check if they're regular
+                $stmt = $db->prepare("SELECT first_name, last_name, is_irregular FROM users WHERE id = ? AND role = 'student'");
+                $stmt->execute([$student_id]);
+                $student = $stmt->fetch();
+                
+                if ($student && !$student['is_irregular']) { // Regular student
+                    if (isset($student_assignments[$student_id])) {
+                        $existing_sections = $student_assignments[$student_id];
+                        $section_names = array_map(function($assignment) {
+                            return $assignment['section_name'] . ' (Year ' . $assignment['year_level'] . ')';
+                        }, $existing_sections);
+                        
+                        $invalid_regular_students[] = [
+                            'name' => $student['last_name'] . ', ' . $student['first_name'],
+                            'sections' => $section_names
+                        ];
+                    }
+                }
+            }
+            
+            // If there are invalid regular students, show error and don't proceed
+            if (!empty($invalid_regular_students)) {
+                $error_message = "Cannot assign regular students who are already in other sections:\n\n";
+                foreach ($invalid_regular_students as $student) {
+                    $error_message .= "• " . $student['name'] . " (already in: " . implode(', ', $student['sections']) . ")\n";
+                }
+                echo "<script>alert('" . addslashes($error_message) . "'); window.location.href='sections.php';</script>";
+                exit;
+            }
+        }
+        
         // Clear existing assignments
         $stmt = $db->prepare("UPDATE sections SET students = '[]', teachers = '[]' WHERE id = ?");
         $stmt->execute([$section_id]);
@@ -917,11 +994,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    if (isset($_POST['action']) && $_POST['action'] === 'remove_multiple_students') {
+        $section_id = intval($_POST['section_id']);
+        $student_ids_json = $_POST['student_ids'] ?? '[]';
+        $student_ids = json_decode($student_ids_json, true) ?: [];
+        
+        if (!empty($student_ids) && $section_id > 0) {
+            // Get current students in the section
+            $stmt = $db->prepare("SELECT students FROM sections WHERE id = ?");
+            $stmt->execute([$section_id]);
+            $section = $stmt->fetch();
+            
+            if ($section && $section['students']) {
+                $current_students = json_decode($section['students'], true) ?: [];
+                
+                // Remove selected students
+                $updated_students = array_diff($current_students, $student_ids);
+                $students_json = json_encode(array_values($updated_students));
+                
+                // Update the section
+                $stmt = $db->prepare("UPDATE sections SET students = ? WHERE id = ?");
+                $stmt->execute([$students_json, $section_id]);
+                
+                echo "<script>alert('Students removed successfully!'); window.location.href='sections.php';</script>";
+            } else {
+                echo "<script>alert('Section not found.'); window.location.href='sections.php';</script>";
+            }
+        } else {
+            echo "<script>alert('No students selected or invalid section.'); window.location.href='sections.php';</script>";
+        }
+        exit;
+    }
+    
     if (isset($_POST['add_students'])) {
         $section_id = intval($_POST['add_students_section_id']);
         $students_to_add = $_POST['students_to_add'] ?? [];
         
         if (!empty($students_to_add)) {
+            // Check for regular students already assigned to other sections
+            $stmt = $db->prepare("
+                SELECT id, students, year_level, section_name 
+                FROM sections 
+                WHERE students IS NOT NULL AND students != '[]' AND students != '' AND id != ?
+            ");
+            $stmt->execute([$section_id]);
+            $all_sections = $stmt->fetchAll();
+            
+            // Create a map of student assignments (student_id => [section_ids])
+            $student_assignments = [];
+            foreach ($all_sections as $sec) {
+                $section_students = json_decode($sec['students'], true) ?: [];
+                foreach ($section_students as $student_id) {
+                    if (!isset($student_assignments[$student_id])) {
+                        $student_assignments[$student_id] = [];
+                    }
+                    $student_assignments[$student_id][] = [
+                        'section_id' => $sec['id'],
+                        'year_level' => $sec['year_level'],
+                        'section_name' => $sec['section_name']
+                    ];
+                }
+            }
+            
+            // Check each student being added
+            $invalid_regular_students = [];
+            foreach ($students_to_add as $student_id) {
+                // Get student info to check if they're regular
+                $stmt = $db->prepare("SELECT first_name, last_name, is_irregular FROM users WHERE id = ? AND role = 'student'");
+                $stmt->execute([$student_id]);
+                $student = $stmt->fetch();
+                
+                if ($student && !$student['is_irregular']) { // Regular student
+                    if (isset($student_assignments[$student_id])) {
+                        $existing_sections = $student_assignments[$student_id];
+                        $section_names = array_map(function($assignment) {
+                            return $assignment['section_name'] . ' (Year ' . $assignment['year_level'] . ')';
+                        }, $existing_sections);
+                        
+                        $invalid_regular_students[] = [
+                            'name' => $student['last_name'] . ', ' . $student['first_name'],
+                            'sections' => $section_names
+                        ];
+                    }
+                }
+            }
+            
+            // If there are invalid regular students, show error and don't proceed
+            if (!empty($invalid_regular_students)) {
+                $error_message = "Cannot add regular students who are already in other sections:\n\n";
+                foreach ($invalid_regular_students as $student) {
+                    $error_message .= "• " . $student['name'] . " (already in: " . implode(', ', $student['sections']) . ")\n";
+                }
+                echo "<script>alert('" . addslashes($error_message) . "'); window.location.href='sections.php';</script>";
+                exit;
+            }
+            
             // Get current students in the section
             $stmt = $db->prepare("SELECT students FROM sections WHERE id = ?");
             $stmt->execute([$section_id]);
@@ -1872,9 +2039,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                         <th class="border-0">
                                             <i class="bi bi-people me-2"></i>Students
                                         </th>
-                                        <th class="border-0">
-                                            <i class="bi bi-person-workspace me-2"></i>Teachers
-                                        </th>
                                         <th class="border-0"><i class="bi bi-book me-2"></i>Courses</th>
                                         <th class="border-0 text-center">
                                             <i class="bi bi-gear me-2"></i>Actions
@@ -1979,13 +2143,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                 </div>
                                             </td>
                                             <td>
-                                                <div class="d-flex justify-content-center">
-                                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
-                                                        <i class="bi bi-person-workspace-fill me-1"></i><?= $teacher_count ?> teachers
-                                                </span>
-                                                </div>
-                                            </td>
-                                            <td>
                                                 <?php
                                                 $assigned_courses = [];
                                                 // Get courses that have this section assigned via JSON columns
@@ -2004,7 +2161,9 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                     echo '<div class="d-flex flex-wrap gap-1 mb-2">';
                                                     foreach ($assigned_courses as $course) {
                                                         $status_class = $course['status'] === 'active' ? 'bg-success text-white' : 'bg-secondary text-white';
-                                                        echo '<span class="badge ' . $status_class . ' px-2 py-1 rounded-pill shadow-sm small">';
+                                                        echo '<span class="badge ' . $status_class . ' px-2 py-1 rounded-pill shadow-sm small course-badge" ';
+                                                        echo 'onclick="showCourseDetails(\'' . htmlspecialchars($course['course_code']) . '\', \'' . htmlspecialchars($course['course_name']) . '\', \'' . $course['year_level'] . '\', \'' . $course['status'] . '\')" ';
+                                                        echo 'style="cursor: pointer;" title="Click to view course details">';
                                                         echo htmlspecialchars($course['course_code']);
                                                         echo '</span>';
                                                     }
@@ -2194,14 +2353,62 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                     $as_stmt->execute([$section['id']]);
                                                                     $assigned_students_json = $as_stmt->fetchColumn();
                                                                     $assigned_students = json_decode($assigned_students_json, true) ?? [];
+                                                                    
+                                                                    // Get all sections with their students to check for existing assignments
+                                                                    $all_sections_sql = "SELECT id, students, year_level, section_name FROM sections WHERE students IS NOT NULL AND students != '[]' AND students != ''";
+                                                                    $all_sections_res = $db->query($all_sections_sql);
+                                                                    $all_sections = $all_sections_res ? $all_sections_res->fetchAll() : [];
+                                                                    
+                                                                    // Create a map of student assignments (student_id => [section_ids])
+                                                                    $student_assignments = [];
+                                                                    foreach ($all_sections as $sec) {
+                                                                        $section_students = json_decode($sec['students'], true) ?: [];
+                                                                        foreach ($section_students as $student_id) {
+                                                                            if (!isset($student_assignments[$student_id])) {
+                                                                                $student_assignments[$student_id] = [];
+                                                                            }
+                                                                            $student_assignments[$student_id][] = [
+                                                                                'section_id' => $sec['id'],
+                                                                                'year_level' => $sec['year_level'],
+                                                                                'section_name' => $sec['section_name']
+                                                                            ];
+                                                                        }
+                                                                    }
+                                                                    
                                                                     foreach ($students as $stu) {
-                                                                                $checked = in_array($stu['id'], $assigned_students) ? 'checked' : '';
+                                                                        $checked = in_array($stu['id'], $assigned_students) ? 'checked' : '';
                                                                         $status = ($stu['is_irregular'] ? 'irregular' : 'regular');
                                                                         $badge = $stu['is_irregular'] ? '<span class=\'badge bg-danger ms-2\'>Irregular</span>' : '<span class=\'badge bg-success ms-2\'>Regular</span>';
-                                                                                echo "<div class='form-check student-option-{$status}' data-status='{$status}' style='margin-bottom: 4px;'>";
-                                                                                echo "<input class='form-check-input' type='checkbox' name='students[]' value='{$stu['id']}' id='stu{$section['id']}_{$stu['id']}' $checked onchange='updateSelectedStudentsCount(this.closest(\".modal\"))'>";
-                                                                                echo "<label class='form-check-label' for='stu{$section['id']}_{$stu['id']}'>" . htmlspecialchars($stu['name']) . " $badge</label>";
-                                                                                echo "</div>";
+                                                                        
+                                                                        // Check if regular student is already assigned to another section
+                                                                        $is_regular = !$stu['is_irregular'];
+                                                                        $already_assigned = isset($student_assignments[$stu['id']]) && 
+                                                                                           !empty(array_filter($student_assignments[$stu['id']], function($assignment) use ($section) {
+                                                                                               return $assignment['section_id'] != $section['id'];
+                                                                                           }));
+                                                                        
+                                                                        // For regular students already assigned to other sections, show them as disabled
+                                                                        $disabled = '';
+                                                                        $disabled_class = '';
+                                                                        $disabled_note = '';
+                                                                        
+                                                                        if ($is_regular && $already_assigned && !in_array($stu['id'], $assigned_students)) {
+                                                                            $existing_sections = array_filter($student_assignments[$stu['id']], function($assignment) use ($section) {
+                                                                                return $assignment['section_id'] != $section['id'];
+                                                                            });
+                                                                            $section_names = array_map(function($assignment) {
+                                                                                return $assignment['section_name'] . ' (Year ' . $assignment['year_level'] . ')';
+                                                                            }, $existing_sections);
+                                                                            
+                                                                            $disabled = 'disabled';
+                                                                            $disabled_class = 'text-muted';
+                                                                            $disabled_note = '';
+                                                                        }
+                                                                        
+                                                                        echo "<div class='form-check student-option-{$status}' data-status='{$status}' style='margin-bottom: 4px;'>";
+                                                                        echo "<input class='form-check-input' type='checkbox' name='students[]' value='{$stu['id']}' id='stu{$section['id']}_{$stu['id']}' $checked $disabled onchange='updateSelectedStudentsCount(this.closest(\".modal\"))'>";
+                                                                        echo "<label class='form-check-label $disabled_class' for='stu{$section['id']}_{$stu['id']}'>" . htmlspecialchars($stu['name']) . " $badge$disabled_note</label>";
+                                                                        echo "</div>";
                                                                     }
                                                                     ?>
                                                                         </div>
@@ -2264,6 +2471,84 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                         <?php endif; ?>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Details Modal -->
+<div class="modal fade" id="courseDetailsModal" tabindex="-1" aria-labelledby="courseDetailsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="courseDetailsLabel">
+                    <i class="bi bi-book me-2"></i>Course Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-muted">Course Code</label>
+                            <div class="p-3 bg-light rounded">
+                                <span class="fw-bold text-primary" id="courseCodeDisplay"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-muted">Year Level</label>
+                            <div class="p-3 bg-light rounded">
+                                <span class="badge bg-info" id="courseYearDisplay"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted">Course Name</label>
+                    <div class="p-3 bg-light rounded">
+                        <span class="fw-medium" id="courseNameDisplay"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted">Status</label>
+                    <div class="p-3 bg-light rounded">
+                        <span id="courseStatusDisplay"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted">Description</label>
+                    <div class="p-3 bg-light rounded">
+                        <span id="courseDescriptionDisplay" class="text-muted">No description available</span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted">Assigned Teachers</label>
+                    <div class="p-3 bg-light rounded">
+                        <div id="assignedTeachersDisplay">
+                            <span class="text-muted">Loading teachers...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted">Assigned Sections</label>
+                    <div class="p-3 bg-light rounded">
+                        <div id="assignedSectionsDisplay">
+                            <span class="text-muted">Loading sections...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Close
+                </button>
             </div>
         </div>
     </div>
@@ -2420,21 +2705,56 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                     
                     <!-- Student Search and Filter -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label for="studentSearchAdd" class="form-label fw-semibold">
                                 <i class="bi bi-search me-2"></i>Search Students
                             </label>
                             <input type="text" class="form-control" id="studentSearchAdd" placeholder="Type student name..." onkeyup="searchStudentsAdd()">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="studentStatusFilterAdd" class="form-label fw-semibold">
                                 <i class="bi bi-funnel me-2"></i>Filter by Status
                             </label>
                             <select class="form-select" id="studentStatusFilterAdd" onchange="filterStudentsAdd()">
-                                <option value="all">All Students</option>
+                                <option value="available">Available Students Only</option>
                                 <option value="regular">Regular Students</option>
                                 <option value="irregular">Irregular Students</option>
+                                <option value="all">All Students</option>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-gear me-2"></i>Actions
+                            </label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="applyFilters()" id="filterBtn">
+                                    <i class="bi bi-funnel me-1"></i>Filter
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()" id="clearFilterBtn">
+                                    <i class="bi bi-x-circle me-1"></i>Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Status Display -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info alert-sm mb-0" id="filterStatusAlert">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="filterStatusText">Loading students...</span>
+                                <div class="float-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshStudentsList()" id="refreshBtn">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                    </button>
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status" id="refreshSpinner" style="display: none;">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="badge bg-success ms-2" id="realtimeIndicator" style="display: none;">
+                                        <i class="bi bi-wifi me-1"></i>Live
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -2863,6 +3183,16 @@ function openAddStudentsModal(sectionId) {
         
         // Load students for this section
         loadStudentsForSection(sectionId, modal);
+        
+        // Start auto-refresh when modal is shown
+        modal.addEventListener('shown.bs.modal', function() {
+            startAutoRefresh();
+        });
+        
+        // Stop auto-refresh when modal is hidden
+        modal.addEventListener('hidden.bs.modal', function() {
+            stopAutoRefresh();
+        });
     }
     
     // Show the modal
@@ -2872,10 +3202,21 @@ function openAddStudentsModal(sectionId) {
 
 function loadStudentsForSection(sectionId, modal) {
     const studentsList = modal.querySelector('#studentsListAdd');
+    const refreshBtn = modal.querySelector('#refreshBtn');
+    const refreshSpinner = modal.querySelector('#refreshSpinner');
+    const realtimeIndicator = modal.querySelector('#realtimeIndicator');
+    
+    // Show loading state
     studentsList.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-arrow-clockwise fs-1"></i><p>Loading students...</p></div>';
+    if (refreshBtn) refreshBtn.disabled = true;
+    if (refreshSpinner) refreshSpinner.style.display = 'inline-block';
+    if (realtimeIndicator) realtimeIndicator.style.display = 'none';
+    
+    // Store section ID for refresh functionality
+    modal.dataset.sectionId = sectionId;
     
     // Fetch students via AJAX
-    fetch('../ajax_get_available_students.php?section_id=' + sectionId)
+    fetch('../ajax_get_available_students.php?section_id=' + sectionId + '&t=' + Date.now())
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok: ' + response.status);
@@ -2885,6 +3226,16 @@ function loadStudentsForSection(sectionId, modal) {
         .then(data => {
             if (data.success) {
                 displayStudentsList(data.students, studentsList, data.invalid_students, data.target_section);
+                // Store current data for real-time updates
+                modal.dataset.lastUpdate = Date.now();
+                modal.dataset.studentsData = JSON.stringify(data);
+                
+                // Show real-time indicator
+                if (realtimeIndicator) {
+                    realtimeIndicator.style.display = 'inline-block';
+                    // Add pulsing animation
+                    realtimeIndicator.classList.add('animate__animated', 'animate__pulse');
+                }
             } else {
                 studentsList.innerHTML = '<div class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle fs-1"></i><p>Error: ' + (data.message || 'Unknown error') + '</p></div>';
             }
@@ -2892,11 +3243,20 @@ function loadStudentsForSection(sectionId, modal) {
         .catch(error => {
             console.error('Error fetching students:', error);
             studentsList.innerHTML = '<div class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle fs-1"></i><p>Error loading students: ' + error.message + '</p></div>';
+        })
+        .finally(() => {
+            // Hide loading state
+            if (refreshBtn) refreshBtn.disabled = false;
+            if (refreshSpinner) refreshSpinner.style.display = 'none';
         });
 }
 
 function displayStudentsList(students, container, invalidStudents = [], targetSection = null) {
     let html = '';
+    
+    // Count students by type
+    const regularStudents = students.filter(s => !s.is_irregular);
+    const irregularStudents = students.filter(s => s.is_irregular);
     
     // Show target section info
     if (targetSection) {
@@ -2918,6 +3278,7 @@ function displayStudentsList(students, container, invalidStudents = [], targetSe
                 <div class="mb-3">
                     <h6 class="text-success">
                         <i class="bi bi-check-circle me-2"></i>Available Students (${students.length})
+                        <small class="text-muted ms-2">Regular: ${regularStudents.length} | Irregular: ${irregularStudents.length}</small>
                     </h6>
                     <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
             `;
@@ -2942,47 +3303,125 @@ function displayStudentsList(students, container, invalidStudents = [], targetSe
             html += '</div></div>';
         }
         
-        // Invalid students section
-        if (invalidStudents.length > 0) {
-            html += `
-                <div class="mb-3">
-                    <h6 class="text-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>Students Not Eligible (${invalidStudents.length})
-                    </h6>
-                    <div class="alert alert-warning mb-0">
-                        <small>These students cannot be assigned to this section due to year level restrictions:</small>
-                        <div class="mt-2" style="max-height: 200px; overflow-y: auto;">
-            `;
-            
-            invalidStudents.forEach(student => {
-                const yearBadge = `<span class="badge bg-secondary ms-1">${student.year_level_text}</span>`;
-                html += `
-                    <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-                        <span>${student.name} ${yearBadge}</span>
-                        <small class="text-muted">${student.validation_error}</small>
-                    </div>
-                `;
-            });
-            
-            html += '</div></div></div>';
-        }
     }
     
     container.innerHTML = html;
+    
+    // Update filter status
+    updateFilterStatus(students, invalidStudents, targetSection);
+    
+    // Set default filter to "available" and apply it
+    const filterSelect = document.getElementById('studentStatusFilterAdd');
+    const clearBtn = document.getElementById('clearFilterBtn');
+    
+    if (filterSelect) {
+        filterSelect.value = 'available';
+        filterStudentsAdd();
+    }
+    
+    // Initialize button states
+    if (clearBtn) {
+        clearBtn.disabled = true; // Start with clear button disabled since no filters are applied yet
+    }
+    
     updateSelectedStudentsCountAdd();
+}
+
+function updateFilterStatus(students, invalidStudents, targetSection) {
+    const statusAlert = document.getElementById('filterStatusAlert');
+    const statusText = document.getElementById('filterStatusText');
+    
+    if (!statusAlert || !statusText) return;
+    
+    const regularCount = students.filter(s => !s.is_irregular).length;
+    const irregularCount = students.filter(s => s.is_irregular).length;
+    const totalAvailable = students.length;
+    const totalInvalid = invalidStudents.length;
+    const currentTime = new Date().toLocaleTimeString();
+    
+    let statusMessage = '';
+    if (totalAvailable > 0) {
+        statusMessage = `Showing ${totalAvailable} available students (${regularCount} regular, ${irregularCount} irregular)`;
+        if (totalInvalid > 0) {
+            statusMessage += ` | ${totalInvalid} students not eligible`;
+        }
+        statusMessage += ` | Last updated: ${currentTime}`;
+    } else {
+        statusMessage = 'No students available to add to this section';
+        if (totalInvalid > 0) {
+            statusMessage += ` (${totalInvalid} students not eligible)`;
+        }
+        statusMessage += ` | Last updated: ${currentTime}`;
+    }
+    
+    statusText.textContent = statusMessage;
+    
+    // Update alert class based on availability
+    statusAlert.className = totalAvailable > 0 ? 'alert alert-info alert-sm mb-0' : 'alert alert-warning alert-sm mb-0';
 }
 
 function searchStudentsAdd() {
     const input = document.getElementById('studentSearchAdd');
-    const filter = input.value.toLowerCase();
+    const searchTerm = input.value.toLowerCase();
     const modal = input.closest('.modal');
     const options = modal.querySelectorAll('.student-option-regular, .student-option-irregular');
+    const clearBtn = document.getElementById('clearFilterBtn');
+    
+    let visibleCount = 0;
+    let regularCount = 0;
+    let irregularCount = 0;
     
     options.forEach(opt => {
         const label = opt.querySelector('label');
         const text = label ? label.textContent.toLowerCase() : '';
-        opt.style.display = text.includes(filter) ? '' : 'none';
+        const status = opt.getAttribute('data-status');
+        
+        // Check if student matches search term
+        const matchesSearch = searchTerm === '' || text.includes(searchTerm);
+        
+        // Check if student should be visible based on current filter
+        const filterSelect = document.getElementById('studentStatusFilterAdd');
+        const currentFilter = filterSelect ? filterSelect.value : 'available';
+        let matchesFilter = false;
+        
+        switch (currentFilter) {
+            case 'available':
+                matchesFilter = true; // All available students
+                break;
+            case 'regular':
+                matchesFilter = status === 'regular';
+                break;
+            case 'irregular':
+                matchesFilter = status === 'irregular';
+                break;
+            case 'all':
+                matchesFilter = true;
+                break;
+            default:
+                matchesFilter = true;
+        }
+        
+        const shouldShow = matchesSearch && matchesFilter;
+        opt.style.display = shouldShow ? '' : 'none';
+        
+        if (shouldShow) {
+            visibleCount++;
+            if (status === 'regular') regularCount++;
+            if (status === 'irregular') irregularCount++;
+        }
     });
+    
+    // Enable/disable clear button based on whether there are active filters
+    if (clearBtn) {
+        const hasSearchTerm = searchTerm.length > 0;
+        const filterSelect = document.getElementById('studentStatusFilterAdd');
+        const hasCustomFilter = filterSelect && filterSelect.value !== 'available';
+        clearBtn.disabled = !hasSearchTerm && !hasCustomFilter;
+    }
+    
+    // Update filter status with search results
+    updateFilterStatusDisplay(visibleCount, regularCount, irregularCount, 
+        document.getElementById('studentStatusFilterAdd')?.value || 'available');
     
     updateSelectedStudentsCountAdd();
 }
@@ -2991,16 +3430,86 @@ function filterStudentsAdd() {
     const filter = document.getElementById('studentStatusFilterAdd').value;
     const modal = document.getElementById('studentStatusFilterAdd').closest('.modal');
     const options = modal.querySelectorAll('.student-option-regular, .student-option-irregular');
+    const clearBtn = document.getElementById('clearFilterBtn');
+    const searchInput = document.getElementById('studentSearchAdd');
+    
+    let visibleCount = 0;
+    let regularCount = 0;
+    let irregularCount = 0;
     
     options.forEach(opt => {
-        if (filter === 'all' || opt.getAttribute('data-status') === filter) {
-            opt.style.display = '';
-        } else {
-            opt.style.display = 'none';
+        const status = opt.getAttribute('data-status');
+        let shouldShow = false;
+        
+        switch (filter) {
+            case 'available':
+                // Show all available students (this is the default smart filter)
+                shouldShow = true;
+                break;
+            case 'regular':
+                shouldShow = status === 'regular';
+                break;
+            case 'irregular':
+                shouldShow = status === 'irregular';
+                break;
+            case 'all':
+                shouldShow = true;
+                break;
+            default:
+                shouldShow = true;
+        }
+        
+        opt.style.display = shouldShow ? '' : 'none';
+        
+        if (shouldShow) {
+            visibleCount++;
+            if (status === 'regular') regularCount++;
+            if (status === 'irregular') irregularCount++;
         }
     });
     
+    // Enable/disable clear button based on whether there are active filters
+    if (clearBtn) {
+        const hasSearchTerm = searchInput && searchInput.value.length > 0;
+        const hasCustomFilter = filter !== 'available';
+        clearBtn.disabled = !hasSearchTerm && !hasCustomFilter;
+    }
+    
+    // Update filter status with current counts
+    updateFilterStatusDisplay(visibleCount, regularCount, irregularCount, filter);
+    
     updateSelectedStudentsCountAdd();
+}
+
+function updateFilterStatusDisplay(visibleCount, regularCount, irregularCount, currentFilter) {
+    const statusAlert = document.getElementById('filterStatusAlert');
+    const statusText = document.getElementById('filterStatusText');
+    
+    if (!statusAlert || !statusText) return;
+    
+    let statusMessage = '';
+    
+    switch (currentFilter) {
+        case 'available':
+            statusMessage = `Showing ${visibleCount} available students (${regularCount} regular, ${irregularCount} irregular)`;
+            break;
+        case 'regular':
+            statusMessage = `Showing ${regularCount} regular students`;
+            break;
+        case 'irregular':
+            statusMessage = `Showing ${irregularCount} irregular students`;
+            break;
+        case 'all':
+            statusMessage = `Showing all ${visibleCount} students (${regularCount} regular, ${irregularCount} irregular)`;
+            break;
+        default:
+            statusMessage = `Showing ${visibleCount} students`;
+    }
+    
+    statusText.textContent = statusMessage;
+    
+    // Update alert class based on visibility
+    statusAlert.className = visibleCount > 0 ? 'alert alert-info alert-sm mb-0' : 'alert alert-warning alert-sm mb-0';
 }
 
 function updateSelectedStudentsCountAdd() {
@@ -3010,6 +3519,171 @@ function updateSelectedStudentsCountAdd() {
     const count = modal.querySelectorAll('input[name="students_to_add[]"]:checked').length;
     const badge = modal.querySelector('#selectedStudentsCountAdd');
     if (badge) badge.textContent = count;
+}
+
+// Filter button functions
+function applyFilters() {
+    const filterBtn = document.getElementById('filterBtn');
+    const clearBtn = document.getElementById('clearFilterBtn');
+    
+    // Add loading state to filter button
+    if (filterBtn) {
+        const originalText = filterBtn.innerHTML;
+        filterBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Filtering...';
+        filterBtn.disabled = true;
+        
+        // Apply the current filter
+        filterStudentsAdd();
+        
+        // Reset button after a short delay
+        setTimeout(() => {
+            filterBtn.innerHTML = originalText;
+            filterBtn.disabled = false;
+        }, 500);
+    }
+    
+    // Enable clear button
+    if (clearBtn) {
+        clearBtn.disabled = false;
+    }
+}
+
+function clearFilters() {
+    const searchInput = document.getElementById('studentSearchAdd');
+    const filterSelect = document.getElementById('studentStatusFilterAdd');
+    const clearBtn = document.getElementById('clearFilterBtn');
+    const filterBtn = document.getElementById('filterBtn');
+    
+    // Clear search input
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Reset filter to default
+    if (filterSelect) {
+        filterSelect.value = 'available';
+    }
+    
+    // Apply the cleared filters
+    filterStudentsAdd();
+    
+    // Disable clear button since filters are now cleared
+    if (clearBtn) {
+        clearBtn.disabled = true;
+    }
+    
+    // Enable filter button
+    if (filterBtn) {
+        filterBtn.disabled = false;
+    }
+}
+
+// Real-time refresh functionality
+function refreshStudentsList() {
+    const modal = document.querySelector('.modal.show');
+    if (!modal || !modal.dataset.sectionId) return;
+    
+    const sectionId = modal.dataset.sectionId;
+    loadStudentsForSection(sectionId, modal);
+}
+
+// Auto-refresh functionality
+function startAutoRefresh() {
+    const modal = document.querySelector('.modal.show');
+    if (!modal) return;
+    
+    // Clear existing interval
+    if (modal.dataset.autoRefreshInterval) {
+        clearInterval(modal.dataset.autoRefreshInterval);
+    }
+    
+    // Set up auto-refresh every 15 seconds
+    const intervalId = setInterval(() => {
+        const modal = document.querySelector('.modal.show');
+        if (modal && modal.dataset.sectionId) {
+            // Only refresh if modal is visible and not being interacted with
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                return; // Don't refresh while user is typing
+            }
+            
+            refreshStudentsListWithChanges();
+        } else {
+            clearInterval(intervalId);
+        }
+    }, 15000); // 15 seconds
+    
+    modal.dataset.autoRefreshInterval = intervalId;
+}
+
+function stopAutoRefresh() {
+    const modal = document.querySelector('.modal.show');
+    if (modal && modal.dataset.autoRefreshInterval) {
+        clearInterval(modal.dataset.autoRefreshInterval);
+        delete modal.dataset.autoRefreshInterval;
+    }
+}
+
+// Real-time update when students are added to sections
+function notifyStudentAssignment(sectionId, studentIds) {
+    // Check if any open modals need to be updated
+    const openModals = document.querySelectorAll('.modal.show');
+    openModals.forEach(modal => {
+        if (modal.dataset.sectionId && modal.dataset.sectionId !== sectionId) {
+            // This is a different section modal, refresh it
+            refreshStudentsList();
+        }
+    });
+}
+
+// Enhanced refresh with change detection
+function refreshStudentsListWithChanges() {
+    const modal = document.querySelector('.modal.show');
+    if (!modal || !modal.dataset.sectionId) return;
+    
+    const sectionId = modal.dataset.sectionId;
+    const lastData = modal.dataset.studentsData;
+    
+    // Fetch fresh data
+    fetch('../ajax_get_available_students.php?section_id=' + sectionId + '&t=' + Date.now())
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Compare with previous data to detect changes
+                const currentData = JSON.stringify(data);
+                if (lastData !== currentData) {
+                    // Data has changed, update the display
+                    const studentsList = modal.querySelector('#studentsListAdd');
+                    displayStudentsList(data.students, studentsList, data.invalid_students, data.target_section);
+                    modal.dataset.studentsData = currentData;
+                    modal.dataset.lastUpdate = Date.now();
+                    
+                    // Show a subtle notification of the update
+                    showUpdateNotification();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing students:', error);
+        });
+}
+
+function showUpdateNotification() {
+    const modal = document.querySelector('.modal.show');
+    if (!modal) return;
+    
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success alert-sm position-absolute';
+    notification.style.cssText = 'top: 10px; right: 10px; z-index: 9999; min-width: 200px;';
+    notification.innerHTML = '<i class="bi bi-check-circle me-2"></i>Student list updated';
+    
+    modal.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
 }
 
 // View Section Students Function
@@ -3024,7 +3698,7 @@ function viewSectionStudents(sectionId, sectionName) {
         modal.className = 'modal fade';
         modal.id = modalId;
         modal.innerHTML = `
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
                         <h5 class="modal-title">
@@ -3033,6 +3707,26 @@ function viewSectionStudents(sectionId, sectionName) {
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
+                        <!-- Bulk Actions Bar -->
+                        <div class="row mb-3" id="bulkActionsBar" style="display: none;">
+                            <div class="col-12">
+                                <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <span id="selectedCount">0</span> student(s) selected for removal
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="confirmBulkRemove(${sectionId})">
+                                            <i class="bi bi-person-x me-1"></i>Remove Selected
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBulkSelection()">
+                                            <i class="bi bi-x-circle me-1"></i>Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div id="studentsList${sectionId}">
                             <div class="text-center text-muted py-4">
                                 <i class="bi bi-arrow-clockwise fs-1"></i>
@@ -3041,6 +3735,9 @@ function viewSectionStudents(sectionId, sectionName) {
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-primary" onclick="toggleBulkMode(${sectionId})" id="bulkModeBtn">
+                            <i class="bi bi-check-square me-2"></i>Select Multiple
+                        </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle me-2"></i>Close
                         </button>
@@ -3086,16 +3783,6 @@ function loadSectionStudents(sectionId, modal) {
 
 function displaySectionStudentsList(students, container, debugInfo = null) {
     if (students.length === 0) {
-        let debugHtml = '';
-        if (debugInfo && debugInfo.total_in_json > 0) {
-            debugHtml = `
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Data Mismatch Detected!</strong><br>
-                    JSON shows ${debugInfo.total_in_json} students, but only ${debugInfo.found_students} were found.<br>
-                    Missing Student IDs: ${debugInfo.missing_student_ids.join(', ')}
-                </div>`;
-        }
         
         container.innerHTML = `
             <div class="text-center text-muted py-4">
@@ -3103,23 +3790,12 @@ function displaySectionStudentsList(students, container, debugInfo = null) {
                 <p class="mt-2">No students assigned to this section</p>
                 <small class="text-muted">Use the "Add Students" button to assign students to this section</small>
             </div>
-            ${debugHtml}`;
+            `;
         return;
     }
     
-    let debugHtml = '';
-    if (debugInfo && debugInfo.total_in_json !== debugInfo.found_students) {
-        debugHtml = `
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                <strong>Data Mismatch Detected!</strong><br>
-                JSON shows ${debugInfo.total_in_json} students, but only ${debugInfo.found_students} were found.<br>
-                Missing Student IDs: ${debugInfo.missing_student_ids.join(', ')}
-            </div>`;
-    }
     
     let html = `
-        ${debugHtml}
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="mb-0">
                 <i class="bi bi-people-fill text-info me-2"></i>
@@ -3139,6 +3815,9 @@ function displaySectionStudentsList(students, container, debugInfo = null) {
             <table class="table table-sm table-hover">
                 <thead class="table-light">
                     <tr>
+                        <th width="50" id="bulkSelectHeader" style="display: none;">
+                            <input type="checkbox" id="selectAllStudents" onchange="toggleSelectAll()">
+                        </th>
                         <th><i class="bi bi-hash me-1"></i>#</th>
                         <th><i class="bi bi-person me-1"></i>Name</th>
                         <th><i class="bi bi-card-text me-1"></i>Student ID</th>
@@ -3156,6 +3835,9 @@ function displaySectionStudentsList(students, container, debugInfo = null) {
         
         html += `
             <tr>
+                <td class="text-center" id="bulkSelectCell_${student.id}" style="display: none;">
+                    <input type="checkbox" class="student-checkbox" value="${student.id}" onchange="updateBulkSelection()">
+                </td>
                 <td class="text-muted">${index + 1}</td>
                 <td>
                     <div class="d-flex align-items-center">
@@ -3186,6 +3868,247 @@ function displaySectionStudentsList(students, container, debugInfo = null) {
     
     html += '</tbody></table></div>';
     container.innerHTML = html;
+}
+
+// Bulk selection functions
+function toggleBulkMode(sectionId) {
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const bulkModeBtn = document.getElementById('bulkModeBtn');
+    const bulkSelectHeader = document.getElementById('bulkSelectHeader');
+    const bulkSelectCells = document.querySelectorAll('[id^="bulkSelectCell_"]');
+    
+    if (bulkActionsBar.style.display === 'none') {
+        // Enable bulk mode
+        bulkActionsBar.style.display = 'block';
+        bulkSelectHeader.style.display = 'table-cell';
+        bulkSelectCells.forEach(cell => cell.style.display = 'table-cell');
+        bulkModeBtn.innerHTML = '<i class="bi bi-x-square me-2"></i>Exit Selection';
+        bulkModeBtn.className = 'btn btn-outline-secondary';
+    } else {
+        // Disable bulk mode
+        clearBulkSelection();
+        bulkActionsBar.style.display = 'none';
+        bulkSelectHeader.style.display = 'none';
+        bulkSelectCells.forEach(cell => cell.style.display = 'none');
+        bulkModeBtn.innerHTML = '<i class="bi bi-check-square me-2"></i>Select Multiple';
+        bulkModeBtn.className = 'btn btn-outline-primary';
+    }
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllStudents');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    
+    studentCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkSelection();
+}
+
+function updateBulkSelection() {
+    const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllStudents');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    
+    if (selectedCount) {
+        selectedCount.textContent = selectedCheckboxes.length;
+    }
+    
+    // Update select all checkbox state
+    if (selectAllCheckbox) {
+        if (selectedCheckboxes.length === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCheckboxes.length === studentCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+}
+
+function clearBulkSelection() {
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllStudents');
+    
+    studentCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    
+    updateBulkSelection();
+}
+
+function confirmBulkRemove(sectionId) {
+    const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        showAlert('warning', 'Please select at least one student to remove.');
+        return;
+    }
+    
+    const studentIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+    const studentNames = Array.from(selectedCheckboxes).map(checkbox => {
+        const row = checkbox.closest('tr');
+        const nameCell = row.querySelector('td:nth-child(3) strong');
+        return nameCell ? nameCell.textContent : 'Unknown';
+    });
+    
+    const confirmMessage = `Are you sure you want to remove the following ${studentIds.length} student(s) from this section?\n\n${studentNames.join('\n')}`;
+    
+    if (confirm(confirmMessage)) {
+        removeMultipleStudentsFromSection(sectionId, studentIds);
+    }
+}
+
+function removeMultipleStudentsFromSection(sectionId, studentIds) {
+    // Show loading state
+    const bulkActionsBar = document.querySelector('#bulkActionsBar .alert');
+    const originalContent = bulkActionsBar.innerHTML;
+    bulkActionsBar.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Removing students...';
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('action', 'remove_multiple_students');
+    formData.append('section_id', sectionId);
+    formData.append('student_ids', JSON.stringify(studentIds));
+    
+    // Send request
+    fetch('sections.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(data => {
+        // Check if response contains success message
+        if (data.includes('Students removed successfully')) {
+            showAlert('success', `Successfully removed ${studentIds.length} student(s) from the section.`);
+            
+            // Refresh the student list
+            const modal = document.querySelector('.modal.show');
+            if (modal) {
+                const studentsList = modal.querySelector(`#studentsList${sectionId}`);
+                loadSectionStudents(sectionId, modal);
+            }
+            
+            // Clear selection and exit bulk mode
+            clearBulkSelection();
+            toggleBulkMode(sectionId);
+        } else {
+            showAlert('danger', 'Error removing students. Please try again.');
+            bulkActionsBar.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error removing students:', error);
+        showAlert('danger', 'Error removing students. Please try again.');
+        bulkActionsBar.innerHTML = originalContent;
+    });
+}
+
+// Utility function to format year level
+function formatYear(yearLevel) {
+    if (yearLevel == 1) return '1st Year';
+    if (yearLevel == 2) return '2nd Year';
+    if (yearLevel == 3) return '3rd Year';
+    if (yearLevel == 4) return '4th Year';
+    return yearLevel + 'th Year';
+}
+
+// Course details functions
+function showCourseDetails(courseCode, courseName, yearLevel, status) {
+    // Update modal content
+    document.getElementById('courseCodeDisplay').textContent = courseCode;
+    document.getElementById('courseNameDisplay').textContent = courseName;
+    document.getElementById('courseYearDisplay').textContent = formatYear(yearLevel);
+    
+    // Update status with proper styling
+    const statusDisplay = document.getElementById('courseStatusDisplay');
+    if (status === 'active') {
+        statusDisplay.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>';
+    } else {
+        statusDisplay.innerHTML = '<span class="badge bg-secondary"><i class="bi bi-pause-circle me-1"></i>Inactive</span>';
+    }
+    
+    // Load course details via AJAX
+    loadCourseDetails(courseCode);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('courseDetailsModal'));
+    modal.show();
+}
+
+function loadCourseDetails(courseCode) {
+    // Show loading state
+    document.getElementById('assignedTeachersDisplay').innerHTML = '<span class="text-muted">Loading teachers...</span>';
+    document.getElementById('assignedSectionsDisplay').innerHTML = '<span class="text-muted">Loading sections...</span>';
+    document.getElementById('courseDescriptionDisplay').innerHTML = '<span class="text-muted">Loading description...</span>';
+    
+    // Fetch course details
+    fetch(`ajax_get_course_details.php?course_code=${encodeURIComponent(courseCode)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update description
+                const description = data.course.description || 'No description available';
+                document.getElementById('courseDescriptionDisplay').textContent = description;
+                
+                // Update assigned teachers
+                const teachersDisplay = document.getElementById('assignedTeachersDisplay');
+                if (data.teachers && data.teachers.length > 0) {
+                    let teachersHtml = '<div class="d-flex flex-wrap gap-2">';
+                    data.teachers.forEach(teacher => {
+                        teachersHtml += `
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                                <i class="bi bi-person-workspace me-1"></i>${teacher.first_name} ${teacher.last_name}
+                                <small class="ms-1">(${teacher.email})</small>
+                            </span>
+                        `;
+                    });
+                    teachersHtml += '</div>';
+                    teachersHtml += `<small class="text-muted d-block mt-2">${data.teachers.length} teacher(s) assigned</small>`;
+                    teachersDisplay.innerHTML = teachersHtml;
+                } else {
+                    teachersDisplay.innerHTML = '<span class="text-muted">No teachers assigned</span>';
+                }
+                
+                // Update assigned sections
+                const sectionsDisplay = document.getElementById('assignedSectionsDisplay');
+                if (data.sections && data.sections.length > 0) {
+                    let sectionsHtml = '<div class="d-flex flex-wrap gap-2">';
+                    data.sections.forEach(section => {
+                        sectionsHtml += `
+                            <span class="badge bg-primary px-3 py-2 rounded-pill">
+                                <i class="bi bi-collection me-1"></i>${section.section_name}
+                                <small class="ms-1">(${formatYear(section.year_level)})</small>
+                            </span>
+                        `;
+                    });
+                    sectionsHtml += '</div>';
+                    sectionsHtml += `<small class="text-muted d-block mt-2">${data.sections.length} section(s) assigned</small>`;
+                    sectionsDisplay.innerHTML = sectionsHtml;
+                } else {
+                    sectionsDisplay.innerHTML = '<span class="text-muted">No sections assigned</span>';
+                }
+            } else {
+                document.getElementById('assignedTeachersDisplay').innerHTML = '<span class="text-danger">Error loading course details</span>';
+                document.getElementById('assignedSectionsDisplay').innerHTML = '<span class="text-danger">Error loading course details</span>';
+                document.getElementById('courseDescriptionDisplay').innerHTML = '<span class="text-danger">Error loading description</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading course details:', error);
+            document.getElementById('assignedTeachersDisplay').innerHTML = '<span class="text-danger">Error loading course details</span>';
+            document.getElementById('assignedSectionsDisplay').innerHTML = '<span class="text-danger">Error loading course details</span>';
+            document.getElementById('courseDescriptionDisplay').innerHTML = '<span class="text-danger">Error loading description</span>';
+        });
 }
 
 // Function to export section students to CSV
@@ -3940,12 +4863,6 @@ function displayAttemptAnswers(answers) {
                             </div>
                         </div>
                         
-                        ${!isCorrect ? `
-                            <div class="alert alert-warning alert-sm">
-                                <i class="bi bi-info-circle me-1"></i>
-                                <small>This answer was marked incorrect. Review the question and correct answer above.</small>
-                            </div>
-                        ` : ''}
                     </div>
                 </div>
             </div>

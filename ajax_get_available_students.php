@@ -62,12 +62,65 @@ try {
     $stmt->execute();
     $all_students = $stmt->fetchAll();
     
+    // Get all sections with their students to check for existing assignments
+    $stmt = $db->prepare("
+        SELECT id, students, year_level, section_name 
+        FROM sections 
+        WHERE students IS NOT NULL AND students != '[]' AND students != ''
+    ");
+    $stmt->execute();
+    $all_sections = $stmt->fetchAll();
+    
+    // Create a map of student assignments (student_id => [section_ids])
+    $student_assignments = [];
+    foreach ($all_sections as $section) {
+        $section_students = json_decode($section['students'], true) ?: [];
+        foreach ($section_students as $student_id) {
+            if (!isset($student_assignments[$student_id])) {
+                $student_assignments[$student_id] = [];
+            }
+            $student_assignments[$student_id][] = [
+                'section_id' => $section['id'],
+                'year_level' => $section['year_level'],
+                'section_name' => $section['section_name']
+            ];
+        }
+    }
+    
     // Filter out students already in the section and validate year levels
     $available_students = [];
     $invalid_students = [];
     
     foreach ($all_students as $student) {
         if (!in_array($student['id'], $current_students)) {
+            // Check if regular student is already assigned to another section
+            $is_regular = !$student['is_irregular'];
+            $already_assigned = isset($student_assignments[$student['id']]) && 
+                               !empty(array_filter($student_assignments[$student['id']], function($assignment) use ($section_id) {
+                                   return $assignment['section_id'] != $section_id;
+                               }));
+            
+            // Skip regular students who are already assigned to other sections
+            if ($is_regular && $already_assigned) {
+                $existing_sections = array_filter($student_assignments[$student['id']], function($assignment) use ($section_id) {
+                    return $assignment['section_id'] != $section_id;
+                });
+                $section_names = array_map(function($assignment) {
+                    return $assignment['section_name'] . ' (Year ' . $assignment['year_level'] . ')';
+                }, $existing_sections);
+                
+                $student_data = [
+                    'id' => $student['id'],
+                    'name' => $student['last_name'] . ', ' . $student['first_name'] . ' (' . ($student['identifier'] ?: 'No ID') . ')',
+                    'is_irregular' => $student['is_irregular'],
+                    'year_level' => $target_year,
+                    'year_level_text' => getYearLevelOptions($target_year),
+                    'validation_error' => 'Already assigned to: ' . implode(', ', $section_names)
+                ];
+                $invalid_students[] = $student_data;
+                continue;
+            }
+            
             // Validate year level assignment
             $validation = validateStudentYearLevel($student['id'], $section_id, $db);
             

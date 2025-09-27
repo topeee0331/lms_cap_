@@ -45,6 +45,65 @@ function validateModuleOrder($modules, $new_order, $exclude_id = null) {
     }
     return true; // Order is unique
 }
+
+// Helper functions for file handling
+function validateModuleFile($file) {
+    $allowed_types = [
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf',
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'mp4', 'avi', 'mov', 'wmv',
+        'mp3', 'wav', 'zip', 'rar', '7z', 'tar', 'gz'
+    ];
+    
+    $max_size = 10 * 1024 * 1024; // 10MB
+    
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'message' => 'File upload error.'];
+    }
+    
+    if ($file['size'] > $max_size) {
+        return ['success' => false, 'message' => 'File size exceeds 10MB limit.'];
+    }
+    
+    $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($file_extension, $allowed_types)) {
+        return ['success' => false, 'message' => 'File type not allowed.'];
+    }
+    
+    return ['success' => true, 'extension' => $file_extension];
+}
+
+function uploadModuleFile($file, $module_id) {
+    $upload_dir = '../uploads/modules/';
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+    
+    $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $filename = $module_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+    $file_path = $upload_dir . $filename;
+    
+    if (move_uploaded_file($file['tmp_name'], $file_path)) {
+        return [
+            'success' => true,
+            'filename' => $filename,
+            'original_name' => $file['name'],
+            'file_path' => $file_path,
+            'file_size' => $file['size']
+        ];
+    }
+    
+    return ['success' => false, 'message' => 'Failed to upload file.'];
+}
+
+function deleteModuleFile($filename) {
+    $file_path = '../uploads/modules/' . $filename;
+    if (file_exists($file_path)) {
+        return unlink($file_path);
+    }
+    return true; // File doesn't exist, consider it deleted
+}
 ?>
 
 <style>
@@ -186,6 +245,19 @@ function validateModuleOrder($modules, $new_order, $exclude_id = null) {
 .stats-card.assessments i,
 .stats-card.assessments h3 {
     color: #dc3545;
+}
+
+.stats-card.files {
+    border-color: #6f42c1;
+}
+
+.stats-card.files::before {
+    background: linear-gradient(90deg, #6f42c1, #e83e8c);
+}
+
+.stats-card.files i,
+.stats-card.files h3 {
+    color: #6f42c1;
 }
 
 /* Scrollable Modules Container */
@@ -753,6 +825,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'unlock_score' => $unlock_score,
                         'videos' => [],
                         'assessments' => [],
+                        'files' => [],
                         'created_at' => date('Y-m-d H:i:s')
                     ];
                     
@@ -845,6 +918,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $current_modules = [];
                 }
                 
+                // Find and delete associated files
+                foreach ($current_modules as $module) {
+                    if ($module['id'] === $module_id) {
+                        if (isset($module['files']) && is_array($module['files'])) {
+                            foreach ($module['files'] as $file) {
+                                deleteModuleFile($file['filename']);
+                            }
+                        }
+                        break;
+                    }
+                }
+                
                 // Remove the module
                 $current_modules = array_filter($current_modules, function($module) use ($module_id) {
                     return $module['id'] !== $module_id;
@@ -868,6 +953,139 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Module deleted successfully.';
                 $message_type = 'success';
                 break;
+                
+            case 'upload_file':
+                $module_id = sanitizeInput($_POST['module_id'] ?? '');
+                
+                if (empty($module_id)) {
+                    $message = 'Module ID is required.';
+                    $message_type = 'danger';
+                    break;
+                }
+                
+                // Get current modules JSON
+                $current_modules = $course['modules'] ? json_decode($course['modules'], true) : [];
+                if (!is_array($current_modules)) {
+                    $current_modules = [];
+                }
+                
+                // Find the module
+                $module_found = false;
+                foreach ($current_modules as &$module) {
+                    if ($module['id'] === $module_id) {
+                        $module_found = true;
+                        
+                        // Initialize files array if not exists
+                        if (!isset($module['files']) || !is_array($module['files'])) {
+                            $module['files'] = [];
+                        }
+                        
+                        // Handle file upload
+                        if (isset($_FILES['module_file']) && $_FILES['module_file']['error'] !== UPLOAD_ERR_NO_FILE) {
+                            $file_validation = validateModuleFile($_FILES['module_file']);
+                            if (!$file_validation['success']) {
+                                $message = $file_validation['message'];
+                                $message_type = 'danger';
+                                break 2;
+                            }
+                            
+                            $upload_result = uploadModuleFile($_FILES['module_file'], $module_id);
+                            if ($upload_result['success']) {
+                                $module['files'][] = [
+                                    'filename' => $upload_result['filename'],
+                                    'original_name' => $upload_result['original_name'],
+                                    'file_size' => $upload_result['file_size'],
+                                    'uploaded_at' => date('Y-m-d H:i:s')
+                                ];
+                                
+                                // Update course with updated modules JSON
+                                $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                                $stmt->execute([json_encode($current_modules), $course_id]);
+                                
+                                // Refresh course data
+                                $stmt = $db->prepare("
+                                    SELECT c.*, ap.academic_year, ap.semester_name, u.first_name, u.last_name
+                                    FROM courses c
+                                    JOIN academic_periods ap ON c.academic_period_id = ap.id
+                                    JOIN users u ON c.teacher_id = u.id
+                                    WHERE c.id = ? AND c.teacher_id = ?
+                                ");
+                                $stmt->execute([$course_id, $_SESSION['user_id']]);
+                                $course = $stmt->fetch();
+                                
+                                $message = 'File uploaded successfully.';
+                                $message_type = 'success';
+                            } else {
+                                $message = $upload_result['message'];
+                                $message_type = 'danger';
+                            }
+                        } else {
+                            $message = 'No file selected.';
+                            $message_type = 'danger';
+                        }
+                        break;
+                    }
+                }
+                
+                if (!$module_found) {
+                    $message = 'Module not found.';
+                    $message_type = 'danger';
+                }
+                break;
+                
+            case 'delete_file':
+                $module_id = sanitizeInput($_POST['module_id'] ?? '');
+                $filename = sanitizeInput($_POST['filename'] ?? '');
+                
+                if (empty($module_id) || empty($filename)) {
+                    $message = 'Module ID and filename are required.';
+                    $message_type = 'danger';
+                    break;
+                }
+                
+                // Get current modules JSON
+                $current_modules = $course['modules'] ? json_decode($course['modules'], true) : [];
+                if (!is_array($current_modules)) {
+                    $current_modules = [];
+                }
+                
+                // Find and update the module
+                foreach ($current_modules as &$module) {
+                    if ($module['id'] === $module_id) {
+                        if (isset($module['files']) && is_array($module['files'])) {
+                            // Find and remove the file
+                            $module['files'] = array_filter($module['files'], function($file) use ($filename) {
+                                return $file['filename'] !== $filename;
+                            });
+                            
+                            // Delete the physical file
+                            deleteModuleFile($filename);
+                            
+                            // Update course with updated modules JSON
+                            $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                            $stmt->execute([json_encode($current_modules), $course_id]);
+                            
+                            // Refresh course data
+                            $stmt = $db->prepare("
+                                SELECT c.*, ap.academic_year, ap.semester_name, u.first_name, u.last_name
+                                FROM courses c
+                                JOIN academic_periods ap ON c.academic_period_id = ap.id
+                                JOIN users u ON c.teacher_id = u.id
+                                WHERE c.id = ? AND c.teacher_id = ?
+                            ");
+                            $stmt->execute([$course_id, $_SESSION['user_id']]);
+                            $course = $stmt->fetch();
+                            
+                            $message = 'File deleted successfully.';
+                            $message_type = 'success';
+                        } else {
+                            $message = 'No files found in module.';
+                            $message_type = 'danger';
+                        }
+                        break;
+                    }
+                }
+                break;
         }
     }
 }
@@ -886,6 +1104,7 @@ if ($course['modules']) {
             // Add placeholder counts for now - these would need to be calculated from the JSON data
             $module['video_count'] = isset($module['videos']) ? count($module['videos']) : 0;
             $module['assessment_count'] = isset($module['assessments']) ? count($module['assessments']) : 0;
+            $module['file_count'] = isset($module['files']) ? count($module['files']) : 0;
             $modules[] = $module;
         }
     }
@@ -921,10 +1140,17 @@ $stats_sql = "
                 FROM courses 
                 WHERE id = ?
             ), 0)
-        ) as total_assessments
+        ) as total_assessments,
+        (SELECT 
+            COALESCE((
+                SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].files')))
+                FROM courses 
+                WHERE id = ?
+            ), 0)
+        ) as total_files
 ";
 $stmt = $db->prepare($stats_sql);
-$stmt->execute([$course_id, $course_id, $course_id, $course_id]);
+$stmt->execute([$course_id, $course_id, $course_id, $course_id, $course_id]);
 $stats = $stmt->fetch();
 ?>
 
@@ -981,32 +1207,39 @@ $stats = $stmt->fetch();
 
     <!-- Course Statistics -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="stats-card students text-center">
                 <i class="bi bi-people"></i>
                 <h3><?php echo $stats['enrolled_students']; ?></h3>
                 <p class="mb-0">Enrolled Students</p>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="stats-card modules text-center">
                 <i class="bi bi-collection"></i>
                 <h3><?php echo $stats['total_modules']; ?></h3>
                 <p class="mb-0">Modules</p>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="stats-card videos text-center">
                 <i class="bi bi-play-circle"></i>
                 <h3><?php echo $stats['total_videos']; ?></h3>
                 <p class="mb-0">Videos</p>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="stats-card assessments text-center">
                 <i class="bi bi-clipboard-check"></i>
                 <h3><?php echo $stats['total_assessments']; ?></h3>
                 <p class="mb-0">Assessments</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card files text-center">
+                <i class="bi bi-file-earmark"></i>
+                <h3><?php echo $stats['total_files']; ?></h3>
+                <p class="mb-0">Files</p>
             </div>
         </div>
     </div>
@@ -1118,12 +1351,10 @@ $stats = $stmt->fetch();
                                                     <span class="module-stat-number"><?php echo $module['assessment_count'] ?? 0; ?></span>
                                                     <span class="module-stat-label">Assessments</span>
                                                 </div>
-                                                <?php if (isset($module['file']) && !empty($module['file'])): ?>
                                                 <div class="module-stat">
-                                                    <span class="module-stat-number">1</span>
-                                                    <span class="module-stat-label">File</span>
+                                                    <span class="module-stat-number"><?php echo $module['file_count'] ?? 0; ?></span>
+                                                    <span class="module-stat-label">Files</span>
                                                 </div>
-                                                <?php endif; ?>
                                                 <div class="module-stat">
                                                     <span class="module-stat-number"><?php echo $module['module_order'] ?? 1; ?></span>
                                                     <span class="module-stat-label">Order</span>
@@ -1145,12 +1376,10 @@ $stats = $stmt->fetch();
                                                 <i class="bi bi-clipboard-check"></i>
                                                 <span>Assessments</span>
                                             </a>
-                                            <?php if (isset($module['file']) && !empty($module['file'])): ?>
-                                            <a href="javascript:void(0)" onclick="showModuleFiles('<?php echo $module['id']; ?>', <?php echo htmlspecialchars(json_encode($module)); ?>)" class="module-action-btn btn-files" title="View Module Files">
+                                            <a href="javascript:void(0)" onclick="showModuleFiles('<?php echo $module['id']; ?>', <?php echo htmlspecialchars(json_encode($module)); ?>)" class="module-action-btn btn-files" title="Manage Files">
                                                 <i class="bi bi-file-earmark"></i>
                                                 <span>Files</span>
                                             </a>
-                                            <?php endif; ?>
                                             <a href="javascript:void(0)" onclick="deleteModule('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-delete" title="Delete Module">
                                                 <i class="bi bi-trash"></i>
                                                 <span>Delete</span>
@@ -1299,7 +1528,7 @@ $stats = $stmt->fetch();
 
 <!-- Module Files Modal -->
 <div class="modal fade" id="moduleFilesModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -1381,35 +1610,64 @@ function showModuleFiles(moduleId, module) {
     // Generate file content
     let fileHtml = '';
     
-    if (module.file && module.file.filename) {
-        const file = module.file;
-        const fileExtension = file.original_name ? file.original_name.split('.').pop().toLowerCase() : 'file';
-        const fileSize = file.file_size ? formatFileSize(file.file_size) : 'Unknown size';
-        const uploadDate = file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : 'Unknown date';
-        
-        // Get file icon based on extension
-        const fileIcon = getFileIcon(fileExtension);
-        
-        fileHtml = `
-            <div class="file-item">
-                <div class="file-card">
-                    <div class="file-icon">
-                        <i class="bi ${fileIcon}"></i>
-                    </div>
-                    <div class="file-details">
-                        <h6 class="file-name">${file.original_name || 'Unknown file'}</h6>
-                        <div class="file-meta">
-                            <span class="file-size">${fileSize}</span>
-                            <span class="file-date">Uploaded: ${uploadDate}</span>
+    if (module.files && module.files.length > 0) {
+        module.files.forEach(file => {
+            const fileExtension = file.original_name ? file.original_name.split('.').pop().toLowerCase() : 'file';
+            const fileSize = file.file_size ? formatFileSize(file.file_size) : 'Unknown size';
+            const uploadDate = file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : 'Unknown date';
+            
+            // Get file icon based on extension
+            const fileIcon = getFileIcon(fileExtension);
+            
+            fileHtml += `
+                <div class="file-item">
+                    <div class="file-card">
+                        <div class="file-icon">
+                            <i class="bi ${fileIcon}"></i>
+                        </div>
+                        <div class="file-details">
+                            <h6 class="file-name">${file.original_name || 'Unknown file'}</h6>
+                            <div class="file-meta">
+                                <span class="file-size">${fileSize}</span>
+                                <span class="file-date">Uploaded: ${uploadDate}</span>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button onclick="previewFile('${moduleId}', '${file.filename}', '${file.original_name}', '${fileExtension}')" 
+                                    class="btn btn-primary btn-sm me-1" title="Preview File">
+                                <i class="bi bi-eye"></i> Preview
+                            </button>
+                            <button onclick="deleteFile('${moduleId}', '${file.filename}', '${file.original_name}')" 
+                                    class="btn btn-danger btn-sm" title="Delete File">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
                         </div>
                     </div>
-                    <div class="file-actions">
-                        <button onclick="previewFile('${moduleId}', '${file.filename}', '${file.original_name}', '${fileExtension}')" 
-                                class="btn btn-primary btn-sm" title="Preview File">
-                            <i class="bi bi-eye"></i> Preview
-                        </button>
-                    </div>
                 </div>
+            `;
+        });
+        
+        // Add upload section
+        fileHtml += `
+            <div class="mt-4">
+                <hr>
+                <h6 class="mb-3">Upload New File</h6>
+                <form id="uploadFileForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="upload_file">
+                    <input type="hidden" name="module_id" value="${moduleId}">
+                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="file" class="form-control" name="module_file" id="module_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.jpg,.jpeg,.png,.gif,.bmp,.mp4,.avi,.mov,.wmv,.mp3,.wav,.zip,.rar,.7z,.tar,.gz" required>
+                            <div class="form-text">Maximum file size: 10MB. Allowed types: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, RTF, JPG, PNG, GIF, MP4, AVI, MOV, MP3, WAV, ZIP, RAR, 7Z</div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-upload me-1"></i>Upload File
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         `;
     } else {
@@ -1418,12 +1676,39 @@ function showModuleFiles(moduleId, module) {
                 <i class="bi bi-file-earmark-x display-1 text-muted mb-3"></i>
                 <h5 class="text-muted">No Files Attached</h5>
                 <p class="text-muted">This module doesn't have any files attached yet.</p>
+                <hr>
+                <h6 class="mb-3">Upload Your First File</h6>
+                <form id="uploadFileForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="upload_file">
+                    <input type="hidden" name="module_id" value="${moduleId}">
+                    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="file" class="form-control" name="module_file" id="module_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.jpg,.jpeg,.png,.gif,.bmp,.mp4,.avi,.mov,.wmv,.mp3,.wav,.zip,.rar,.7z,.tar,.gz" required>
+                            <div class="form-text">Maximum file size: 10MB. Allowed types: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, RTF, JPG, PNG, GIF, MP4, AVI, MOV, MP3, WAV, ZIP, RAR, 7Z</div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-upload me-1"></i>Upload File
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         `;
     }
     
     content.innerHTML = fileHtml;
     modal.show();
+    
+    // Add form submission handler
+    const form = document.getElementById('uploadFileForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadFile(moduleId);
+        });
+    }
 }
 
 function formatFileSize(bytes) {
@@ -1432,6 +1717,57 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function uploadFile(moduleId) {
+    const form = document.getElementById('uploadFileForm');
+    const formData = new FormData(form);
+    
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Uploading...';
+    submitBtn.disabled = true;
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Reload the page to show updated files
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showErrorMessage('An error occurred while uploading the file.');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function deleteFile(moduleId, filename, originalName) {
+    if (confirm(`Are you sure you want to delete "${originalName}"?`)) {
+        const formData = new FormData();
+        formData.append('action', 'delete_file');
+        formData.append('module_id', moduleId);
+        formData.append('filename', filename);
+        formData.append('<?php echo CSRF_TOKEN_NAME; ?>', '<?php echo generateCSRFToken(); ?>');
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Reload the page to show updated files
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorMessage('An error occurred while deleting the file.');
+        });
+    }
 }
 
 function getFileIcon(extension) {
@@ -1556,30 +1892,17 @@ function previewFile(moduleId, filename, originalName, fileExtension) {
         const previewUrl = `../preview_module_file.php?module_id=${moduleId}&filename=${filename}&original_name=${encodeURIComponent(originalName)}`;
         
         if (fileExtension === 'pdf') {
-            // For PDFs, use object tag for better rendering (same as student)
-            const object = document.createElement('object');
-            object.data = previewUrl;
-            object.type = 'application/pdf';
-            object.style.width = '100%';
-            object.style.height = '700px';
-            object.style.border = 'none';
-            object.style.borderRadius = '8px';
-            
-            const fallback = document.createElement('div');
-            fallback.innerHTML = `
-                <div class="text-center p-4">
-                    <i class="bi bi-file-pdf text-danger" style="font-size: 3rem;"></i>
-                    <h5>PDF Preview</h5>
-                    <p class="text-muted">Your browser doesn't support PDF preview.</p>
-                    <a href="${previewUrl}" target="_blank" class="btn btn-primary">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Open PDF in New Tab
-                    </a>
-                </div>
-            `;
+            // For PDFs, use iframe with the improved PDF preview
+            const iframe = document.createElement('iframe');
+            iframe.src = previewUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '700px';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '8px';
+            iframe.style.minHeight = '600px';
             
             content.innerHTML = '';
-            content.appendChild(object);
-            content.appendChild(fallback);
+            content.appendChild(iframe);
             
         } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
             content.innerHTML = `

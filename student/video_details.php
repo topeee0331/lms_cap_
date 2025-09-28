@@ -21,17 +21,42 @@ if (!$video_id) {
 
 // Fetch video details with course and module information
 $stmt = $pdo->prepare("
-    SELECT cv.*, cm.module_title, cm.module_description, c.course_name, c.course_code, c.id as course_id,
+    SELECT cv.*, c.course_name, c.course_code, c.id as course_id, c.modules,
            c.academic_period_id, ay.is_active as academic_period_active
     FROM course_videos cv
-    JOIN course_modules cm ON cv.module_id = cm.id
-    JOIN courses c ON cm.course_id = c.id
+    JOIN courses c ON cv.course_id = c.id
     JOIN academic_periods ay ON c.academic_period_id = ay.id
     JOIN course_enrollments e ON c.id = e.course_id
     WHERE cv.id = ? AND e.student_id = ? AND e.status = 'active'
 ");
 $stmt->execute([$video_id, $student_id]);
 $video = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Extract module information from JSON
+$module_title = 'Unknown Module';
+$module_description = '';
+if ($video && $video['modules']) {
+    $modules_data = json_decode($video['modules'], true);
+    if (is_array($modules_data)) {
+        foreach ($modules_data as $module) {
+            if (isset($module['videos']) && is_array($module['videos'])) {
+                foreach ($module['videos'] as $module_video) {
+                    if ($module_video['id'] == $video_id) {
+                        $module_title = $module['module_title'] ?? $module['title'] ?? 'Unknown Module';
+                        $module_description = $module['module_description'] ?? $module['description'] ?? '';
+                        break 2;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Add module information to video array
+if ($video) {
+    $video['module_title'] = $module_title;
+    $video['module_description'] = $module_description;
+}
 
 if (!$video) {
     $_SESSION['error'] = "Video not found or you are not enrolled in this course.";

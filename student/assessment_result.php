@@ -357,16 +357,16 @@ $is_view_only = !$assessment_status['is_active'];
         
         /* Root Variables */
         :root {
-            --primary-color: #6366f1;
-            --primary-dark: #4f46e5;
-            --success-color: #10b981;
-            --success-light: #d1fae5;
-            --danger-color: #ef4444;
-            --danger-light: #fee2e2;
-            --warning-color: #f59e0b;
-            --warning-light: #fef3c7;
-            --info-color: #3b82f6;
-            --info-light: #dbeafe;
+            --primary-color: #2E5E4E;
+            --primary-dark: #1e3a2e;
+            --success-color: #2E5E4E;
+            --success-light: #f0f8f0;
+            --danger-color: #2E5E4E;
+            --danger-light: #f0f8f0;
+            --warning-color: #2E5E4E;
+            --warning-light: #f0f8f0;
+            --info-color: #2E5E4E;
+            --info-light: #f0f8f0;
             --gray-50: #f9fafb;
             --gray-100: #f3f4f6;
             --gray-200: #e5e7eb;
@@ -389,7 +389,7 @@ $is_view_only = !$assessment_status['is_active'];
         /* Global Styles */
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
             min-height: 100vh;
             color: var(--gray-800);
         }
@@ -434,11 +434,10 @@ $is_view_only = !$assessment_status['is_active'];
 
         /* Card Styling */
         .result-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: white;
+            border: 2px solid var(--gray-200);
             border-radius: var(--border-radius-lg);
-            box-shadow: var(--shadow-xl);
+            box-shadow: var(--shadow-lg);
             transition: var(--transition);
             overflow: hidden;
         }
@@ -449,7 +448,7 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .card-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             border: none;
             color: white;
             font-weight: 600;
@@ -457,15 +456,15 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .card-header.bg-warning {
-            background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%);
+            background: var(--warning-color);
         }
 
         .card-header.bg-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+            background: var(--success-color);
         }
 
         .card-header.bg-danger {
-            background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%);
+            background: var(--danger-color);
         }
 
         /* Score Circle */
@@ -519,23 +518,23 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .badge.bg-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%) !important;
+            background: var(--success-color) !important;
         }
 
         .badge.bg-danger {
-            background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%) !important;
+            background: var(--danger-color) !important;
         }
 
         .badge.bg-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+            background: var(--primary-color) !important;
         }
 
         .badge.bg-info {
-            background: linear-gradient(135deg, var(--info-color) 0%, #2563eb 100%) !important;
+            background: var(--info-color) !important;
         }
 
         .badge.bg-warning {
-            background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%) !important;
+            background: var(--warning-color) !important;
         }
 
         /* Question Results */
@@ -556,17 +555,17 @@ $is_view_only = !$assessment_status['is_active'];
 
         .question-result.correct {
             border-left: 4px solid var(--success-color);
-            background: linear-gradient(135deg, var(--success-light) 0%, white 100%);
+            background: var(--success-light);
         }
 
         .question-result.incorrect {
             border-left: 4px solid var(--danger-color);
-            background: linear-gradient(135deg, var(--danger-light) 0%, white 100%);
+            background: var(--danger-light);
         }
 
         .question-result.unanswered {
             border-left: 4px solid var(--gray-400);
-            background: linear-gradient(135deg, var(--gray-100) 0%, white 100%);
+            background: var(--gray-100);
         }
 
         /* Options Styling */
@@ -587,19 +586,19 @@ $is_view_only = !$assessment_status['is_active'];
 
         .option-selected {
             border-color: var(--primary-color);
-            background: linear-gradient(135deg, var(--info-light) 0%, white 100%);
+            background: var(--info-light);
             box-shadow: var(--shadow-sm);
         }
 
         .option-correct {
             border-color: var(--success-color);
-            background: linear-gradient(135deg, var(--success-light) 0%, white 100%);
+            background: var(--success-light);
             box-shadow: var(--shadow-sm);
         }
 
         .option-selected.option-correct {
             border-color: var(--success-color);
-            background: linear-gradient(135deg, var(--success-light) 0%, white 100%);
+            background: var(--success-light);
             box-shadow: var(--shadow-md);
         }
 
@@ -621,7 +620,7 @@ $is_view_only = !$assessment_status['is_active'];
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background: rgba(255,255,255,0.2);
             transition: left 0.5s;
         }
 
@@ -630,7 +629,7 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             box-shadow: var(--shadow-md);
         }
 
@@ -640,7 +639,7 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .btn-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+            background: var(--success-color);
             box-shadow: var(--shadow-md);
         }
 
@@ -672,21 +671,21 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .alert-success {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            background: var(--success-light);
             color: var(--success-color);
-            border-color: rgba(16, 185, 129, 0.2);
+            border-color: var(--success-color);
         }
 
         .alert-danger {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+            background: var(--danger-light);
             color: var(--danger-color);
-            border-color: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger-color);
         }
 
         .alert-warning {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+            background: var(--warning-light);
             color: var(--warning-color);
-            border-color: rgba(245, 158, 11, 0.2);
+            border-color: var(--warning-color);
         }
 
         /* Performance Summary */
@@ -1014,74 +1013,29 @@ $is_view_only = !$assessment_status['is_active'];
                             ?>
                             <div class="question-result <?php echo $result_class; ?> p-3">
                                 <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <h6 class="mb-0">Question <?php echo $index + 1; ?></h6>
-                                    <div>
-                                        <?php if ($is_unanswered): ?>
-                                            <span class="badge bg-warning">
-                                                <i class="fas fa-minus"></i> Unanswered
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <h6 class="mb-0">
+                                        Question <?php echo $index + 1; ?>
+                                        <span class="ms-2">
+                                            <?php if ($is_unanswered): ?>
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-minus"></i> Unanswered
+                                                </span>
+                                            <?php elseif ($is_correct): ?>
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Correct
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times"></i> Incorrect
+                                                </span>
+                                            <?php endif; ?>
+                                        </span>
+                                    </h6>
                                 </div>
                                 
                                 <p class="mb-3"><?php echo htmlspecialchars($question['question_text']); ?></p>
                                 
-                                <?php if ($question['question_type'] === 'multiple_choice' || $question['question_type'] === 'true_false'): ?>
-                                    <div class="options">
-                                        <?php 
-                                        $optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                                        foreach ($question['options'] as $idx => $option): 
-                                            $letter = $optionLetters[$idx] ?? chr(65 + $idx);
-                                            $order = (int)$option['order'];
-                                            
-                                            // Check if this option is selected (handle both single and multiple answers)
-                                            $is_selected = false;
-                                            if (!empty($question['student_answer'])) {
-                                                $student_answers = strpos($question['student_answer'], ',') !== false ? 
-                                                    explode(',', $question['student_answer']) : [$question['student_answer']];
-                                                $student_answers = array_map('intval', $student_answers);
-                                                $is_selected = in_array($order, $student_answers);
-                                            }
-                                            
-                                            // Don't show correct answers - only show student's selection
-                                        ?>
-                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?>">
-                                                <span class="option-label" style="font-weight:bold; margin-right:8px;">
-                                                    <?php echo $letter; ?>.
-                                                </span>
-                                                <?php echo htmlspecialchars($option['text'] ?? ''); ?>
-                                                <?php if ($is_selected): ?>
-                                                    <span class="badge bg-primary ms-2">Your Answer</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php elseif ($question['question_type'] === 'true_false'): ?>
-                                    <div class="options">
-                                        <?php 
-                                        $letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                                        foreach ($question['options'] as $idx => $option): 
-                                            $letter = $letters[$idx] ?? ($idx + 1);
-                                            $is_selected = ($option['text'] == $question['student_id_answer']);
-                                            // Don't show correct answers - only show student's selection
-                                        ?>
-                                            <div class="option <?php echo $is_selected ? 'option-selected' : ''; ?>">
-                                                <span class="option-label" style="font-weight:bold; margin-right:8px;">
-                                                    <?php echo $letter; ?>.
-                                                </span>
-                                                <?php echo htmlspecialchars($option['text'] ?? ''); ?>
-                                                <?php if ($is_selected): ?>
-                                                    <span class="badge bg-primary ms-2">Your Answer</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php elseif ($question['question_type'] === 'identification'): ?>
-                                    <div class="border rounded p-3 bg-light">
-                                        <strong>Your Answer:</strong><br>
-                                        <?php echo htmlspecialchars($question['student_id_answer'] ?? 'No answer provided'); ?>
-                                    </div>
-                                <?php endif; ?>
+                                <!-- Answer options are hidden - students can only see the question and their result status -->
                                 
                             </div>
                         <?php endforeach; ?>

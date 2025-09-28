@@ -45,8 +45,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT c.id) as count
         FROM section_students ss
-        JOIN course_sections cs ON ss.section_id = cs.section_id
-        JOIN courses c ON cs.course_id = c.id
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', ss.section_id) IS NOT NULL
         LEFT JOIN course_enrollments e ON c.id = e.course_id AND e.student_id = ? AND e.status = 'active'
         WHERE ss.student_id = ? AND c.is_archived = 0 AND c.academic_year_id = ? AND e.student_id IS NULL
     ");
@@ -60,9 +59,9 @@ try {
         LEFT JOIN course_enrollments e ON c.id = e.course_id AND e.student_id = ? AND e.status = 'active'
         WHERE c.is_archived = 0 AND c.academic_year_id = ? AND e.student_id IS NULL
         AND c.id NOT IN (
-            SELECT DISTINCT cs.course_id 
+            SELECT DISTINCT c2.id 
             FROM section_students ss 
-            JOIN course_sections cs ON ss.section_id = cs.section_id 
+            JOIN courses c2 ON JSON_SEARCH(c2.sections, 'one', ss.section_id) IS NOT NULL
             WHERE ss.student_id = ?
         )
     ");

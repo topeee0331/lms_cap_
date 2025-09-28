@@ -107,10 +107,21 @@ function applyDataStyle($sheet, $range) {
 function exportOverview($course_id, $course) {
     global $db;
     
-    // Get course data
-    $section_stmt = $db->prepare("SELECT s.id, s.section_name as name, s.year_level as year FROM course_sections cs INNER JOIN sections s ON cs.section_id = s.id WHERE cs.course_id = ?");
+    // Get course data (using JSON sections field)
+    $section_stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
     $section_stmt->execute([$course_id]);
-    $sections = $section_stmt->fetchAll();
+    $course_sections_json = $section_stmt->fetchColumn();
+
+    $sections = [];
+    if ($course_sections_json) {
+        $section_ids = json_decode($course_sections_json, true);
+        if ($section_ids && is_array($section_ids) && !empty($section_ids)) {
+            $placeholders = str_repeat('?,', count($section_ids) - 1) . '?';
+            $section_stmt = $db->prepare("SELECT id, section_name as name, year_level as year FROM sections WHERE id IN ($placeholders) AND is_active = 1 ORDER BY year_level, section_name");
+            $section_stmt->execute($section_ids);
+            $sections = $section_stmt->fetchAll();
+        }
+    }
     
     // Validate data
     if (empty($sections)) {
@@ -224,9 +235,13 @@ function exportOverview($course_id, $course) {
 function exportSectionData($course_id, $section_id, $course) {
     global $db;
     
-    // Get section info
-    $stmt = $db->prepare("SELECT s.* FROM sections s JOIN course_sections cs ON s.id = cs.section_id WHERE cs.course_id = ? AND s.id = ?");
-    $stmt->execute([$course_id, $section_id]);
+    // Get section info (using JSON sections field)
+    $stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
+    $stmt->execute([$course_id]);
+    $course_sections = $stmt->fetchColumn();
+    
+    $stmt = $db->prepare("SELECT s.* FROM sections s WHERE s.id = ? AND JSON_SEARCH(?, 'one', s.id) IS NOT NULL");
+    $stmt->execute([$section_id, $course_sections]);
     $section = $stmt->fetch();
     
     if (!$section) {

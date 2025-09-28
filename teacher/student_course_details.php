@@ -278,35 +278,210 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
             <!-- Course Selection -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
+                    <div class="card course-selection-main-card">
+                        <div class="card-header course-selection-header">
                             <h5 class="mb-0">
                                 <i class="bi bi-book me-2"></i>Select Course to View Progress
+                                <span class="badge bg-light text-dark ms-2"><?php echo count($available_courses); ?> Available</span>
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <?php foreach ($available_courses as $course_option): ?>
-                                    <div class="col-md-6 mb-3">
+                                    <?php
+                                    // Calculate actual progress by fetching real data from database
+                                    $actual_progress = 0;
+                                    $progress_details = [];
+                                    
+                                    try {
+                                        // Get course modules from the courses table
+                                        $stmt_modules = $db->prepare("SELECT modules FROM courses WHERE id = ?");
+                                        $stmt_modules->execute([$course_option['id']]);
+                                        $course_data = $stmt_modules->fetch();
+                                        
+                                        if ($course_data && $course_data['modules']) {
+                                            $modules_data = json_decode($course_data['modules'], true);
+                                            if (is_array($modules_data)) {
+                                                $total_modules = count($modules_data);
+                                                $completed_modules = 0;
+                                                $total_videos = 0;
+                                                $watched_videos = 0;
+                                                $total_assessments = 0;
+                                                $completed_assessments = 0;
+                                                
+                                                foreach ($modules_data as $module) {
+                                                    // Count videos in this module
+                                                    if (isset($module['videos']) && is_array($module['videos'])) {
+                                                        $total_videos += count($module['videos']);
+                                                    }
+                                                    
+                                                    // Count assessments in this module
+                                                    if (isset($module['assessments']) && is_array($module['assessments'])) {
+                                                        $total_assessments += count($module['assessments']);
+                                                    }
+                                                    
+                                                    // Check if module is completed
+                                                    $module_id = $module['id'] ?? '';
+                                                    if ($module_id) {
+                                                        // Check module completion in student_progress table
+                                                        $stmt_progress = $db->prepare("
+                                                            SELECT is_completed, progress_percentage 
+                                                            FROM student_progress 
+                                                            WHERE student_id = ? AND course_id = ? AND module_id = ?
+                                                        ");
+                                                        $stmt_progress->execute([$student_id, $course_option['id'], $module_id]);
+                                                        $module_progress = $stmt_progress->fetch();
+                                                        
+                                                        if ($module_progress && $module_progress['is_completed'] == 1) {
+                                                            $completed_modules++;
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // Get video watch progress
+                                                $stmt_videos = $db->prepare("
+                                                    SELECT COUNT(*) as watched_count
+                                                    FROM video_views 
+                                                    WHERE student_id = ? AND course_id = ? AND watch_percentage >= 80
+                                                ");
+                                                $stmt_videos->execute([$student_id, $course_option['id']]);
+                                                $video_result = $stmt_videos->fetch();
+                                                $watched_videos = $video_result['watched_count'] ?? 0;
+                                                
+                                                // Get assessment completion
+                                                $stmt_assessments = $db->prepare("
+                                                    SELECT COUNT(DISTINCT assessment_id) as completed_count
+                                                    FROM assessment_attempts 
+                                                    WHERE student_id = ? AND assessment_id IN (
+                                                        SELECT a.id FROM assessments a 
+                                                        WHERE a.course_id = ?
+                                                    ) AND status = 'completed'
+                                                ");
+                                                $stmt_assessments->execute([$student_id, $course_option['id']]);
+                                                $assessment_result = $stmt_assessments->fetch();
+                                                $completed_assessments = $assessment_result['completed_count'] ?? 0;
+                                                
+                                                // Calculate overall progress (weighted average)
+                                                $module_progress_percent = $total_modules > 0 ? ($completed_modules / $total_modules) * 100 : 0;
+                                                $video_progress_percent = $total_videos > 0 ? ($watched_videos / $total_videos) * 100 : 0;
+                                                $assessment_progress_percent = $total_assessments > 0 ? ($completed_assessments / $total_assessments) * 100 : 0;
+                                                
+                                                // Weighted calculation: 40% modules, 40% videos, 20% assessments
+                                                $actual_progress = round(
+                                                    ($module_progress_percent * 0.4) + 
+                                                    ($video_progress_percent * 0.4) + 
+                                                    ($assessment_progress_percent * 0.2)
+                                                );
+                                                
+                                                $progress_details = [
+                                                    'modules' => ['completed' => $completed_modules, 'total' => $total_modules, 'percent' => $module_progress_percent],
+                                                    'videos' => ['watched' => $watched_videos, 'total' => $total_videos, 'percent' => $video_progress_percent],
+                                                    'assessments' => ['completed' => $completed_assessments, 'total' => $total_assessments, 'percent' => $assessment_progress_percent]
+                                                ];
+                                            }
+                                        }
+                                        
+                                        // Fallback to stored progress if calculation fails
+                                        if ($actual_progress == 0) {
+                                            $actual_progress = $course_option['progress_percentage'] ?? 0;
+                                        }
+                                        
+                                    } catch (Exception $e) {
+                                        // Fallback to stored progress on error
+                                        $actual_progress = $course_option['progress_percentage'] ?? 0;
+                                        error_log("Progress calculation error: " . $e->getMessage());
+                                    }
+                                    
+                                    // Determine progress status
+                                    $progress_status = 'not-started';
+                                    $progress_icon = 'bi-circle';
+                                    if ($actual_progress > 0 && $actual_progress < 25) {
+                                        $progress_status = 'just-started';
+                                        $progress_icon = 'bi-play-circle';
+                                    } elseif ($actual_progress >= 25 && $actual_progress < 50) {
+                                        $progress_status = 'in-progress';
+                                        $progress_icon = 'bi-clock';
+                                    } elseif ($actual_progress >= 50 && $actual_progress < 75) {
+                                        $progress_status = 'halfway';
+                                        $progress_icon = 'bi-arrow-right-circle';
+                                    } elseif ($actual_progress >= 75 && $actual_progress < 100) {
+                                        $progress_status = 'almost-done';
+                                        $progress_icon = 'bi-check-circle';
+                                    } elseif ($actual_progress >= 100) {
+                                        $progress_status = 'completed';
+                                        $progress_icon = 'bi-check-circle-fill';
+                                    }
+                                    ?>
+                                    <div class="col-lg-6 col-xl-4 mb-4">
                                         <div class="course-selection-card" onclick="selectCourse(<?php echo $course_option['id']; ?>)">
-                                            <div class="card h-100">
-                                                <div class="card-body">
-                                                    <h6 class="card-title"><?php echo htmlspecialchars($course_option['course_name']); ?></h6>
-                                                    <p class="card-text text-muted"><?php echo htmlspecialchars($course_option['course_code']); ?></p>
-                                                    <?php if ($course_option['description']): ?>
-                                                        <p class="card-text small"><?php echo htmlspecialchars(substr($course_option['description'], 0, 100)) . '...'; ?></p>
-                                                    <?php endif; ?>
-                                                    <div class="course-meta">
-                                                        <small class="text-muted">
-                                                            Enrolled: <?php echo $course_option['enrolled_at'] ? date('M j, Y', strtotime($course_option['enrolled_at'])) : 'Not enrolled'; ?>
-                                                        </small>
-                                                        <div class="progress mt-2" style="height: 6px;">
-                                                            <div class="progress-bar bg-primary" style="width: <?php echo $course_option['progress_percentage'] ?? 0; ?>%"></div>
+                                            <div class="card h-100 course-card">
+                                                <div class="card-header course-card-header">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="course-title-section">
+                                                            <h6 class="course-title mb-1"><?php echo htmlspecialchars($course_option['course_name']); ?></h6>
+                                                            <p class="course-code mb-0"><?php echo htmlspecialchars($course_option['course_code']); ?></p>
                                                         </div>
-                                                        <small class="text-muted"><?php echo $course_option['progress_percentage'] ?? 0; ?>% Complete</small>
+                                                        <div class="course-status">
+                                                            <i class="bi <?php echo $progress_icon; ?> status-icon <?php echo $progress_status; ?>"></i>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body">
+                                                    <?php if ($course_option['description']): ?>
+                                                        <p class="course-description"><?php echo htmlspecialchars(substr($course_option['description'], 0, 120)) . '...'; ?></p>
+                                                    <?php endif; ?>
+                                                    
+                                                    <!-- Progress Section -->
+                                                    <div class="progress-section">
+                                                        <div class="progress-header">
+                                                            <span class="progress-label">Course Progress</span>
+                                                            <span class="progress-percentage"><?php echo $actual_progress; ?>%</span>
+                                                        </div>
+                                                        <div class="progress progress-custom">
+                                                            <div class="progress-bar progress-bar-custom <?php echo $progress_status; ?>" 
+                                                                 style="width: <?php echo $actual_progress; ?>%"
+                                                                 role="progressbar" 
+                                                                 aria-valuenow="<?php echo $actual_progress; ?>" 
+                                                                 aria-valuemin="0" 
+                                                                 aria-valuemax="100">
+                                                            </div>
+                                                        </div>
+                                                        <div class="progress-status-text">
+                                                            <?php
+                                                            switch($progress_status) {
+                                                                case 'not-started': echo 'Not Started'; break;
+                                                                case 'just-started': echo 'Just Started'; break;
+                                                                case 'in-progress': echo 'In Progress'; break;
+                                                                case 'halfway': echo 'Halfway Done'; break;
+                                                                case 'almost-done': echo 'Almost Complete'; break;
+                                                                case 'completed': echo 'Completed'; break;
+                                                            }
+                                                            ?>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Course Meta Information -->
+                                                    <div class="course-meta">
+                                                        <div class="meta-item">
+                                                            <i class="bi bi-calendar-check text-primary"></i>
+                                                            <span>Enrolled: <?php echo $course_option['enrolled_at'] ? date('M j, Y', strtotime($course_option['enrolled_at'])) : 'Not enrolled'; ?></span>
+                                                        </div>
                                                         <?php if ($course_option['last_accessed']): ?>
-                                                            <br><small class="text-muted">Last Active: <?php echo date('M j, Y g:i A', strtotime($course_option['last_accessed'])); ?></small>
+                                                            <div class="meta-item">
+                                                                <i class="bi bi-clock text-info"></i>
+                                                                <span>Last Active: <?php echo date('M j, Y', strtotime($course_option['last_accessed'])); ?></span>
+                                                            </div>
                                                         <?php endif; ?>
+                                                        <div class="meta-item">
+                                                            <i class="bi bi-graph-up text-success"></i>
+                                                            <span>Status: <?php echo ucfirst($course_option['status'] ?? 'Active'); ?></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card-footer course-card-footer">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="view-details-text">Click to view detailed progress</span>
+                                                        <i class="bi bi-arrow-right-circle view-details-icon"></i>
                                                     </div>
                                                 </div>
                                             </div>
@@ -478,7 +653,8 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                                     <p class="text-muted mt-2">No assessment attempts yet</p>
                                 </div>
                             <?php else: ?>
-                                <?php foreach ($recent_attempts as $index => $attempt): ?>
+                                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                                    <?php foreach ($recent_attempts as $index => $attempt): ?>
                                     <div class="assessment-attempt-card mb-4">
                                         <div class="attempt-header">
                                             <div class="row align-items-center">
@@ -590,7 +766,8 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                                         </div>
                                         <?php endif; ?>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -609,8 +786,9 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <?php foreach ($module_progress as $module_id => $module): ?>
+                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                <div class="row">
+                                    <?php foreach ($module_progress as $module_id => $module): ?>
                                     <div class="col-md-6 mb-4">
                                         <div class="module-progress-card">
                                             <div class="module-header">
@@ -686,7 +864,8 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                                             <?php endif; ?>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -881,28 +1060,220 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
 }
 
 /* Course Selection */
+.course-selection-main-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(46, 94, 78, 0.1);
+}
+
+.course-selection-header {
+    background: #2E5E4E;
+    color: white;
+    border: none;
+    border-radius: 16px 16px 0 0;
+    padding: 1.5rem;
+}
+
 .course-selection-card {
     cursor: pointer;
     transition: all 0.3s ease;
+    height: 100%;
 }
 
 .course-selection-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(46, 94, 78, 0.2);
 }
 
-.course-selection-card .card {
+.course-card {
     border: 2px solid #e9ecef;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.course-selection-card:hover .course-card {
+    border-color: #2E5E4E;
+    box-shadow: 0 8px 25px rgba(46, 94, 78, 0.15);
+}
+
+.course-card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    padding: 1.25rem;
+}
+
+.course-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2E5E4E;
+    margin: 0;
+}
+
+.course-code {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.course-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f8f9fa;
+}
+
+.status-icon {
+    font-size: 1.2rem;
     transition: all 0.3s ease;
 }
 
-.course-selection-card:hover .card {
-    border-color: #2E5E4E;
-    box-shadow: 0 4px 20px rgba(46, 94, 78, 0.15);
+.status-icon.not-started {
+    color: #6c757d;
 }
 
+.status-icon.just-started {
+    color: #17a2b8;
+}
+
+.status-icon.in-progress {
+    color: #ffc107;
+}
+
+.status-icon.halfway {
+    color: #fd7e14;
+}
+
+.status-icon.almost-done {
+    color: #28a745;
+}
+
+.status-icon.completed {
+    color: #2E5E4E;
+}
+
+.course-description {
+    font-size: 0.9rem;
+    color: #6c757d;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+/* Progress Section */
+.progress-section {
+    margin-bottom: 1.5rem;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.progress-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.progress-percentage {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #2E5E4E;
+}
+
+.progress-custom {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.progress-bar-custom {
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    position: relative;
+}
+
+.progress-bar-custom.not-started {
+    background: #6c757d;
+}
+
+.progress-bar-custom.just-started {
+    background: linear-gradient(90deg, #17a2b8 0%, #20c997 100%);
+}
+
+.progress-bar-custom.in-progress {
+    background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.progress-bar-custom.halfway {
+    background: linear-gradient(90deg, #fd7e14 0%, #e83e8c 100%);
+}
+
+.progress-bar-custom.almost-done {
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+.progress-bar-custom.completed {
+    background: linear-gradient(90deg, #2E5E4E 0%, #28a745 100%);
+}
+
+.progress-status-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* Course Meta */
 .course-meta {
-    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.meta-item i {
+    margin-right: 0.5rem;
+    width: 16px;
+    text-align: center;
+}
+
+.course-card-footer {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 1rem 1.25rem;
+    margin-top: auto;
+}
+
+.view-details-text {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.view-details-icon {
+    color: #2E5E4E;
+    font-size: 1.1rem;
+    transition: transform 0.3s ease;
+}
+
+.course-selection-card:hover .view-details-icon {
+    transform: translateX(4px);
 }
 
 /* Assessment Attempt Cards */
@@ -1131,6 +1502,56 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
     .progress-value {
         font-size: 2rem;
     }
+}
+
+/* Custom Scrollbar Styling */
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #2E5E4E;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #1e3a2e;
+}
+
+/* Smooth scrolling */
+.table-responsive {
+    scroll-behavior: smooth;
+}
+
+/* Scroll indicators */
+.table-responsive::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(to left, rgba(46, 94, 78, 0.1), transparent);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.table-responsive::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(to top, rgba(46, 94, 78, 0.1), transparent);
+    pointer-events: none;
+    z-index: 1;
 }
 </style>
 

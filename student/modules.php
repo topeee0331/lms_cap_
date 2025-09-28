@@ -24,14 +24,31 @@ if (!empty($all_course_ids)) {
     $in = str_repeat('?,', count($all_course_ids) - 1) . '?';
     $params = $all_course_ids;
     $stmt = $pdo->prepare("
-        SELECT cm.id, cm.module_title, cm.module_description, c.course_name
-        FROM course_modules cm
-        JOIN courses c ON cm.course_id = c.id
+        SELECT c.id as course_id, c.course_name, c.modules
+        FROM courses c
         WHERE c.id IN ($in)
-        ORDER BY c.course_name, cm.module_order
+        ORDER BY c.course_name
     ");
     $stmt->execute($params);
-    $modules = $stmt->fetchAll();
+    $courses = $stmt->fetchAll();
+    
+    // Extract modules from JSON
+    foreach ($courses as $course) {
+        if ($course['modules']) {
+            $modules_data = json_decode($course['modules'], true);
+            if (is_array($modules_data)) {
+                foreach ($modules_data as $module) {
+                    $modules[] = [
+                        'id' => $module['id'],
+                        'module_title' => $module['module_title'] ?? $module['title'] ?? 'Unknown Module',
+                        'module_description' => $module['module_description'] ?? $module['description'] ?? '',
+                        'course_name' => $course['course_name'],
+                        'course_id' => $course['course_id']
+                    ];
+                }
+            }
+        }
+    }
 }
 
 // After fetching $modules, fetch files for each module

@@ -18,10 +18,21 @@ if (!$course) {
 }
 $page_title = 'Course Analytics';
 
-// 1. Get all sections assigned to this course
-$section_stmt = $db->prepare("SELECT s.id, s.section_name as name, s.year_level as year FROM course_sections cs INNER JOIN sections s ON cs.section_id = s.id WHERE cs.course_id = ?");
+// 1. Get all sections assigned to this course (using JSON sections field)
+$section_stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
 $section_stmt->execute([$course_id]);
-$sections = $section_stmt->fetchAll();
+$course_sections_json = $section_stmt->fetchColumn();
+
+$sections = [];
+if ($course_sections_json) {
+    $section_ids = json_decode($course_sections_json, true);
+    if ($section_ids && is_array($section_ids) && !empty($section_ids)) {
+        $placeholders = str_repeat('?,', count($section_ids) - 1) . '?';
+        $section_stmt = $db->prepare("SELECT id, section_name as name, year_level as year FROM sections WHERE id IN ($placeholders) AND is_active = 1 ORDER BY year_level, section_name");
+        $section_stmt->execute($section_ids);
+        $sections = $section_stmt->fetchAll();
+    }
+}
 $section_ids = array_column($sections, 'id');
 
 // 2. Get all students in these sections
@@ -34,23 +45,65 @@ if ($section_ids) {
 }
 $student_ids = array_column($students, 'id');
 
-// 3. Get all modules for this course
-$mod_stmt = $db->prepare("SELECT id, module_title FROM course_modules WHERE course_id = ? ORDER BY module_order");
+// 3. Get all modules for this course (from JSON modules field)
+$mod_stmt = $db->prepare("SELECT modules FROM courses WHERE id = ?");
 $mod_stmt->execute([$course_id]);
-$modules = $mod_stmt->fetchAll();
-$module_ids = array_column($modules, 'id');
+$course_modules_json = $mod_stmt->fetchColumn();
 
-// 4. Get all assessments for this course
-$assess_stmt = $db->prepare("SELECT a.id, a.assessment_title, a.module_id, a.passing_rate FROM assessments a WHERE a.module_id IN (" . (count($module_ids) ? implode(',', $module_ids) : '0') . ")");
-$assess_stmt->execute();
-$assessments = $assess_stmt->fetchAll();
-$assessment_ids = array_column($assessments, 'id');
+$modules = [];
+$module_ids = [];
+if ($course_modules_json) {
+    $modules_data = json_decode($course_modules_json, true);
+    if ($modules_data && is_array($modules_data)) {
+        foreach ($modules_data as $module) {
+            $modules[] = [
+                'id' => $module['id'],
+                'module_title' => $module['module_title'] ?? $module['title'] ?? 'Module'
+            ];
+            $module_ids[] = $module['id'];
+        }
+    }
+}
 
-// 5. Get all videos for this course
-$video_stmt = $db->prepare("SELECT v.id, v.video_title, v.module_id FROM course_videos v WHERE v.module_id IN (" . (count($module_ids) ? implode(',', $module_ids) : '0') . ")");
-$video_stmt->execute();
-$videos = $video_stmt->fetchAll();
-$video_ids = array_column($videos, 'id');
+// 4. Get all assessments for this course (from assessments table, not JSON)
+$assessments = [];
+$assessment_ids = [];
+
+// Get assessments from the assessments table for this course
+$stmt = $db->prepare("SELECT id, assessment_title, passing_rate FROM assessments WHERE course_id = ?");
+$stmt->execute([$course_id]);
+$db_assessments = $stmt->fetchAll();
+
+foreach ($db_assessments as $assessment) {
+    $assessments[] = [
+        'id' => $assessment['id'],
+        'assessment_title' => $assessment['assessment_title'],
+        'module_id' => null, // Not applicable for DB assessments
+        'passing_rate' => $assessment['passing_rate'] ?? 70
+    ];
+    $assessment_ids[] = $assessment['id'];
+}
+
+// 5. Get all videos for this course (from JSON modules field)
+$videos = [];
+$video_ids = [];
+if ($course_modules_json) {
+    $modules_data = json_decode($course_modules_json, true);
+    if ($modules_data && is_array($modules_data)) {
+        foreach ($modules_data as $module) {
+            if (isset($module['videos']) && is_array($module['videos'])) {
+                foreach ($module['videos'] as $video) {
+                    $videos[] = [
+                        'id' => $video['id'],
+                        'video_title' => $video['video_title'] ?? $video['title'] ?? 'Video',
+                        'module_id' => $module['id']
+                    ];
+                    $video_ids[] = $video['id'];
+                }
+            }
+        }
+    }
+}
 
 // Summary Statistics
 $total_students = count($students);
@@ -61,30 +114,58 @@ $total_videos = count($videos);
 // Calculate overall course statistics
 $overall_stats = [];
 if ($total_students > 0) {
-    // Overall progress
-    $stmt = $db->prepare("SELECT AVG(is_completed) * 100 as avg_progress FROM module_progress WHERE module_id IN (" . (count($module_ids) ? implode(',', $module_ids) : '0') . ")");
-    $stmt->execute();
-    $overall_stats['progress'] = round($stmt->fetchColumn() ?? 0, 1);
+    // Get module progress from course_enrollments JSON
+    $stmt = $db->prepare("
+        SELECT e.module_progress, e.video_progress 
+        FROM course_enrollments e 
+        WHERE e.course_id = ? AND e.status = 'active'
+    ");
+    $stmt->execute([$course_id]);
+    $enrollments = $stmt->fetchAll();
+    
+    // Calculate overall progress from JSON data
+    $total_completed_modules = 0;
+    $total_modules_count = 0;
+    
+    foreach ($enrollments as $enrollment) {
+        $module_progress = json_decode($enrollment['module_progress'] ?? '{}', true) ?: [];
+        $total_modules_count += count($module_ids);
+        
+        foreach ($module_ids as $module_id) {
+            if (isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1) {
+                $total_completed_modules++;
+            }
+        }
+    }
+    
+    $overall_stats['progress'] = $total_modules_count > 0 ? round(($total_completed_modules / $total_modules_count) * 100, 1) : 0;
     
     // Overall assessment scores
-    $stmt = $db->prepare("SELECT AVG(score) as avg_score FROM assessment_attempts WHERE assessment_id IN (" . (count($assessment_ids) ? implode(',', $assessment_ids) : '0') . ")");
-    $stmt->execute();
-    $overall_stats['avg_score'] = round($stmt->fetchColumn() ?? 0, 1);
-    
-    // Pass rate
-    $stmt = $db->prepare("SELECT COUNT(*) as passed FROM assessment_attempts aa JOIN assessments a ON aa.assessment_id = a.id WHERE aa.assessment_id IN (" . (count($assessment_ids) ? implode(',', $assessment_ids) : '0') . ") AND aa.score >= a.passing_rate");
-    $stmt->execute();
-    $passed = $stmt->fetchColumn() ?? 0;
-    
-    $stmt = $db->prepare("SELECT COUNT(*) as total FROM assessment_attempts WHERE assessment_id IN (" . (count($assessment_ids) ? implode(',', $assessment_ids) : '0') . ")");
-    $stmt->execute();
-    $total_attempts = $stmt->fetchColumn() ?? 0;
+    if (count($assessment_ids) > 0) {
+        $placeholders = str_repeat('?,', count($assessment_ids) - 1) . '?';
+        $stmt = $db->prepare("SELECT AVG(score) as avg_score FROM assessment_attempts WHERE assessment_id IN ($placeholders)");
+        $stmt->execute($assessment_ids);
+        $overall_stats['avg_score'] = round($stmt->fetchColumn() ?? 0, 1);
+        
+        // Pass rate
+        $stmt = $db->prepare("SELECT COUNT(*) as passed FROM assessment_attempts aa JOIN assessments a ON aa.assessment_id = a.id WHERE aa.assessment_id IN ($placeholders) AND aa.score >= a.passing_rate");
+        $stmt->execute($assessment_ids);
+        $passed = $stmt->fetchColumn() ?? 0;
+        
+        $stmt = $db->prepare("SELECT COUNT(*) as total FROM assessment_attempts WHERE assessment_id IN ($placeholders)");
+        $stmt->execute($assessment_ids);
+        $total_attempts = $stmt->fetchColumn() ?? 0;
+    } else {
+        $overall_stats['avg_score'] = 0;
+        $passed = 0;
+        $total_attempts = 0;
+    }
     
     $overall_stats['pass_rate'] = $total_attempts > 0 ? round(($passed / $total_attempts) * 100, 1) : 0;
     
     // Total video views
     try {
-        $stmt = $db->prepare("SELECT COUNT(*) as total_views FROM video_stats WHERE video_id IN (" . (count($video_ids) ? implode(',', $video_ids) : '0') . ")");
+        $stmt = $db->prepare("SELECT COUNT(*) as total_views FROM video_views WHERE student_id IN (" . (count($student_ids) ? implode(',', $student_ids) : '0') . ")");
         $stmt->execute();
         $overall_stats['total_views'] = $stmt->fetchColumn() ?? 0;
     } catch (Exception $e) {
@@ -95,12 +176,30 @@ if ($total_students > 0) {
 // 1. Student Progress Overview (avg. completion per module)
 $progress_data = [];
 foreach ($modules as $mod) {
-    $stmt = $db->prepare("SELECT AVG(is_completed) * 100 as avg_progress FROM module_progress WHERE module_id = ?");
-    $stmt->execute([$mod['id']]);
-    $row = $stmt->fetch();
+    // Get module progress from course_enrollments JSON
+    $stmt = $db->prepare("
+        SELECT e.module_progress 
+        FROM course_enrollments e 
+        WHERE e.course_id = ? AND e.status = 'active'
+    ");
+    $stmt->execute([$course_id]);
+    $enrollments = $stmt->fetchAll();
+    
+    $completed_count = 0;
+    $total_students_for_module = count($enrollments);
+    
+    foreach ($enrollments as $enrollment) {
+        $module_progress = json_decode($enrollment['module_progress'] ?? '{}', true) ?: [];
+        if (isset($module_progress[$mod['id']]) && $module_progress[$mod['id']]['is_completed'] == 1) {
+            $completed_count++;
+        }
+    }
+    
+    $avg_progress = $total_students_for_module > 0 ? ($completed_count / $total_students_for_module) * 100 : 0;
+    
     $progress_data[] = [
         'label' => $mod['module_title'],
-        'value' => round($row['avg_progress'] ?? 0, 1)
+        'value' => round($avg_progress, 1)
     ];
 }
 
@@ -130,7 +229,7 @@ foreach ($assessments as $assess) {
 $engagement_data = [];
 foreach ($videos as $vid) {
     try {
-        $stmt = $db->prepare("SELECT COUNT(*) as views FROM video_stats WHERE video_id = ?");
+        $stmt = $db->prepare("SELECT COUNT(*) as views FROM video_views WHERE video_id = ?");
         $stmt->execute([$vid['id']]);
         $row = $stmt->fetch();
         $engagement_data[] = [
@@ -186,8 +285,9 @@ $performance_distribution = [
 ];
 
 if ($assessment_ids) {
-    $stmt = $db->prepare("SELECT score FROM assessment_attempts WHERE assessment_id IN (" . implode(',', $assessment_ids) . ")");
-    $stmt->execute();
+    $placeholders = str_repeat('?,', count($assessment_ids) - 1) . '?';
+    $stmt = $db->prepare("SELECT score FROM assessment_attempts WHERE assessment_id IN ($placeholders)");
+    $stmt->execute($assessment_ids);
     $scores = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     foreach ($scores as $score) {

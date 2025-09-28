@@ -957,16 +957,21 @@ if (!$course) {
     redirectWithMessage('courses.php', 'Course not found or access denied.', 'danger');
 }
 
-// Get all sections assigned to this course
-$stmt = $db->prepare("
-    SELECT s.id, s.name, s.year 
-    FROM course_sections cs
-    JOIN sections s ON cs.section_id = s.id
-    WHERE cs.course_id = ?
-    ORDER BY s.year, s.name
-");
+// Get all sections assigned to this course (using JSON sections field)
+$stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
 $stmt->execute([$course_id]);
-$sections = $stmt->fetchAll();
+$course_sections_json = $stmt->fetchColumn();
+
+$sections = [];
+if ($course_sections_json) {
+    $section_ids = json_decode($course_sections_json, true);
+    if ($section_ids && is_array($section_ids) && !empty($section_ids)) {
+        $placeholders = str_repeat('?,', count($section_ids) - 1) . '?';
+        $stmt = $db->prepare("SELECT id, section_name as name, year_level as year FROM sections WHERE id IN ($placeholders) AND is_active = 1 ORDER BY year_level, section_name");
+        $stmt->execute($section_ids);
+        $sections = $stmt->fetchAll();
+    }
+}
 
 // Helper function to format section display name
 function formatSectionName($section) {
@@ -1014,8 +1019,8 @@ $leaderboard_sql = "
                       WHERE aa.student_id = u.id AND cm.course_id = ? AND aa.status = 'completed'), 0) * 0.5 +
             (SELECT COUNT(*) FROM student_badges sb WHERE sb.student_id = u.id) * 5
         ) as calculated_score
-    FROM course_sections cs
-    JOIN sections s ON cs.section_id = s.id
+    FROM courses c
+    JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
     JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
     $where_clause
     ORDER BY calculated_score DESC

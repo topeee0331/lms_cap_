@@ -757,6 +757,13 @@ foreach ($all_assessments as $assessment) {
     }
 }
 
+// Sort assessments by assessment_order to ensure proper left-to-right positioning
+usort($assessments, function($a, $b) {
+    $order_a = (int)($a['assessment_order'] ?? 0);
+    $order_b = (int)($b['assessment_order'] ?? 0);
+    return $order_a - $order_b;
+});
+
 // Handle assessment actions (non-AJAX form submissions)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['create_assessment', 'update_assessment', 'delete_assessment', 'toggle_status'])) {
     error_log("POST request received - processing form submission");
@@ -866,6 +873,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         // Refresh the assessments array to show the newly added assessment immediately
                         $assessments[] = $new_assessment;
                         
+                        // Re-sort assessments by assessment_order
+                        usort($assessments, function($a, $b) {
+                            $order_a = (int)($a['assessment_order'] ?? 0);
+                            $order_b = (int)($b['assessment_order'] ?? 0);
+                            return $order_a - $order_b;
+                        });
+                        
                         $message = 'Assessment created successfully.';
                         if ($order_result['auto_assigned']) {
                             $message .= ' Order automatically assigned: ' . $assessment_order;
@@ -961,6 +975,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                             }
                         }
                         
+                        // Re-sort assessments by assessment_order after update
+                        usort($assessments, function($a, $b) {
+                            $order_a = (int)($a['assessment_order'] ?? 0);
+                            $order_b = (int)($b['assessment_order'] ?? 0);
+                            return $order_a - $order_b;
+                        });
+                        
                         $message = "Assessment updated successfully.";
                         if ($order_result['auto_assigned']) {
                             $message .= ' Order automatically assigned: ' . $assessment_order;
@@ -1012,6 +1033,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                         }
                     }
                     
+                    // Re-sort assessments by assessment_order after status update
+                    usort($assessments, function($a, $b) {
+                        $order_a = (int)($a['assessment_order'] ?? 0);
+                        $order_b = (int)($b['assessment_order'] ?? 0);
+                        return $order_a - $order_b;
+                    });
+                    
                     $message = 'Assessment status updated successfully.';
                     $message_type = 'success';
                 }
@@ -1049,6 +1077,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     // Refresh the assessments array to remove the deleted assessment immediately
                     $assessments = array_filter($assessments, function($assessment) use ($assessment_id) {
                         return $assessment['id'] !== $assessment_id;
+                    });
+                    
+                    // Re-sort assessments by assessment_order after deletion
+                    usort($assessments, function($a, $b) {
+                        $order_a = (int)($a['assessment_order'] ?? 0);
+                        $order_b = (int)($b['assessment_order'] ?? 0);
+                        return $order_a - $order_b;
                     });
                     
                     $message = 'Assessment deleted successfully.';
@@ -1880,75 +1915,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 <div class="modal fade" id="questionManagementModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-question-circle me-2"></i>Manage Questions - <span id="question_modal_title"></span>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center">
+                    <i class="bi bi-question-circle me-2"></i>
+                    <span>Manage Questions</span>
+                    <span class="ms-2 text-light fw-normal">- <span id="question_modal_title"></span></span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">Assessment Questions</h6>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-success btn-sm" onclick="showAddSingleQuestionForm()">
-                            <i class="bi bi-plus-circle me-1"></i>Add Single Question
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="showBulkQuestionForm()">
-                            <i class="bi bi-plus-square me-1"></i>Bulk Add Questions
-                        </button>
+            <div class="modal-body p-0">
+                <!-- Header Section -->
+                <div class="bg-light border-bottom p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 fw-semibold text-dark">Assessment Questions</h6>
+                            <small class="text-muted">Create and manage questions for this assessment</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Question Counter -->
+                            <div class="d-flex align-items-center question-counter-container rounded-pill px-3 py-2 shadow-sm">
+                                <i class="bi bi-question-circle text-primary me-2"></i>
+                                <span class="fw-semibold text-dark me-1">Total:</span>
+                                <span id="questionCounter" class="badge bg-primary fs-6 px-2 py-1">0</span>
+                                <span class="text-muted small ms-1">questions</span>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-success" onclick="showAddSingleQuestionForm()">
+                                    <i class="bi bi-plus-circle me-1"></i>Add Single Question
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="showBulkQuestionForm()">
+                                    <i class="bi bi-plus-square me-1"></i>Bulk Add Questions
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Questions List -->
-                <div id="questionsList" class="mb-4">
-                    <!-- Questions will be loaded here -->
+                <!-- Questions List Section -->
+                <div class="p-4">
+                    <div id="questionsList">
+                        <!-- Questions will be loaded here -->
+                    </div>
                 </div>
                 
                 <!-- Single Question Creation Form -->
-                <div id="singleQuestionForm" style="display: none;">
-                    <div class="card">
-                        <div class="card-header bg-success text-white">
+                <div id="singleQuestionForm" style="display: none;" class="border-top">
+                    <div class="bg-white">
+                        <div class="border-bottom bg-success text-white p-3">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">
+                                <h6 class="mb-0 d-flex align-items-center">
                                     <i class="bi bi-plus-circle me-2"></i>Add Single Question
                                 </h6>
-                                <button type="button" class="btn-close btn-close-white" onclick="hideSingleQuestionForm()"></button>
+                                <button type="button" class="btn btn-sm btn-outline-light" onclick="hideSingleQuestionForm()">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                         </div>
-                        <div class="card-body">
+                        <div class="p-4">
                             <form id="singleQuestionFormElement">
                                 <input type="hidden" id="single_assessment_id" name="assessment_id">
                                 <input type="hidden" name="action" value="create_single_question">
                                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                 
-                                <div class="mb-3">
-                                    <label for="single_question_text" class="form-label">Question Text</label>
-                                    <textarea class="form-control" id="single_question_text" name="question_text" rows="3" 
-                                              placeholder="Enter your question here..." required></textarea>
-                                </div>
-                                
-                                <div class="row g-3 mb-3">
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <label for="single_question_text" class="form-label fw-semibold">
+                                            <i class="bi bi-question-circle me-1"></i>Question Text
+                                            <span id="singleQuestionCount" class="badge bg-primary ms-2">#1</span>
+                                        </label>
+                                        <textarea class="form-control form-control-lg" id="single_question_text" name="question_text" rows="4" 
+                                                  placeholder="Enter your question here..." required></textarea>
+                                        <div class="form-text">Be clear and specific in your question wording.</div>
+                                    </div>
+                                    
                                     <div class="col-md-8">
-                                        <label for="single_question_type" class="form-label">Question Type</label>
-                                        <select class="form-select" id="single_question_type" name="question_type" onchange="toggleSingleQuestionOptions()">
+                                        <label for="single_question_type" class="form-label fw-semibold">
+                                            <i class="bi bi-list-ul me-1"></i>Question Type
+                                        </label>
+                                        <select class="form-select form-select-lg" id="single_question_type" name="question_type" onchange="toggleSingleQuestionOptions()">
                                             <option value="multiple_choice">📝 Multiple Choice</option>
                                             <option value="true_false">✅ True/False</option>
                                             <option value="identification">🔍 Identification</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="single_points" class="form-label">Points</label>
-                                        <input type="number" class="form-control" id="single_points" name="points" value="1" min="1" max="100" required>
+                                        <label for="single_points" class="form-label fw-semibold">
+                                            <i class="bi bi-star me-1"></i>Points
+                                        </label>
+                                        <input type="number" class="form-control form-control-lg" id="single_points" name="points" value="1" min="1" max="100" required>
                                     </div>
                                 </div>
                                 
-                                <div id="singleQuestionOptions">
+                                <div id="singleQuestionOptions" class="mt-4">
                                     <!-- Options will be generated here -->
                                 </div>
                                 
-                                <div class="d-flex justify-content-end gap-2 mt-4">
-                                    <button type="button" class="btn btn-secondary" onclick="hideSingleQuestionForm()">Cancel</button>
-                                    <button type="submit" class="btn btn-success">Add Question</button>
+                                <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="hideSingleQuestionForm()">
+                                        <i class="bi bi-x-circle me-1"></i>Cancel
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Question
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -1956,37 +2024,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 </div>
                 
                 <!-- Bulk Question Creation Form -->
-                <div id="bulkQuestionForm" style="display: none;">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
+                <div id="bulkQuestionForm" style="display: none;" class="border-top">
+                    <div class="bg-white">
+                        <div class="border-bottom bg-primary text-white p-3">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">
+                                <h6 class="mb-0 d-flex align-items-center">
                                     <i class="bi bi-plus-square me-2"></i>Bulk Add Questions
                                 </h6>
-                                <button type="button" class="btn-close btn-close-white" onclick="hideBulkQuestionForm()"></button>
+                                <button type="button" class="btn btn-sm btn-outline-light" onclick="hideBulkQuestionForm()">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                         </div>
-                        <div class="card-body">
+                        <div class="p-4">
                             <form id="bulkQuestionFormElement">
                                 <input type="hidden" id="bulk_assessment_id" name="assessment_id">
                                 <input type="hidden" name="action" value="create_bulk_questions">
                                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                                 
-                                <div class="mb-3">
-                                    <label for="bulk_question_count" class="form-label">How many questions do you want to add?</label>
-                                    <input type="number" class="form-control" id="bulk_question_count" name="question_count" 
-                                           value="3" min="1" max="50" onchange="generateBulkQuestionForm()" required>
-                                    <div class="form-text">Enter the number of questions you want to create (1-50).</div>
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <label for="bulk_question_count" class="form-label fw-semibold">
+                                            <i class="bi bi-hash me-1"></i>Number of Questions
+                                        </label>
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text">How many questions?</span>
+                                            <input type="number" class="form-control" id="bulk_question_count" name="question_count" 
+                                                   value="3" min="1" max="50" onchange="generateBulkQuestionForm()" required>
+                                            <span class="input-group-text">questions</span>
+                                        </div>
+                                        <div class="form-text">Enter the number of questions you want to create (1-50).</div>
+                                    </div>
                                 </div>
                                 
-                                <div id="bulkQuestionsContainer">
+                                <div id="bulkQuestionsContainer" class="mt-4">
                                     <!-- Bulk questions will be generated here -->
                                 </div>
                                 
-                                <div class="d-flex justify-content-end gap-2 mt-4">
-                                    <button type="button" class="btn btn-secondary" onclick="hideBulkQuestionForm()">Cancel</button>
-                                    <button type="button" class="btn btn-outline-primary" onclick="clearBulkQuestions()">Clear All</button>
-                                    <button type="submit" class="btn btn-primary">Add All Questions</button>
+                                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                                    <button type="button" class="btn btn-outline-danger" onclick="clearBulkQuestions()">
+                                        <i class="bi bi-trash me-1"></i>Clear All
+                                    </button>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="hideBulkQuestionForm()">
+                                            <i class="bi bi-x-circle me-1"></i>Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-plus-square me-1"></i>Add All Questions
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -2003,6 +2089,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 </div>
 
 <style>
+/* Enhanced Question Management Styles */
 .hover-shadow:hover {
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
@@ -2024,6 +2111,257 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 
 .btn-group .btn {
     border-radius: 0.375rem !important;
+}
+
+/* Question Management Modal Enhancements */
+#questionManagementModal .modal-content {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+#questionManagementModal .modal-header {
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+#questionManagementModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Question Card Enhancements */
+.question-card {
+    border-left: 4px solid #0d6efd;
+    transition: all 0.3s ease;
+}
+
+.question-card:hover {
+    border-left-color: #0b5ed7;
+    transform: translateX(5px);
+}
+
+.question-type-badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+}
+
+.question-options {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.option-item {
+    padding: 0.5rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.option-item:hover {
+    background-color: #e9ecef;
+}
+
+.option-correct {
+    background-color: #d1edff;
+    border: 1px solid #0d6efd;
+}
+
+.option-incorrect {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+/* Form Enhancements */
+.form-control-lg, .form-select-lg {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.form-control-lg:focus, .form-select-lg:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    transform: translateY(-1px);
+}
+
+.input-group-lg .input-group-text {
+    border-radius: 8px 0 0 8px;
+    background-color: #f8f9fa;
+    border: 2px solid #e9ecef;
+    font-weight: 500;
+}
+
+.input-group-lg .form-control {
+    border-radius: 0 8px 8px 0;
+}
+
+/* Button Enhancements */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 0.25rem;
+}
+
+.btn-group-vertical .btn:last-child {
+    margin-bottom: 0;
+}
+
+/* Loading States */
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 0.2em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+    padding: 3rem 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    border: 2px dashed #dee2e6;
+}
+
+.empty-state i {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+/* Question Counter Styles */
+#questionCounter {
+    transition: all 0.3s ease;
+    font-size: 0.9rem !important;
+    min-width: 2rem;
+    text-align: center;
+}
+
+/* Question Number Badge Styles */
+.question-number-badge {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.question-number-badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Bulk Question Header Styles */
+.card-header.bg-primary,
+.card-header.bg-success,
+.card-header.bg-info,
+.card-header.bg-warning,
+.card-header.bg-danger,
+.card-header.bg-secondary,
+.card-header.bg-dark {
+    border-radius: 8px 8px 0 0 !important;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.card-header.bg-warning .badge {
+    background-color: #000 !important;
+    color: #ffc107 !important;
+}
+
+/* Enhanced badge styling for question headers */
+.card-header .badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.card-header .badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Card hover effects for bulk questions */
+.card.mb-3 {
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
+
+.card.mb-3:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #0d6efd;
+}
+
+.question-counter-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.question-counter-container:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.15);
+}
+
+.counter-animation {
+    animation: counterPulse 0.6s ease-in-out;
+}
+
+@keyframes counterPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .btn-group-vertical {
+        flex-direction: row;
+    }
+    
+    .btn-group-vertical .btn {
+        margin-bottom: 0;
+        margin-right: 0.25rem;
+    }
+    
+    .btn-group-vertical .btn:last-child {
+        margin-right: 0;
+    }
+    
+    .question-counter-container {
+        flex-direction: column;
+        text-align: center;
+        padding: 0.5rem;
+    }
+    
+    .question-counter-container span {
+        font-size: 0.8rem;
+    }
 }
 
 .btn-group .btn:first-child {
@@ -2718,8 +3056,12 @@ function loadQuestions(assessmentId) {
     
     // Show loading state
     const questionsList = document.getElementById('questionsList');
+    const counter = document.getElementById('questionCounter');
     if (questionsList) {
         questionsList.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split me-2"></i>Loading questions...</div>';
+    }
+    if (counter) {
+        counter.textContent = '...';
     }
     
     // Make AJAX request to load questions
@@ -2776,28 +3118,101 @@ function loadQuestions(assessmentId) {
 
 function displayQuestions(questions) {
     const container = document.getElementById('questionsList');
+    const counter = document.getElementById('questionCounter');
+    
+    // Update the question counter
+    if (counter) {
+        counter.textContent = questions.length;
+        
+        // Add animation effect when counter changes
+        counter.classList.add('counter-animation');
+        setTimeout(() => {
+            counter.classList.remove('counter-animation');
+        }, 600);
+    }
     
     if (questions.length === 0) {
-        container.innerHTML = '<div class="alert alert-info">No questions added yet. Click "Add Question" to get started.</div>';
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-question-circle display-1 text-muted"></i>
+                </div>
+                <h5 class="text-muted mb-3">No Questions Yet</h5>
+                <p class="text-muted mb-4">Start building your assessment by adding questions using the buttons above.</p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="showAddSingleQuestionForm()">
+                        <i class="bi bi-plus-circle me-1"></i>Add Single Question
+                    </button>
+                    <button class="btn btn-primary" onclick="showBulkQuestionForm()">
+                        <i class="bi bi-plus-square me-1"></i>Bulk Add Questions
+                    </button>
+                </div>
+            </div>
+        `;
         return;
     }
     
-    let html = '<div class="row g-3">';
+    let html = `
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex align-items-center">
+                <h6 class="mb-0 fw-semibold me-3">
+                    <i class="bi bi-list-ol me-2"></i>Questions
+                </h6>
+                <span class="badge bg-primary fs-6 px-3 py-2">${questions.length} Total</span>
+            </div>
+            <div class="text-muted small">
+                <i class="bi bi-info-circle me-1"></i>Click on any question to edit or delete
+            </div>
+        </div>
+        <div class="row g-4">
+    `;
+    
     questions.forEach((question, index) => {
         let optionsHtml = '';
+        let typeIcon = '';
+        let typeColor = '';
+        
+        // Set type-specific styling
+        switch(question.question_type) {
+            case 'multiple_choice':
+                typeIcon = '📝';
+                typeColor = 'primary';
+                break;
+            case 'true_false':
+                typeIcon = '✅';
+                typeColor = 'success';
+                break;
+            case 'identification':
+                typeIcon = '🔍';
+                typeColor = 'info';
+                break;
+        }
         
         // Display options for multiple choice questions
         if (question.question_type === 'multiple_choice' && question.options) {
             try {
                 const options = JSON.parse(question.options);
                 if (Array.isArray(options)) {
-                    optionsHtml = '<div class="mt-2"><strong>Options:</strong><ul class="list-unstyled mt-1">';
+                    optionsHtml = `
+                        <div class="mt-3">
+                            <h6 class="text-muted small mb-2">
+                                <i class="bi bi-list-ul me-1"></i>Answer Options:
+                            </h6>
+                            <div class="row g-2">
+                    `;
                     options.forEach((option, optIndex) => {
-                        const correctClass = option.is_correct ? 'text-success fw-bold' : 'text-muted';
-                        const correctIcon = option.is_correct ? '✅' : '⚪';
-                        optionsHtml += `<li class="${correctClass}">${correctIcon} ${option.text}</li>`;
+                        const correctClass = option.is_correct ? 'border-success bg-light-success' : 'border-light';
+                        const correctIcon = option.is_correct ? 'bi-check-circle-fill text-success' : 'bi-circle text-muted';
+                        optionsHtml += `
+                            <div class="col-12">
+                                <div class="p-2 border rounded ${correctClass}">
+                                    <i class="bi ${correctIcon} me-2"></i>
+                                    <span class="${option.is_correct ? 'fw-semibold text-success' : 'text-muted'}">${option.text}</span>
+                                </div>
+                            </div>
+                        `;
                     });
-                    optionsHtml += '</ul></div>';
+                    optionsHtml += '</div></div>';
                 }
             } catch (e) {
                 console.error('Error parsing options:', e);
@@ -2806,25 +3221,40 @@ function displayQuestions(questions) {
         
         html += `
             <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h6 class="card-title">Question ${question.question_order}</h6>
-                                <p class="card-text">${question.question_text}</p>
-                                ${optionsHtml}
-                                <div class="d-flex gap-2 mt-2">
-                                    <span class="badge bg-primary">${question.question_type.replace('_', ' ').toUpperCase()}</span>
-                                    <span class="badge bg-secondary">${question.points} point${question.points > 1 ? 's' : ''}</span>
+                <div class="card border-0 shadow-sm hover-shadow" style="transition: all 0.3s ease;">
+                    <div class="card-body p-4">
+                        <div class="row align-items-start">
+                            <div class="col-md-1 text-center">
+                                <div class="question-number-badge bg-${typeColor} text-white rounded-circle d-flex align-items-center justify-content-center mb-2" style="width: 50px; height: 50px; font-weight: bold; font-size: 1.1rem;">
+                                    ${index + 1}
                                 </div>
                             </div>
-                            <div class="col-md-4 text-end">
-                                <div class="btn-group btn-group-sm">
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <h6 class="card-title mb-0 fw-semibold text-dark">
+                                        Question ${index + 1}
+                                        <span class="text-muted small ms-2">(Order: ${question.question_order})</span>
+                                    </h6>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-${typeColor} bg-opacity-10 text-${typeColor} border border-${typeColor}">
+                                            <i class="bi bi-${typeIcon === '📝' ? 'list-ul' : typeIcon === '✅' ? 'check-circle' : 'search'} me-1"></i>
+                                            ${question.question_type.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
+                                            <i class="bi bi-star me-1"></i>${question.points} point${question.points > 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                                <p class="card-text text-dark mb-3">${question.question_text}</p>
+                                ${optionsHtml}
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <div class="btn-group-vertical btn-group-sm w-100">
                                     <button class="btn btn-outline-primary" onclick="editQuestion(${question.id})" title="Edit Question">
-                                        <i class="bi bi-pencil"></i>
+                                        <i class="bi bi-pencil me-1"></i>Edit
                                     </button>
                                     <button class="btn btn-outline-danger" onclick="deleteQuestion(${question.id})" title="Delete Question">
-                                        <i class="bi bi-trash"></i>
+                                        <i class="bi bi-trash me-1"></i>Delete
                                     </button>
                                 </div>
                             </div>
@@ -2837,6 +3267,22 @@ function displayQuestions(questions) {
     html += '</div>';
     
     container.innerHTML = html;
+    
+    // Update the single question form counter if it's visible
+    updateSingleQuestionCount();
+}
+
+function updateSingleQuestionCount() {
+    const counter = document.getElementById('singleQuestionCount');
+    if (counter) {
+        // Get current question count from the questions list
+        const questionsList = document.getElementById('questionsList');
+        if (questionsList) {
+            const questionCards = questionsList.querySelectorAll('.card');
+            const currentCount = questionCards.length;
+            counter.textContent = `#${currentCount + 1}`;
+        }
+    }
 }
 
 function showAddSingleQuestionForm() {
@@ -2845,6 +3291,9 @@ function showAddSingleQuestionForm() {
     
     // Set assessment ID
     document.getElementById('single_assessment_id').value = currentAssessmentId;
+    
+    // Update question count in the form
+    updateSingleQuestionCount();
     
     // Initialize question type options
     toggleSingleQuestionOptions();
@@ -3192,16 +3641,37 @@ function generateBulkQuestionForm() {
     const questionCount = parseInt(document.getElementById('bulk_question_count').value);
     const container = document.getElementById('bulkQuestionsContainer');
     
+    // Get current question count to determine starting number
+    const questionsList = document.getElementById('questionsList');
+    let currentQuestionCount = 0;
+    if (questionsList) {
+        const questionCards = questionsList.querySelectorAll('.card');
+        currentQuestionCount = questionCards.length;
+    }
+    
     let html = '';
     for (let i = 1; i <= questionCount; i++) {
+        const questionNumber = currentQuestionCount + i;
+        // Define different background colors for each question
+        const bgColors = ['bg-primary', 'bg-success', 'bg-info', 'bg-warning', 'bg-danger', 'bg-secondary', 'bg-dark'];
+        const textColors = ['text-white', 'text-white', 'text-white', 'text-dark', 'text-white', 'text-white', 'text-white'];
+        const bgColor = bgColors[(i - 1) % bgColors.length];
+        const textColor = textColors[(i - 1) % textColors.length];
+        
         html += `
             <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">Question ${i}</h6>
+                <div class="card-header ${bgColor} ${textColor}">
+                    <h6 class="mb-0">
+                        <i class="bi bi-question-circle me-2"></i>
+                        Question ${i}
+                    </h6>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label">Question Text</label>
+                        <label class="form-label">
+                            Question Text
+                            <span class="badge bg-primary ms-2">#${questionNumber}</span>
+                        </label>
                         <textarea class="form-control" name="questions[${i}][question_text]" rows="2" 
                                   placeholder="Enter your question here..." required></textarea>
                     </div>

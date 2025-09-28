@@ -229,19 +229,20 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
     <style>
         :root {
             --primary-color: #2E5E4E;
-            --secondary-color: #95a5a6;
-            --success-color: #28a745;
-            --info-color: #17a2b8;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
+            --secondary-color: #6c757d;
+            --success-color: #2E5E4E;
+            --info-color: #2E5E4E;
+            --warning-color: #2E5E4E;
+            --danger-color: #2E5E4E;
             --light-color: #f8f9fa;
             --dark-color: #2E5E4E;
-            --accent-color: #7DCB80;
-            --border-radius: 8px;
-            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            --transition: all 0.2s ease;
+            --accent-color: #2E5E4E;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 16px rgba(46, 94, 78, 0.1);
+            --transition: all 0.3s ease;
             --border-color: #e9ecef;
             --text-muted: #6c757d;
+            --result-color: #2E5E4E;
         }
         
         /* Enhanced Welcome Section */
@@ -252,18 +253,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             margin-bottom: 2rem;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-        }
-        
-        .welcome-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            pointer-events: none;
+            box-shadow: var(--box-shadow);
         }
         
         .welcome-title {
@@ -305,6 +295,230 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             border-color: rgba(255,255,255,0.5);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        /* Statistics Cards */
+        .stats-card {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .stats-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(46, 94, 78, 0.15);
+        }
+
+        .stats-icon {
+            color: var(--primary-color);
+        }
+
+        /* Assessment Main Card */
+        .assessment-main-card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .assessment-header {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            padding: 1.5rem;
+        }
+
+        /* Attempt Display Styles */
+        .attempt-item-modal {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: var(--transition);
+        }
+
+        .attempt-item-modal:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+
+        .attempt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .attempt-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .attempt-number {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .attempt-date {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .attempt-score-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .attempt-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .attempt-status.passed {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .attempt-status.failed {
+            background: #f8f9fa;
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .attempt-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-source-info {
+            color: var(--text-muted);
+        }
+
+        .view-details-btn {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .view-details-btn:hover {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Question Details Styles */
+        .question-item {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .question-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--box-shadow);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .question-number {
+            background: var(--primary-color);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .question-result {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .question-result.correct {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .question-result.incorrect {
+            background: #f8f9fa;
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--dark-color);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .answer-options {
+            margin-bottom: 1rem;
+        }
+
+        .answer-option {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: var(--border-radius);
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .answer-option.correct {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .answer-option.selected {
+            background: #f8f9fa;
+            border-color: var(--primary-color);
+        }
+
+        .answer-option.incorrect {
+            background: #f8f9fa;
+            border-color: #dc3545;
+        }
+
+        .answer-label {
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .answer-text {
+            font-size: 0.95rem;
         }
         
         /* Decorative elements */
@@ -1594,36 +1808,36 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 <!-- Enhanced Statistics -->
                 <div class="row mb-4">
                     <div class="col-md-3 mb-3">
-                        <div class="card text-center" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                        <div class="card text-center stats-card">
                             <div class="card-body">
-                                <i class="fas fa-clipboard-list fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <i class="fas fa-clipboard-list fa-2x mb-2 stats-icon"></i>
                                 <h4 class="card-title mb-1"><?php echo $total_assessments; ?></h4>
                                 <p class="card-text small">Total Assessments</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                        <div class="card text-center stats-card">
                             <div class="card-body">
-                                <i class="fas fa-check-circle fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <i class="fas fa-check-circle fa-2x mb-2 stats-icon"></i>
                                 <h4 class="card-title mb-1"><?php echo $completed_assessments; ?></h4>
                                 <p class="card-text small">Completed</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card text-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                        <div class="card text-center stats-card">
                             <div class="card-body">
-                                <i class="fas fa-chart-line fa-2x mb-2" style="color: rgba(255,255,255,0.9);"></i>
+                                <i class="fas fa-chart-line fa-2x mb-2 stats-icon"></i>
                                 <h4 class="card-title mb-1"><?php echo $average_score; ?>%</h4>
                                 <p class="card-text small">Average Score</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card text-center" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                        <div class="card text-center stats-card">
                             <div class="card-body">
-                                <i class="fas fa-redo fa-2x mb-2" style="color: rgba(33,37,41,0.8);"></i>
+                                <i class="fas fa-redo fa-2x mb-2 stats-icon"></i>
                                 <h4 class="card-title mb-1"><?php echo $attempt_count; ?></h4>
                                 <p class="card-text small">Total Attempts</p>
                             </div>
@@ -1634,8 +1848,8 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 <div class="row">
                     <!-- Available Assessments -->
                     <div class="col-12">
-                        <div class="card" style="border: none; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.08);">
-                            <div class="card-header" style="background: linear-gradient(135deg, #2E5E4E 0%, #1e7e34 100%); color: white; border: none; border-radius: 15px 15px 0 0; padding: 1.5rem;">
+                        <div class="card assessment-main-card">
+                            <div class="card-header assessment-header">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0" style="font-weight: 600; font-size: 1.3rem;">
                                         <i class="fas fa-clipboard-list me-2"></i>
@@ -2082,37 +2296,48 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                     <div class="assessment-info mb-3">
                         <h6 class="assessment-title-modal"></h6>
                         <p class="course-name-modal text-muted"></p>
-                                            <div class="assessment-summary mt-2">
-                        <small class="text-muted">
-                            <span class="summary-item">
-                                <i class="fas fa-clock me-1"></i>
-                                <span class="time-limit-modal"></span> min time limit
-                            </span>
-                            <span class="summary-item ms-3">
-                                <i class="fas fa-question-circle me-1"></i>
-                                <span class="question-count-modal"></span> questions
-                            </span>
-                            <span class="summary-item ms-3">
-                                <i class="fas fa-percentage me-1"></i>
-                                <span class="passing-rate-modal"></span>% to pass
-                            </span>
-                        </small>
-                        <div class="score-source-legend mt-2">
+                        <div class="assessment-summary mt-2">
                             <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                <strong>Score Information:</strong>
-                                <span class="legend-item ms-2">
-                                    <i class="fas fa-database me-1"></i> Original Score
+                                <span class="summary-item">
+                                    <i class="fas fa-clock me-1"></i>
+                                    <span class="time-limit-modal"></span> min time limit
                                 </span>
-                                <span class="legend-item ms-2">
-                                    <i class="fas fa-calculator me-1"></i> Calculated Score
+                                <span class="summary-item ms-3">
+                                    <i class="fas fa-question-circle me-1"></i>
+                                    <span class="question-count-modal"></span> questions
+                                </span>
+                                <span class="summary-item ms-3">
+                                    <i class="fas fa-percentage me-1"></i>
+                                    <span class="passing-rate-modal"></span>% to pass
                                 </span>
                             </small>
                         </div>
                     </div>
-                    </div>
                     <div id="attemptsList">
                         <!-- Attempts will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Details Modal -->
+    <div class="modal fade" id="questionDetailsModal" tabindex="-1" aria-labelledby="questionDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="questionDetailsModalLabel">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Assessment Results
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="questionDetailsContent">
+                        <!-- Question details will be loaded here -->
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2310,16 +2535,24 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                     html += `
                         <div class="attempt-item-modal">
                             <div class="attempt-header">
-                                <span class="attempt-number">Attempt #${attemptNumber}</span>
-                                <span class="attempt-date">${attemptDate}</span>
+                                <div class="attempt-info">
+                                    <span class="attempt-number">Attempt #${attemptNumber}</span>
+                                    <span class="attempt-date">${attemptDate}</span>
+                                </div>
+                                <div class="attempt-score-display">
+                                    <span class="score-value">${attempt.score || 0}%</span>
+                                    <span class="attempt-status ${statusClass}">${statusText}</span>
+                                </div>
                             </div>
-                            <div class="attempt-score">Score: ${attempt.score || 0}%</div>
                             <div class="attempt-details">
-                                <span class="attempt-status ${statusClass}">${statusText}</span>
                                 <small class="score-source-info">
                                     <i class="${scoreSourceIcon}"></i>
                                     ${scoreSourceText}
                                 </small>
+                                <button class="btn btn-outline-primary btn-sm view-details-btn" 
+                                        onclick="viewAttemptDetails(${attempt.id})">
+                                    <i class="fas fa-eye me-1"></i>View Details
+                                </button>
                             </div>
                         </div>
                     `;
@@ -2350,6 +2583,149 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                         ${errorMessage || 'An error occurred while loading attempts. Please try again.'}
                         <br><br>
                         <small class="text-muted">Please check the browser console for more details.</small>
+                    </div>
+                `;
+            }
+
+            // Function to view attempt details
+            function viewAttemptDetails(attemptId) {
+                const questionDetailsModal = new bootstrap.Modal(document.getElementById('questionDetailsModal'));
+                const questionDetailsContent = document.getElementById('questionDetailsContent');
+                
+                // Show loading state
+                questionDetailsContent.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading question details...</p>
+                    </div>
+                `;
+                
+                // Show modal
+                questionDetailsModal.show();
+                
+                // Load question details
+                fetch(`../ajax_get_attempt_details.php?attempt_id=${attemptId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.questions) {
+                            displayQuestionDetails(data.questions, data.attempt);
+                        } else {
+                            displayQuestionError(data.message || 'Failed to load question details');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading question details:', error);
+                        displayQuestionError('An error occurred while loading question details');
+                    });
+            }
+
+            // Function to display question details
+            function displayQuestionDetails(questions, attempt) {
+                const questionDetailsContent = document.getElementById('questionDetailsContent');
+                let html = `
+                    <div class="attempt-summary mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mb-2">Attempt Information</h6>
+                                <p class="mb-1"><strong>Score:</strong> ${attempt.score || 0}%</p>
+                                <p class="mb-1"><strong>Status:</strong> <span class="question-result ${attempt.has_passed ? 'correct' : 'incorrect'}">${attempt.has_passed ? 'PASSED' : 'FAILED'}</span></p>
+                                <p class="mb-0"><strong>Completed:</strong> ${new Date(attempt.completed_at || attempt.started_at).toLocaleString()}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-2">Question Summary</h6>
+                                <p class="mb-1"><strong>Total Questions:</strong> ${questions.length}</p>
+                                <p class="mb-1"><strong>Correct:</strong> ${questions.filter(q => q.is_correct).length}</p>
+                                <p class="mb-0"><strong>Incorrect:</strong> ${questions.filter(q => !q.is_correct).length}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="questions-container">
+                `;
+
+                questions.forEach((question, index) => {
+                    const questionNumber = index + 1;
+                    const isCorrect = question.is_correct;
+                    const resultClass = isCorrect ? 'correct' : 'incorrect';
+                    const resultText = isCorrect ? 'CORRECT' : 'INCORRECT';
+                    
+                    html += `
+                        <div class="question-item">
+                            <div class="question-header">
+                                <div class="question-number">${questionNumber}</div>
+                                <div class="question-result ${resultClass}">${resultText}</div>
+                            </div>
+                            <div class="question-text">${question.question_text}</div>
+                            <div class="answer-options">
+                    `;
+                    
+                    // Display answer options
+                    if (question.question_type === 'multiple_choice' && question.options) {
+                        try {
+                            const options = JSON.parse(question.options);
+                            options.forEach((option, optIndex) => {
+                                const optionClass = option.is_correct ? 'correct' : 
+                                                 (option.text === question.student_answer) ? 'selected' : '';
+                                const optionLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
+                                
+                                html += `
+                                    <div class="answer-option ${optionClass}">
+                                        <span class="answer-label">${optionLabel}.</span>
+                                        <span class="answer-text">${option.text}</span>
+                                        ${option.is_correct ? '<i class="fas fa-check ms-2"></i>' : ''}
+                                    </div>
+                                `;
+                            });
+                        } catch (e) {
+                            html += `<p class="text-muted">Error parsing options</p>`;
+                        }
+                    } else if (question.question_type === 'true_false') {
+                        const correctAnswer = question.correct_answer;
+                        const studentAnswer = question.student_answer;
+                        
+                        html += `
+                            <div class="answer-option ${correctAnswer === 'true' ? 'correct' : ''}">
+                                <span class="answer-label">A.</span>
+                                <span class="answer-text">True</span>
+                                ${correctAnswer === 'true' ? '<i class="fas fa-check ms-2"></i>' : ''}
+                            </div>
+                            <div class="answer-option ${correctAnswer === 'false' ? 'correct' : ''}">
+                                <span class="answer-label">B.</span>
+                                <span class="answer-text">False</span>
+                                ${correctAnswer === 'false' ? '<i class="fas fa-check ms-2"></i>' : ''}
+                            </div>
+                        `;
+                    } else if (question.question_type === 'identification') {
+                        html += `
+                            <div class="answer-option correct">
+                                <span class="answer-label">Correct Answer:</span>
+                                <span class="answer-text">${question.correct_answer}</span>
+                            </div>
+                            <div class="answer-option ${question.student_answer ? 'selected' : ''}">
+                                <span class="answer-label">Your Answer:</span>
+                                <span class="answer-text">${question.student_answer || 'No answer provided'}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                questionDetailsContent.innerHTML = html;
+            }
+
+            // Function to display question error
+            function displayQuestionError(message) {
+                const questionDetailsContent = document.getElementById('questionDetailsContent');
+                questionDetailsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Error:</strong> ${message}
                     </div>
                 `;
             }

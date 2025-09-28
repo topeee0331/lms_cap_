@@ -28,8 +28,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) as access_count
         FROM courses c
-        JOIN course_sections cs ON cs.course_id = c.id
-        JOIN sections s ON cs.section_id = s.id
+        JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
         WHERE JSON_SEARCH(s.students, 'one', ?) IS NOT NULL AND c.id = ? AND c.teacher_id = ?
     ");
     $stmt->execute([$student_id, $course_id, $_SESSION['user_id']]);
@@ -88,11 +87,11 @@ try {
     
     // Get module progress - modules are now stored as JSON in courses.modules
     $stmt = $pdo->prepare("
-        SELECT c.modules, mp.is_completed, mp.completed_at, mp.progress_percentage,
+        SELECT c.modules, e.module_progress, e.video_progress,
                COUNT(cv.id) as total_videos,
                COUNT(vv.id) as watched_videos
         FROM courses c
-        LEFT JOIN module_progress mp ON mp.course_id = c.id AND mp.student_id = ?
+        LEFT JOIN course_enrollments e ON e.course_id = c.id AND e.student_id = ?
         LEFT JOIN course_videos cv ON cv.course_id = c.id
         LEFT JOIN video_views vv ON cv.id = vv.video_id AND vv.student_id = ?
         WHERE c.id = ?
@@ -103,20 +102,49 @@ try {
     
     // Parse modules from JSON and create module array
     $modules = [];
-    if ($course_data && $course_data['modules']) {
-        $modules_json = json_decode($course_data['modules'], true);
-        if (is_array($modules_json)) {
-            foreach ($modules_json as $index => $module) {
-                $modules[] = [
-                    'id' => $index,
-                    'module_title' => $module['title'] ?? 'Module ' . ($index + 1),
-                    'module_order' => $index,
-                    'is_completed' => $course_data['is_completed'] ?? false,
-                    'completed_at' => $course_data['completed_at'] ?? null,
-                    'progress_percentage' => $course_data['progress_percentage'] ?? 0,
-                    'total_videos' => $course_data['total_videos'] ?? 0,
-                    'watched_videos' => $course_data['watched_videos'] ?? 0
-                ];
+    $module_progress = [];
+    $video_progress = [];
+    
+    if ($course_data) {
+        // Parse progress data from JSON
+        if ($course_data['module_progress']) {
+            $module_progress = json_decode($course_data['module_progress'], true) ?: [];
+        }
+        if ($course_data['video_progress']) {
+            $video_progress = json_decode($course_data['video_progress'], true) ?: [];
+        }
+        
+        if ($course_data['modules']) {
+            $modules_json = json_decode($course_data['modules'], true);
+            if (is_array($modules_json)) {
+                foreach ($modules_json as $index => $module) {
+                    $module_id = $module['id'];
+                    $is_completed = isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1;
+                    $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_id]['completed_at'] : null;
+                    $progress_percentage = isset($module_progress[$module_id]) ? $module_progress[$module_id]['progress_percentage'] : 0;
+                    
+                    // Count videos and watched videos for this module
+                    $module_videos = $module['videos'] ?? [];
+                    $total_videos = count($module_videos);
+                    $watched_videos = 0;
+                    
+                    foreach ($module_videos as $video) {
+                        if (isset($video_progress[$video['id']]) && $video_progress[$video['id']]['is_watched']) {
+                            $watched_videos++;
+                        }
+                    }
+                    
+                    $modules[] = [
+                        'id' => $module_id,
+                        'module_title' => $module['module_title'] ?? $module['title'] ?? 'Module ' . ($index + 1),
+                        'module_order' => $module['module_order'] ?? $index,
+                        'is_completed' => $is_completed,
+                        'completed_at' => $completed_at,
+                        'progress_percentage' => $progress_percentage,
+                        'total_videos' => $total_videos,
+                        'watched_videos' => $watched_videos
+                    ];
+                }
             }
         }
     }

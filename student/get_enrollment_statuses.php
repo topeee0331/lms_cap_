@@ -33,8 +33,7 @@ try {
                CASE WHEN JSON_SEARCH(s.students, 'one', ?) IS NOT NULL THEN 1 ELSE 0 END as is_section_assigned
         FROM courses c
         JOIN academic_periods ap ON c.academic_period_id = ap.id
-        LEFT JOIN course_sections cs ON c.id = cs.course_id
-        LEFT JOIN sections s ON cs.section_id = s.id
+        LEFT JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
         WHERE c.status = 'active'
         ORDER BY c.course_name
     ");

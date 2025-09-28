@@ -808,7 +808,7 @@ if (isset($_GET['debug'])) {
                                                      </div>
                                                      <div class="col-4">
                                                          <div class="text-center p-2 bg-light rounded">
-                                                             <div class="fw-bold text-warning fs-5" style="color: #ff9800 !important;"><?php echo $video['min_watch_time'] ?? 30; ?>s</div>
+                                                             <div class="fw-bold text-warning fs-5" style="color: #ff9800 !important;"><?php echo $video['min_watch_time'] ?? 30; ?>m</div>
                                                              <small class="text-muted d-block">Min Watch</small>
                                                          </div>
                                                      </div>

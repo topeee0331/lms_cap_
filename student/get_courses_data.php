@@ -46,9 +46,9 @@ try {
     $stmt = $pdo->prepare("
         SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, e.enrolled_at,
                ay.year as academic_year, s.name as semester_name,
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id) as module_count,
-               (SELECT COUNT(*) FROM assessments a JOIN course_modules cm ON a.module_id = cm.id WHERE cm.course_id = c.id) as assessment_count,
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id AND cm.is_locked = 0) as unlocked_modules,
+               (SELECT JSON_LENGTH(c.modules)) as module_count,
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[*].assessments'))) as assessment_count,
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[?(@.is_locked = 0)]'))) as unlocked_modules,
                c.year_level, c.created_at, c.updated_at
         FROM courses c
         JOIN users u ON c.teacher_id = u.id
@@ -64,7 +64,7 @@ try {
     // Get section available courses
     $stmt = $pdo->prepare("
         SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, 
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id) as module_count,
+               (SELECT JSON_LENGTH(c.modules)) as module_count,
                (SELECT COUNT(*) FROM course_enrollments e WHERE e.course_id = c.id AND e.status = 'active') as enrolled_students,
                CASE WHEN e2.student_id IS NOT NULL THEN 1 ELSE 0 END as is_enrolled,
                CASE WHEN er.student_id IS NOT NULL AND er.status = 'pending' THEN 1 ELSE 0 END as has_pending_request,
@@ -79,11 +79,10 @@ try {
                c.created_at,
                c.updated_at,
                c.year_level,
-               (SELECT COUNT(*) FROM assessments a JOIN course_modules cm ON a.module_id = cm.id WHERE cm.course_id = c.id) as assessment_count,
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id AND cm.is_locked = 0) as unlocked_modules
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[*].assessments'))) as assessment_count,
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[?(@.is_locked = 0)]'))) as unlocked_modules
         FROM section_students ss
-        JOIN course_sections cs ON ss.section_id = cs.section_id
-        JOIN courses c ON cs.course_id = c.id
+        JOIN courses c ON JSON_SEARCH(c.sections, 'one', ss.section_id) IS NOT NULL
         JOIN users u ON c.teacher_id = u.id
         JOIN academic_periods ay ON c.academic_period_id = ay.id
 
@@ -99,7 +98,7 @@ try {
     // Get non-section courses
     $stmt = $pdo->prepare("
         SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, 
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id) as module_count,
+               (SELECT JSON_LENGTH(c.modules)) as module_count,
                (SELECT COUNT(*) FROM course_enrollments e WHERE e.course_id = c.id AND e.status = 'active') as enrolled_students,
                CASE WHEN e2.student_id IS NOT NULL THEN 1 ELSE 0 END as is_enrolled,
                CASE WHEN er.student_id IS NOT NULL AND er.status = 'pending' THEN 1 ELSE 0 END as has_pending_request,
@@ -114,8 +113,8 @@ try {
                c.created_at,
                c.updated_at,
                c.year_level,
-               (SELECT COUNT(*) FROM assessments a JOIN course_modules cm ON a.module_id = cm.id WHERE cm.course_id = c.id) as assessment_count,
-               (SELECT COUNT(*) FROM course_modules cm WHERE cm.course_id = c.id AND cm.is_locked = 0) as unlocked_modules
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[*].assessments'))) as assessment_count,
+               (SELECT JSON_LENGTH(JSON_EXTRACT(c.modules, '$[?(@.is_locked = 0)]'))) as unlocked_modules
         FROM courses c
         JOIN users u ON c.teacher_id = u.id
         JOIN academic_periods ay ON c.academic_period_id = ay.id
@@ -124,9 +123,9 @@ try {
         LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
         WHERE c.is_archived = 0 AND c.academic_year_id = ? 
         AND c.id NOT IN (
-            SELECT DISTINCT cs.course_id 
+            SELECT DISTINCT c2.id 
             FROM section_students ss 
-            JOIN course_sections cs ON ss.section_id = cs.section_id 
+            JOIN courses c2 ON JSON_SEARCH(c2.sections, 'one', ss.section_id) IS NOT NULL
             WHERE ss.student_id = ?
         )
         ORDER BY c.created_at DESC

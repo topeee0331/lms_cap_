@@ -23,38 +23,65 @@ if (!$module_id) {
 
 // Get module and course details for breadcrumbs and to verify enrollment
 $stmt = $pdo->prepare("
-    SELECT m.id AS module_id, m.module_title, c.id AS course_id, c.course_name
-    FROM course_modules m
-    JOIN courses c ON m.course_id = c.id
+    SELECT c.id AS course_id, c.course_name, c.modules
+    FROM courses c
     JOIN course_enrollments e ON c.id = e.course_id
-    WHERE m.id = ? AND e.student_id = ?
+    WHERE e.student_id = ?
 ");
-$stmt->execute([$module_id, $student_id]);
-$module_info = $stmt->fetch(PDO::FETCH_ASSOC);
+$stmt->execute([$student_id]);
+$courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$module_info = null;
+$assessments = [];
+
+// Find the module in the courses' JSON modules
+foreach ($courses as $course) {
+    if ($course['modules']) {
+        $modules_data = json_decode($course['modules'], true);
+        if (is_array($modules_data)) {
+            foreach ($modules_data as $module) {
+                if ($module['id'] == $module_id) {
+                    $module_info = [
+                        'module_id' => $module['id'],
+                        'module_title' => $module['module_title'] ?? $module['title'] ?? 'Unknown Module',
+                        'course_id' => $course['course_id'],
+                        'course_name' => $course['course_name']
+                    ];
+                    
+                    // Get assessments from the module's JSON data
+                    if (isset($module['assessments']) && is_array($module['assessments'])) {
+                        foreach ($module['assessments'] as $assessment) {
+                            $assessments[] = [
+                                'id' => $assessment['id'],
+                                'assessment_title' => $assessment['assessment_title'] ?? $assessment['title'] ?? 'Assessment',
+                                'description' => $assessment['description'] ?? '',
+                                'time_limit' => $assessment['time_limit'] ?? null,
+                                'difficulty' => $assessment['difficulty'] ?? 'medium',
+                                'num_questions' => $assessment['num_questions'] ?? 0,
+                                'passing_rate' => $assessment['passing_rate'] ?? 70,
+                                'attempt_limit' => $assessment['attempt_limit'] ?? 1,
+                                'assessment_order' => $assessment['assessment_order'] ?? 1,
+                                'is_active' => $assessment['is_active'] ?? true,
+                                'status' => $assessment['status'] ?? 'active',
+                                'created_at' => $assessment['created_at'] ?? date('Y-m-d H:i:s'),
+                                'course_id' => $course['course_id'],
+                                'module_id' => $module['id'],
+                                'module_title' => $module['module_title'] ?? $module['title'] ?? 'Unknown Module'
+                            ];
+                        }
+                    }
+                    break 2;
+                }
+            }
+        }
+    }
+}
 
 if (!$module_info) {
     $_SESSION['error'] = 'You are not enrolled in this module or it does not exist.';
     header('Location: courses.php');
     exit();
 }
-
-// Fetch all assessments for this module with comprehensive details
-$stmt = $pdo->prepare("
-    SELECT a.*, m.course_id, c.academic_period_id, 
-           ay.is_active as academic_period_active,
-           c.course_name, m.module_title, u.first_name, u.last_name,
-           a.is_locked, a.lock_type, a.prerequisite_assessment_id, 
-           a.prerequisite_score, a.prerequisite_video_count, a.unlock_date, a.lock_message
-    FROM assessments a
-    JOIN course_modules m ON a.module_id = m.id
-    JOIN courses c ON m.course_id = c.id
-    JOIN users u ON c.teacher_id = u.id
-    JOIN academic_periods ay ON c.academic_period_id = ay.id
-    WHERE a.module_id = ?
-    ORDER BY a.created_at ASC
-");
-$stmt->execute([$module_id]);
-$assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Enrich each assessment with student-specific information
 foreach ($assessments as &$assessment) {

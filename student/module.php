@@ -709,7 +709,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         
         .module-badge {
             display: inline-block;
-            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 25px;
@@ -776,7 +776,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
         
         .course-icon-wrapper {
-            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
             border-radius: 50%;
             width: 120px;
             height: 120px;
@@ -830,14 +830,14 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
         
         .nav-tabs .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
             color: white;
             border: none;
             font-weight: 600;
         }
         
         .nav-tabs .nav-link.active:hover {
-            background: linear-gradient(135deg, #0056b3, #5a6fd8);
+            background: linear-gradient(135deg, #0056b3, #3b82f6);
             color: white;
         }
         
@@ -873,41 +873,77 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         /* Video and Assessment Cards */
         .video-card, .assessment-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: var(--border-radius-lg);
-            box-shadow: var(--shadow-lg);
-            transition: var(--transition);
+            background: #ffffff;
+            border: 1px solid rgba(0, 123, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
+            position: relative;
+        }
+
+        .video-card::before, .assessment-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #4f46e5, var(--primary-color));
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .video-card:hover, .assessment-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 123, 255, 0.15);
+            border-color: rgba(0, 123, 255, 0.3);
+        }
+
+        .video-card:hover::before, .assessment-card:hover::before {
+            opacity: 1;
+        }
+
+        .video-card.watched, .assessment-card.completed {
+            border-color: rgba(40, 167, 69, 0.3);
+            background: #ffffff;
+        }
+
+        .video-card.watched::before, .assessment-card.completed::before {
+            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+            opacity: 1;
         }
 
         /* Video Card Preview Styles */
         .video-card-preview {
             position: relative;
             overflow: hidden;
-            border-radius: 12px 12px 0 0;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px 15px 0 0;
+            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            height: 160px;
         }
 
         .video-card-preview iframe,
         .video-card-preview video {
             width: 100%;
-            height: 200px;
+            height: 100%;
             border: none;
-            border-radius: 12px 12px 0 0;
+            border-radius: 15px 15px 0 0;
+            transition: transform 0.3s ease;
         }
 
         .video-card-preview img {
             width: 100%;
-            height: 200px;
+            height: 100%;
             object-fit: cover;
-            border-radius: 12px 12px 0 0;
+            border-radius: 15px 15px 0 0;
+            transition: transform 0.3s ease;
+        }
+
+        .video-card:hover .video-card-preview iframe,
+        .video-card:hover .video-card-preview video,
+        .video-card:hover .video-card-preview img {
+            transform: scale(1.05);
         }
 
         .video-card-preview .play-button {
@@ -915,23 +951,43 @@ $module_files = []; // This would need to be implemented based on how files are 
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.9), rgba(102, 126, 234, 0.9));
             color: white;
             border: none;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
-            transition: all 0.3s ease;
+            font-size: 1.4rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
+            backdrop-filter: blur(10px);
         }
 
         .video-card-preview .play-button:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: translate(-50%, -50%) scale(1.1);
+            background: linear-gradient(135deg, rgba(0, 123, 255, 1), rgba(102, 126, 234, 1));
+            transform: translate(-50%, -50%) scale(1.15);
+            box-shadow: 0 12px 35px rgba(0, 123, 255, 0.4);
+        }
+
+        .video-card-preview .play-button::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-card-preview .play-button:hover::before {
+            opacity: 1;
         }
 
         /* Real-time progress update animations */
@@ -965,21 +1021,704 @@ $module_files = []; // This would need to be implemented based on how files are 
             100% { background-color: transparent; }
         }
 
+        /* Video Card Content Styling */
+        .video-card .card-body {
+            padding: 1rem;
+            background: #ffffff;
+        }
+
+        .video-card .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .video-card .card-text {
+            color: #718096;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+
+        .video-card .badge {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Video Watched Badge Positioning */
+        .video-watched-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .video-watched-badge .badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 15px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Assessment Passed Badge Positioning */
+        .assessment-passed-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .assessment-passed-badge .badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 15px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Assessment Card Content Styling */
+        .assessment-card .card-body {
+            padding: 1.5rem;
+            background: #ffffff;
+        }
+
+        .assessment-card .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .assessment-card .card-text {
+            color: #718096;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .assessment-card .badge {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Section Headers */
+        #video-section h3, #assessment-section h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 0.5rem;
+        }
+
+        #video-section h3::after, #assessment-section h3::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            border-radius: 2px;
+        }
+
+        /* Enhanced Card States */
         .video-card.watched {
             border-left: 4px solid var(--success-color);
-            background: linear-gradient(135deg, var(--success-light) 0%, rgba(255, 255, 255, 0.95) 100%);
+            background: #ffffff;
+            position: relative;
+        }
+
+        .video-card.watched::after {
+            content: '✓';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         .assessment-card.completed {
             border-left: 4px solid var(--success-color);
-            background: linear-gradient(135deg, var(--success-light) 0%, rgba(255, 255, 255, 0.95) 100%);
+            background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+            position: relative;
+        }
+
+        .assessment-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         .assessment-card.locked {
-            opacity: 0.8;
-            background: linear-gradient(135deg, #f8f9fa 0%, rgba(255, 255, 255, 0.95) 100%);
-            border: 2px dashed #dee2e6;
+            opacity: 0.7;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .assessment-card.locked::before {
+            background: linear-gradient(90deg, #6c757d, #495057, #6c757d);
+        }
+
+        /* Loading Animation for Cards */
+        .video-card, .assessment-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Staggered Animation for Multiple Cards */
+        .video-card:nth-child(1) { animation-delay: 0.1s; }
+        .video-card:nth-child(2) { animation-delay: 0.2s; }
+        .video-card:nth-child(3) { animation-delay: 0.3s; }
+        .video-card:nth-child(4) { animation-delay: 0.4s; }
+        .video-card:nth-child(5) { animation-delay: 0.5s; }
+        .video-card:nth-child(6) { animation-delay: 0.6s; }
+
+        .assessment-card:nth-child(1) { animation-delay: 0.1s; }
+        .assessment-card:nth-child(2) { animation-delay: 0.2s; }
+        .assessment-card:nth-child(3) { animation-delay: 0.3s; }
+        .assessment-card:nth-child(4) { animation-delay: 0.4s; }
+        .assessment-card:nth-child(5) { animation-delay: 0.5s; }
+        .assessment-card:nth-child(6) { animation-delay: 0.6s; }
+
+        /* Assessment Progress Indicators */
+        .assessment-progress {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .assessment-progress-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #e9ecef, #dee2e6);
+            border-radius: 4px;
+            overflow: hidden;
             position: relative;
+        }
+
+        .assessment-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .assessment-progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Assessment Stats */
+        .assessment-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 123, 255, 0.1);
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Difficulty Badges */
+        .difficulty-badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .difficulty-easy {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+        }
+
+        .difficulty-medium {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            color: #856404;
+        }
+
+        .difficulty-hard {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+        }
+
+        /* Video Overview Card Styles */
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring circle {
+            transition: stroke-dashoffset 1.5s ease-in-out;
+        }
+
+        .video-overview-card {
+            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-overview-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer-overview 3s infinite;
+        }
+
+        @keyframes shimmer-overview {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .video-overview-card .card-body {
+            position: relative;
+            z-index: 1;
+        }
+
+        .video-overview-card .bg-white.bg-opacity-20 {
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .video-overview-card .bg-white.bg-opacity-20:hover {
+            background: rgba(255, 255, 255, 0.3) !important;
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+
+        /* Video List Style */
+        .video-list-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border: 1px solid rgba(0, 123, 255, 0.1);
+            border-radius: 15px;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-list-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-list-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+            border-color: rgba(0, 123, 255, 0.3);
+        }
+
+        .video-list-item:hover::before {
+            opacity: 1;
+        }
+
+        .video-list-item.watched {
+            border-color: rgba(40, 167, 69, 0.3);
+            background: linear-gradient(145deg, #f0fff4 0%, #ffffff 100%);
+        }
+
+        .video-list-item.watched::before {
+            background: linear-gradient(90deg, #28a745, #20c997);
+            opacity: 1;
+        }
+
+        .video-list-thumbnail {
+            width: 80px;
+            height: 60px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            position: relative;
+            flex-shrink: 0;
+            margin-right: 1rem;
+        }
+
+        .video-list-thumbnail iframe,
+        .video-list-thumbnail video,
+        .video-list-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .video-list-thumbnail .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.9), rgba(102, 126, 234, 0.9));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .video-list-thumbnail .play-button:hover {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 1), rgba(102, 126, 234, 1));
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .video-list-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .video-list-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .video-list-description {
+            color: #718096;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .video-list-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .video-list-stats {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .video-list-status {
+            margin-left: auto;
+        }
+
+        .video-list-status .badge {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 15px;
+        }
+
+        /* View Toggle Button */
+        .view-toggle {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 4px;
+            border: 1px solid #dee2e6;
+        }
+
+        .view-toggle-btn {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .view-toggle-btn:hover {
+            color: var(--primary-color);
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .view-toggle-btn.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        /* View Container */
+        .video-view-container {
+            transition: all 0.3s ease;
+        }
+
+        .video-card-view {
+            display: none;
+        }
+
+        .video-card-view.active {
+            display: block;
+        }
+
+        .video-list-view {
+            display: block;
+        }
+
+        .video-list-view.active {
+            display: block;
+        }
+
+        .video-list-view:not(.active) {
+            display: none;
+        }
+
+        /* Assessment List Style */
+        .assessment-list-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border: 1px solid rgba(0, 123, 255, 0.1);
+            border-radius: 15px;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .assessment-list-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .assessment-list-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+            border-color: rgba(0, 123, 255, 0.3);
+        }
+
+        .assessment-list-item:hover::before {
+            opacity: 1;
+        }
+
+        .assessment-list-item.completed {
+            border-color: rgba(40, 167, 69, 0.3);
+            background: linear-gradient(145deg, #f0fff4 0%, #ffffff 100%);
+        }
+
+        .assessment-list-item.completed::before {
+            background: linear-gradient(90deg, #28a745, #20c997);
+            opacity: 1;
+        }
+
+        .assessment-list-item.locked {
+            opacity: 0.7;
+            background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .assessment-list-item.locked::before {
+            background: linear-gradient(90deg, #6c757d, #495057);
+        }
+
+        .assessment-list-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            margin-right: 1rem;
+            position: relative;
+        }
+
+        .assessment-list-icon.locked {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .assessment-list-icon.completed {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .assessment-list-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .assessment-list-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .assessment-list-description {
+            color: #718096;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .assessment-list-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .assessment-list-stats {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .assessment-list-status {
+            margin-left: auto;
+        }
+
+        .assessment-list-status .badge {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 15px;
+        }
+
+        /* Assessment View Container */
+        .assessment-card-view {
+            display: none;
+        }
+
+        .assessment-card-view.active {
+            display: block;
+        }
+
+        .assessment-list-view {
+            display: block;
+        }
+
+        .assessment-list-view.active {
+            display: block;
+        }
+
+        .assessment-list-view:not(.active) {
+            display: none;
         }
         
         .assessment-card.locked::before {
@@ -1176,17 +1915,20 @@ $module_files = []; // This would need to be implemented based on how files are 
             align-items: center;
             justify-content: center;
             gap: 0.75rem;
-            padding: 1rem 2rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            padding: 1.2rem 2.5rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
             color: white;
             text-decoration: none;
-            border-radius: var(--border-radius);
+            border-radius: 15px;
             font-weight: 600;
-            transition: var(--transition);
+            font-size: 0.95rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .action-button::before {
@@ -1205,50 +1947,72 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .action-button:hover {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: linear-gradient(135deg, #0056b3 0%, #3b82f6 100%);
             color: white;
             text-decoration: none;
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(0, 123, 255, 0.3);
         }
 
         .action-button.retake {
-            background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.25);
         }
 
         .action-button.retake:hover {
-            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            box-shadow: 0 15px 40px rgba(245, 158, 11, 0.35);
         }
 
         .action-button.start {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.25);
         }
 
         .action-button.start:hover {
-            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.35);
         }
 
         .action-button.completed {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             cursor: default;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.25);
+            position: relative;
+        }
+
+        .action-button.completed::after {
+            content: '✓';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #059669;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
         }
 
         .action-button.completed:hover {
             transform: none;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.25);
         }
 
         .action-button.view-only {
-            background: linear-gradient(135deg, var(--gray-500) 0%, var(--gray-600) 100%);
-            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.25);
+            cursor: not-allowed;
         }
 
         .action-button.view-only:hover {
-            box-shadow: 0 8px 20px rgba(107, 114, 128, 0.4);
+            transform: none;
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.25);
         }
 
         /* Responsive Design */
@@ -2439,141 +3203,150 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     </div>
                             </div>
 
-                                    <!-- Statistics Tab -->
-                                    <div class="tab-pane fade" id="statistics" role="tabpanel" aria-labelledby="statistics-tab">
-                                        <div class="row">
-                                            <div class="col-md-3 col-6 mb-3">
-                                                <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
-                                                    <i class="fas fa-video text-primary fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-primary fs-4"><?php echo count($videos); ?></div>
-                                                    <small class="text-muted">Videos</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3 col-6 mb-3">
-                                                <div class="text-center p-3 bg-success bg-opacity-10 rounded">
-                                                    <i class="fas fa-question-circle text-success fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-success fs-4"><?php echo count($assessments); ?></div>
-                                                    <small class="text-muted">Assessments</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3 col-6 mb-3">
-                                                <div class="text-center p-3 bg-info bg-opacity-10 rounded">
-                                                    <i class="fas fa-file text-info fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-info fs-4"><?php echo (isset($module['files']) && is_array($module['files'])) ? count($module['files']) : (isset($module['file']) ? 1 : 0); ?></div>
-                                                    <small class="text-muted">Files</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3 col-6 mb-3">
-                                                <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
-                                                    <i class="fas fa-calendar text-warning fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-warning fs-4"><?php echo $module['module_order'] ?? 1; ?></div>
-                                                    <small class="text-muted">Module</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    <!-- Prerequisites Tab -->
-                                    <div class="tab-pane fade" id="prerequisites" role="tabpanel" aria-labelledby="prerequisites-tab">
-                                <?php if (isset($module['unlock_score']) && $module['unlock_score'] > 0): ?>
-                                            <div class="text-center py-4">
-                                                <i class="fas fa-lock text-warning fa-4x mb-4"></i>
-                                                <h5 class="text-warning mb-3">Prerequisites Required</h5>
-                                                <p class="text-muted fs-5">
-                                                    This module requires a minimum score of <strong class="text-warning"><?php echo $module['unlock_score']; ?>%</strong> from previous assessments to unlock.
-                                                </p>
-                                                <div class="mt-4">
-                                                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
-                                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                                        Score Required: <?php echo $module['unlock_score']; ?>%
-                                                    </span>
-                                    </div>
-                            </div>
-                                        <?php else: ?>
-                                            <div class="text-center py-4">
-                                                <i class="fas fa-check-circle text-success fa-4x mb-4"></i>
-                                                <h5 class="text-success mb-3">No Prerequisites</h5>
-                                                <p class="text-muted fs-5">
-                                                    This module has no prerequisites and is available for immediate access.
-                                                </p>
-                        </div>
-                                        <?php endif; ?>
-                    </div>
 
-                                    <!-- Progress Tab -->
-                                    <div class="tab-pane fade" id="progress" role="tabpanel" aria-labelledby="progress-tab">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="text-center">
-                                                    <div class="position-relative d-inline-block mb-4">
-                                                        <div class="progress-circle-large"></div>
-                                                        <div class="progress-text-large"><?php echo $video_progress_percentage; ?>%</div>
-                                </div>
-                                                    <h5 class="text-primary mb-3">Video Progress</h5>
-                                                    <p class="text-muted mb-4"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
-                                
-                                <?php if ($total_watch_time > 0): ?>
-                                                        <div class="mb-4">
-                                                            <small class="text-muted">Total Watch Time:</small>
-                                                            <div class="fw-bold text-info fs-5"><?php echo gmdate("H:i:s", $total_watch_time); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="row">
-                                                    <div class="col-6 mb-3">
-                                                        <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
-                                            <small class="text-muted">Course Progress</small>
-                                                            <div class="fw-bold text-primary fs-4">
-                                                <?php echo number_format($student_progress['progress_percentage'] ?? 0, 1); ?>%
-                                            </div>
-                                        </div>
-                                                    </div>
-                                                    <div class="col-6 mb-3">
-                                                        <div class="text-center p-3 bg-success bg-opacity-10 rounded">
-                                            <small class="text-muted">Avg Score</small>
-                                                            <div class="fw-bold text-success fs-4">
-                                                <?php echo $student_progress['average_course_score'] ? number_format($student_progress['average_course_score'], 1) . '%' : 'N/A'; ?>
-                                                            </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <?php if ($student_progress['enrolled_at']): ?>
-                                                    <div class="mt-3 p-3 bg-light rounded">
-                                            <small class="text-muted">
-                                                            <i class="fas fa-calendar-plus me-2"></i>
-                                                Enrolled: <?php echo date('M j, Y', strtotime($student_progress['enrolled_at'])); ?>
-                                            </small>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($student_progress['last_accessed']): ?>
-                                                    <div class="mt-2 p-3 bg-light rounded">
-                                            <small class="text-muted">
-                                                            <i class="fas fa-clock me-2"></i>
-                                                Last accessed: <?php echo date('M j, Y', strtotime($student_progress['last_accessed'])); ?>
-                                            </small>
-                                        </div>
-                                    <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Videos Section -->
                 <?php if (!empty($videos)): ?>
-                    <div id="video-section" class="mb-1">
-                        <h3><i class="fas fa-video me-2 text-primary"></i>Videos</h3>
+                    
+                    <!-- Videos Section Card -->
+                    <div class="card border-0 shadow-sm mb-3" style="border-radius: 15px; overflow: hidden;">
+                        <div class="card-header bg-white border-0 py-2 px-3" style="border-radius: 15px 15px 0 0;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <h5 class="mb-0"><i class="fas fa-video me-2 text-primary"></i>Videos</h5>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="d-flex align-items-center text-muted">
+                                        <i class="fas fa-play-circle me-1"></i>
+                                        <small class="fw-bold"><?php echo count($videos); ?> Video<?php echo count($videos) !== 1 ? 's' : ''; ?></small>
+                                                </div>
+                                    <div class="view-toggle">
+                                        <button class="view-toggle-btn active" data-view="list" title="List View">
+                                            <i class="fas fa-list"></i>
+                                            <span>List</span>
+                                        </button>
+                                        <button class="view-toggle-btn" data-view="cards" title="Card View">
+                                            <i class="fas fa-th"></i>
+                                            <span>Cards</span>
+                                        </button>
+                                            </div>
+                                                </div>
+                                            </div>
+                                                </div>
+                        <div class="card-body p-3">
+                            <!-- List View -->
+                            <div class="video-list-view active" id="video-list-view">
+                                <div class="video-list-container">
+                                <?php foreach ($videos as $index => $video): ?>
+                                <div class="video-list-item <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
+                                    <!-- Watched Badge -->
+                                    <?php if ($video['is_watched']): ?>
+                                        <div class="video-watched-badge">
+                                            <span class="badge bg-success">
+                                                Watched
+                                                    </span>
+                        </div>
+                                        <?php endif; ?>
+                                    
+                                    <!-- Video Thumbnail -->
+                                    <div class="video-list-thumbnail">
+                                            <?php 
+                                            $video_url = $video['video_url'] ?? '';
+                                            $video_file = $video['video_file'] ?? '';
+                                            
+                                            // Check if video_file contains a URL (from old data)
+                                            if (!empty($video_file) && (strpos($video_file, 'http') === 0 || strpos($video_file, 'www.') === 0)) {
+                                                $video_url = $video_file;
+                                                $video_file = '';
+                                            }
+                                            
+                                            if (!empty($video_url)) {
+                                                if (preg_match('/youtu\.be|youtube\.com/', $video_url)) {
+                                                    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_url, $matches)) {
+                                                        $youtube_id = $matches[1];
+                                                        echo '<img src="https://img.youtube.com/vi/' . htmlspecialchars($youtube_id) . '/mqdefault.jpg" alt="YouTube Video">';
+                                                    } else {
+                                                        echo '<div class="d-flex align-items-center justify-content-center h-100">';
+                                                        echo '<i class="fas fa-video text-white fs-4"></i>';
+                                                        echo '</div>';
+                                                    }
+                                                } elseif (preg_match('/drive\.google\.com/', $video_url)) {
+                                                    echo '<div class="d-flex align-items-center justify-content-center h-100">';
+                                                    echo '<i class="fab fa-google-drive text-white fs-4"></i>';
+                                                    echo '</div>';
+                                                } elseif (preg_match('/\.mp4$/', $video_url)) {
+                                                    echo '<video style="width: 100%; height: 100%; object-fit: cover;" preload="metadata">';
+                                                    echo '<source src="' . htmlspecialchars($video_url) . '" type="video/mp4">';
+                                                    echo '</video>';
+                                                } else {
+                                                    echo '<div class="d-flex align-items-center justify-content-center h-100">';
+                                                    echo '<i class="fas fa-link text-white fs-4"></i>';
+                                                    echo '</div>';
+                                                }
+                                            } elseif (!empty($video_file)) {
+                                                echo '<div class="d-flex align-items-center justify-content-center h-100">';
+                                                echo '<i class="fas fa-file-video text-white fs-4"></i>';
+                                                echo '</div>';
+                                            } else {
+                                                echo '<div class="d-flex align-items-center justify-content-center h-100">';
+                                                echo '<i class="fas fa-video text-white fs-4"></i>';
+                                                echo '</div>';
+                                            }
+                                            ?>
+                                        <button class="play-button">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                </div>
+                                        
+                                    <!-- Video Content -->
+                                    <div class="video-list-content">
+                                        <div class="video-list-title"><?php echo htmlspecialchars($video['video_title'] ?? ''); ?></div>
+                                        <div class="video-list-description"><?php echo htmlspecialchars($video['video_description'] ?? 'No description available.'); ?></div>
+                                        
+                                        <div class="video-list-meta">
+                                            <div class="video-list-stats">
+                                                <span><i class="fas fa-clock me-1"></i><?php echo $video['min_watch_time'] ?? 5; ?>m</span>
+                                                <span><i class="fas fa-percentage me-1"></i><?php echo number_format($video['completion_percentage'] ?? 0, 1); ?>%</span>
+                                                <span><i class="fas fa-stopwatch me-1"></i><?php echo gmdate("H:i:s", $video['watch_duration'] ?? 0); ?></span>
+                                    </div>
+                                            
+                                            <div class="video-list-status">
+                                                <?php if (!$video['is_watched']): ?>
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-clock me-1"></i>Not Started
+                                                    </span>
+                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Button -->
+                                    <div class="ms-3">
+                                        <?php if ($video['video_url'] ?? $video['video_file'] ?? ''): ?>
+                                            <a href="video_player.php?id=<?php echo $video['id']; ?>&module_id=<?php echo $module_id; ?>" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-play me-1"></i>Watch
+                                            </a>
+                                    <?php endif; ?>
+                                        </div>
+                                            </div>
+                            <?php endforeach; ?>
+                    </div>
+                </div>
+
+                            <!-- Card View -->
+                            <div class="video-card-view" id="video-card-view">
                         <div class="row g-3">
                             <?php foreach ($videos as $index => $video): ?>
                                 <div class="col-md-6 col-lg-4">
                                     <div class="card video-card h-100 border-0 shadow-sm <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
+                                        <!-- Watched Badge -->
+                                        <?php if ($video['is_watched']): ?>
+                                            <div class="video-watched-badge">
+                                                <span class="badge bg-success">
+                                                    Watched
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                        
                                         <!-- Video Preview Section -->
                                         <div class="video-card-preview">
                                             <?php 
@@ -2590,9 +3363,9 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 if (preg_match('/youtu\.be|youtube\.com/', $video_url)) {
                                                     if (preg_match('~(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([^&?/]+)~', $video_url, $matches)) {
                                                         $youtube_id = $matches[1];
-                                                        echo '<iframe class="card-img-top" style="height: 200px; width: 100%;" src="https://www.youtube.com/embed/' . htmlspecialchars($youtube_id) . '" frameborder="0" allowfullscreen></iframe>';
+                                                            echo '<iframe style="height: 160px; width: 100%;" src="https://www.youtube.com/embed/' . htmlspecialchars($youtube_id) . '" frameborder="0" allowfullscreen></iframe>';
                                                     } else {
-                                                        echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                            echo '<div class="d-flex align-items-center justify-content-center h-100">';
                                                         echo '<div class="text-center text-muted">';
                                                         echo '<i class="fas fa-video display-4 mb-2"></i>';
                                                         echo '<div class="fw-bold">YouTube Video</div>';
@@ -2601,7 +3374,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                         echo '</div>';
                                                     }
                                                 } elseif (preg_match('/drive\.google\.com/', $video_url)) {
-                                                    echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                        echo '<div class="d-flex align-items-center justify-content-center h-100">';
                                                     echo '<div class="text-center text-muted">';
                                                     echo '<i class="fab fa-google-drive display-4 mb-2"></i>';
                                                     echo '<div class="fw-bold">Google Drive Video</div>';
@@ -2609,12 +3382,12 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                     echo '</div>';
                                                     echo '</div>';
                                                 } elseif (preg_match('/\.mp4$/', $video_url)) {
-                                                    echo '<video class="card-img-top" style="height: 200px; width: 100%; object-fit: cover;" controls preload="metadata">';
+                                                        echo '<video style="height: 160px; width: 100%; object-fit: cover;" controls preload="metadata">';
                                                     echo '<source src="' . htmlspecialchars($video_url) . '" type="video/mp4">';
                                                     echo 'Your browser does not support the video tag.';
                                                     echo '</video>';
                                                 } else {
-                                                    echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                        echo '<div class="d-flex align-items-center justify-content-center h-100">';
                                                     echo '<div class="text-center text-muted">';
                                                     echo '<i class="fas fa-link display-4 mb-2"></i>';
                                                     echo '<div class="fw-bold">Video Link</div>';
@@ -2623,7 +3396,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                     echo '</div>';
                                                 }
                                             } elseif (!empty($video_file)) {
-                                                echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                    echo '<div class="d-flex align-items-center justify-content-center h-100">';
                                                 echo '<div class="text-center text-muted">';
                                                 echo '<i class="fas fa-file-video display-4 mb-2"></i>';
                                                 echo '<div class="fw-bold">Video File</div>';
@@ -2631,26 +3404,23 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 echo '</div>';
                                                 echo '</div>';
                                             } else {
-                                                // Fallback display for videos without URL or file
-                                                echo '<div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px 12px 0 0;">';
+                                                    echo '<div class="d-flex align-items-center justify-content-center h-100">';
                                                 echo '<div class="text-center text-muted">';
-                                                echo '<i class="fas fa-camera-video-off display-4 mb-2"></i>';
-                                                echo '<div class="fw-bold">No Video Preview</div>';
-                                                echo '<small>Video link not provided</small>';
+                                                    echo '<i class="fas fa-video display-4 mb-2"></i>';
+                                                    echo '<div class="fw-bold">No Preview</div>';
+                                                    echo '<small>Click to watch</small>';
                                                 echo '</div>';
                                                 echo '</div>';
                                             }
                                             ?>
+                                                <button class="play-button">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
                                         </div>
                                         
                                         <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="mb-2">
                                                 <h5 class="card-title"><?php echo htmlspecialchars($video['video_title'] ?? ''); ?></h5>
-                                                <?php if ($video['is_watched']): ?>
-                                                    <span class="badge bg-success">
-                                                        <i class="fas fa-check"></i> Watched
-                                                    </span>
-                                                <?php endif; ?>
                                             </div>
                                             
                                             <p class="card-text text-muted"><?php echo htmlspecialchars(substr($video['video_description'] ?? 'No description available.', 0, 100)); ?><?php echo strlen($video['video_description'] ?? '') > 100 ? '...' : ''; ?></p>
@@ -2659,35 +3429,23 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             <div class="row g-2 mb-3">
                                                 <div class="col-4">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-primary fs-5" style="color: #1976d2 !important;"><?php echo $video['min_watch_time'] ?? 5; ?>m</div>
+                                                            <div class="fw-bold text-primary fs-5"><?php echo $video['min_watch_time'] ?? 5; ?>m</div>
                                                         <small class="text-muted d-block">Duration</small>
                                                     </div>
                                                 </div>
                                                 <div class="col-4">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-info fs-5" style="color: #00bcd4 !important;"><?php echo $index + 1; ?></div>
+                                                            <div class="fw-bold text-info fs-5"><?php echo $index + 1; ?></div>
                                                         <small class="text-muted d-block">Order</small>
                                                     </div>
                                                 </div>
                                                 <div class="col-4">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-warning fs-5" style="color: #ff9800 !important;"><?php echo $video['completion_percentage'] ?? 0; ?>%</div>
+                                                            <div class="fw-bold text-warning fs-5"><?php echo $video['completion_percentage'] ?? 0; ?>%</div>
                                                         <small class="text-muted d-block">Progress</small>
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Video URL Preview -->
-                                            <?php if (!empty($video_url)): ?>
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center">
-                                                        <i class="fas fa-link text-muted me-2"></i>
-                                                        <small class="text-muted text-truncate" title="<?php echo htmlspecialchars($video_url); ?>">
-                                                            <?php echo htmlspecialchars($video_url); ?>
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            <?php endif; ?>
                                             
                                             <!-- Action Buttons -->
                                             <div class="d-grid gap-2">
@@ -2701,7 +3459,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 <?php if ($video['is_watched']): ?>
                                                     <div class="text-center">
                                                         <span class="badge bg-success">
-                                                            <i class="fas fa-check"></i> Completed
+                                                            Watched
                                                         </span>
                                                         <?php if (isset($video_progress[$video['id']]['watch_duration'])): ?>
                                                             <div class="small text-muted mt-1">
@@ -2711,12 +3469,9 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                     </div>
                                                 <?php else: ?>
                                                     <div class="text-center">
-                                                        <span class="badge bg-secondary">
-                                                            <i class="fas fa-clock"></i> Not Watched
+                                                            <span class="badge bg-warning">
+                                                                <i class="fas fa-clock"></i> Not Started
                                                         </span>
-                                                        <div class="small text-muted mt-1">
-                                                            Min: <?php echo $video['min_watch_time'] ?? 5; ?> min
-                                                        </div>
                                                     </div>
                                                 <?php endif; ?>
                                             </div>
@@ -2724,21 +3479,131 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     </div>
                                 </div>
                             <?php endforeach; ?>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
 
                 <!-- Assessments Section -->
                 <?php if (!empty($assessments)): ?>
-                    <div id="assessment-section" class="mb-2">
-                        <h3>Assessments</h3>
-                        <div class="row">
+                    <!-- Assessments Section Card -->
+                    <div class="card border-0 shadow-sm mb-3" style="border-radius: 15px; overflow: hidden;">
+                        <div class="card-header bg-white border-0 py-2 px-3" style="border-radius: 15px 15px 0 0;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>Assessments</h5>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="d-flex align-items-center text-muted">
+                                        <i class="fas fa-tasks me-2"></i>
+                                        <small class="fw-bold"><?php echo count($assessments); ?> Assessment<?php echo count($assessments) !== 1 ? 's' : ''; ?></small>
+                                    </div>
+                                    <div class="view-toggle">
+                                        <button class="view-toggle-btn active" data-view="list" data-section="assessment" title="List View">
+                                            <i class="fas fa-list"></i>
+                                            <span>List</span>
+                                        </button>
+                                        <button class="view-toggle-btn" data-view="cards" data-section="assessment" title="Card View">
+                                            <i class="fas fa-th"></i>
+                                            <span>Cards</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-3">
+                        <!-- List View -->
+                        <div class="assessment-list-view active" id="assessment-list-view">
+                            <div class="assessment-list-container">
                             <?php foreach ($assessments as $assessment): ?>
                                 <?php $is_locked = !$unlocked[$assessment['id']]; ?>
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card assessment-card <?php echo $assessment['best_score'] >= ($assessment['passing_rate'] ?? 70) ? 'completed' : ''; ?> <?php echo $is_locked ? 'locked' : ''; ?>">
+                                <div class="assessment-list-item <?php echo $assessment['best_score'] >= ($assessment['passing_rate'] ?? 70) ? 'completed' : ''; ?> <?php echo $is_locked ? 'locked' : ''; ?>" data-assessment-id="<?php echo htmlspecialchars($assessment['id']); ?>">
+                                    <!-- Passed Badge -->
+                                    <?php if ($assessment['best_score'] >= ($assessment['passing_rate'] ?? 70)): ?>
+                                        <div class="assessment-passed-badge">
+                                            <span class="badge bg-success">
+                                                Passed
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <!-- Assessment Icon -->
+                                    <div class="assessment-list-icon <?php echo $is_locked ? 'locked' : ($assessment['best_score'] >= ($assessment['passing_rate'] ?? 70) ? 'completed' : ''); ?>">
+                                        <?php if ($is_locked): ?>
+                                            <i class="fas fa-lock"></i>
+                                        <?php elseif ($assessment['best_score'] >= ($assessment['passing_rate'] ?? 70)): ?>
+                                            <i class="fas fa-check"></i>
+                                        <?php else: ?>
+                                            <i class="fas fa-clipboard-check"></i>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <!-- Assessment Content -->
+                                    <div class="assessment-list-content">
+                                        <div class="assessment-list-title">
+                                            <span class="badge bg-<?php echo $is_locked ? 'secondary' : 'primary'; ?> me-2">
+                                                <?php echo $assessment['assessment_order'] ?? 1; ?>
+                                            </span>
+                                            <?php echo htmlspecialchars($assessment['assessment_title'] ?? ''); ?>
+                                        </div>
+                                        <div class="assessment-list-description"><?php echo htmlspecialchars($assessment['description'] ?? 'No description available.'); ?></div>
+                                        
+                                        <div class="assessment-list-meta">
+                                            <div class="assessment-list-stats">
+                                                <span><i class="fas fa-clock me-1"></i><?php echo $assessment['time_limit'] ?? 0; ?>m</span>
+                                                <span><i class="fas fa-question-circle me-1"></i><?php echo $assessment['num_questions'] ?? 0; ?> questions</span>
+                                                <span><i class="fas fa-percentage me-1"></i><?php echo $assessment['passing_rate'] ?? 70; ?>% pass</span>
+                                                <span><i class="fas fa-signal me-1"></i><?php echo ucfirst($assessment['difficulty'] ?? 'medium'); ?></span>
+                                            </div>
+                                            
+                                            <div class="assessment-list-status">
+                                                <?php if ($is_locked): ?>
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-lock me-1"></i>Locked
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-play me-1"></i>Available
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Button -->
+                                    <div class="ms-3">
+                                        <?php if ($is_locked): ?>
+                                            <button class="btn btn-secondary btn-sm" disabled>
+                                                <i class="fas fa-lock me-1"></i>Locked
+                                            </button>
+                                        <?php else: ?>
+                                            <a href="assessment.php?id=<?php echo $assessment['id']; ?>" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-play me-1"></i>Take
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Card View -->
+                        <div class="assessment-card-view" id="assessment-card-view">
+                            <div class="row g-4">
+                            <?php foreach ($assessments as $assessment): ?>
+                                <?php $is_locked = !$unlocked[$assessment['id']]; ?>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card assessment-card h-100 <?php echo $assessment['best_score'] >= ($assessment['passing_rate'] ?? 70) ? 'completed' : ''; ?> <?php echo $is_locked ? 'locked' : ''; ?>">
+                                        <!-- Passed Badge -->
+                                        <?php if ($assessment['best_score'] >= ($assessment['passing_rate'] ?? 70)): ?>
+                                            <div class="assessment-passed-badge">
+                                                <span class="badge bg-success">
+                                                    Passed
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                        
                                         <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="mb-3">
                                                 <h5 class="card-title">
                                                     <span class="badge bg-<?php echo $is_locked ? 'secondary' : 'primary'; ?> me-2">
                                                         <?php echo $assessment['assessment_order'] ?? 1; ?>
@@ -2750,11 +3615,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                         </span>
                                                     <?php endif; ?>
                                 </h5>
-                                                <?php if ($assessment['best_score'] >= ($assessment['passing_rate'] ?? 70)): ?>
-                                                    <span class="badge bg-success">
-                                                        <i class="fas fa-check"></i> Passed
-                                                    </span>
-                                                <?php elseif ($is_locked): ?>
+                                                <?php if ($is_locked): ?>
                                                     <span class="badge bg-warning">
                                                         <i class="fas fa-lock"></i> Locked
                                                     </span>
@@ -2763,48 +3624,60 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             
                                             <p class="card-text"><?php echo htmlspecialchars(substr($assessment['description'] ?? 'No description available.', 0, 100)); ?><?php echo strlen($assessment['description'] ?? '') > 100 ? '...' : ''; ?></p>
                                             
-                                            <div class="row text-center mb-3">
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-clock"></i><br>
-                                                        <?php echo $assessment['time_limit'] ?? 0; ?> min
-                                                    </small>
+                                            <!-- Enhanced Stats Grid -->
+                                            <div class="assessment-stats">
+                                                <div class="stat-item">
+                                                    <div class="stat-value"><?php echo $assessment['time_limit'] ?? 0; ?></div>
+                                                    <div class="stat-label">Minutes</div>
                                                 </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-question-circle"></i><br>
-                                                        <?php echo $assessment['num_questions'] ?? 0; ?> questions
-                                                    </small>
+                                                <div class="stat-item">
+                                                    <div class="stat-value"><?php echo $assessment['num_questions'] ?? 0; ?></div>
+                                                    <div class="stat-label">Questions</div>
                                                 </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-signal"></i><br>
-                                                        <?php echo ucfirst($assessment['difficulty'] ?? 'medium'); ?>
-                                                    </small>
+                                                <div class="stat-item">
+                                                    <div class="stat-value"><?php echo $assessment['passing_rate'] ?? 70; ?>%</div>
+                                                    <div class="stat-label">Pass Rate</div>
                                                 </div>
+                            </div>
+                                            
+                                            <!-- Difficulty Badge -->
+                                            <div class="text-center mb-3">
+                                                <span class="difficulty-badge difficulty-<?php echo strtolower($assessment['difficulty'] ?? 'medium'); ?>">
+                                                    <i class="fas fa-<?php echo strtolower($assessment['difficulty'] ?? 'medium') === 'easy' ? 'smile' : (strtolower($assessment['difficulty'] ?? 'medium') === 'hard' ? 'fire' : 'star'); ?> me-1"></i>
+                                                    <?php echo ucfirst($assessment['difficulty'] ?? 'medium'); ?>
+                                                </span>
                             </div>
                                             
                                             <!-- Assessment Performance Stats -->
                                             <?php if ($assessment['attempt_count'] > 0): ?>
-                                                <div class="mb-2">
-                                                    <div class="row text-center">
-                                                        <div class="col-4">
-                                                            <small class="text-muted">Best Score</small><br>
-                                                            <strong class="text-success"><?php echo number_format($assessment['best_score'], 1); ?>%</strong>
+                                                <div class="assessment-progress">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <span class="fw-bold text-dark">Progress</span>
+                                                        <span class="text-primary fw-bold"><?php echo number_format($assessment['best_score'], 1); ?>%</span>
                                                         </div>
-                                                        <div class="col-4">
-                                                            <small class="text-muted">Avg Score</small><br>
-                                                            <strong class="text-info"><?php echo number_format($assessment['average_score'], 1); ?>%</strong>
+                                                    <div class="assessment-progress-bar">
+                                                        <div class="assessment-progress-fill" style="width: <?php echo min(100, $assessment['best_score']); ?>%"></div>
                                                         </div>
-                                                        <div class="col-4">
-                                                            <small class="text-muted">Attempts</small><br>
-                                                            <strong class="text-primary"><?php echo $assessment['attempt_count']; ?></strong>
+                                                    
+                                                    <div class="assessment-stats mt-3">
+                                                        <div class="stat-item">
+                                                            <div class="stat-value text-success"><?php echo number_format($assessment['best_score'], 1); ?>%</div>
+                                                            <div class="stat-label">Best Score</div>
+                                                        </div>
+                                                        <div class="stat-item">
+                                                            <div class="stat-value text-info"><?php echo number_format($assessment['average_score'], 1); ?>%</div>
+                                                            <div class="stat-label">Average</div>
+                                                        </div>
+                                                        <div class="stat-item">
+                                                            <div class="stat-value text-primary"><?php echo $assessment['attempt_count']; ?></div>
+                                                            <div class="stat-label">Attempts</div>
                                                         </div>
                                                     </div>
                                                     
                                                     <?php if ($assessment['last_attempt_date']): ?>
-                                                        <div class="mt-1">
+                                                        <div class="text-center mt-2">
                                                             <small class="text-muted">
+                                                                <i class="fas fa-clock me-1"></i>
                                                                 Last attempt: <?php echo date('M j, Y', strtotime($assessment['last_attempt_date'])); ?>
                                                             </small>
                                                         </div>
@@ -2862,6 +3735,8 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     </div>
                                 </div>
                             <?php endforeach; ?>
+                            </div>
+                        </div>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -3234,7 +4109,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                 const badgeElement = card.querySelector('.badge');
                                 if (badgeElement) {
                                     badgeElement.className = 'badge bg-success';
-                                    badgeElement.innerHTML = '<i class="fas fa-check"></i> Watched';
+                                    badgeElement.innerHTML = 'Watched';
                                 }
                                 
                                 // Update action button
@@ -3369,7 +4244,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     const badge = card.querySelector('.badge');
                                     if (badge) {
                                         badge.className = 'badge bg-success';
-                                        badge.innerHTML = '<i class="fas fa-check"></i> Complete';
+                                        badge.innerHTML = 'Complete';
                                         badge.style.animation = 'celebration 1s ease-in-out';
                                     }
                                     
@@ -3426,7 +4301,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     const badge = card.querySelector('.badge');
                                     if (badge) {
                                         badge.className = 'badge bg-success';
-                                        badge.innerHTML = '<i class="fas fa-check"></i> Passed';
+                                        badge.innerHTML = 'Passed';
                                         badge.style.animation = 'celebration 1s ease-in-out';
                                     }
                                     
@@ -3613,7 +4488,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                         const badgeElement = videoCard.querySelector('.badge');
                                         if (badgeElement) {
                                             badgeElement.className = 'badge bg-success';
-                                            badgeElement.innerHTML = '<i class="fas fa-check"></i> Watched';
+                                            badgeElement.innerHTML = 'Watched';
                                         }
                                         
                                         // Update action button
@@ -3640,7 +4515,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             const badgeElement = card.querySelector('.badge');
                                             if (badgeElement && badgeElement.textContent.includes('Locked')) {
                                                 badgeElement.className = 'badge bg-success';
-                                                badgeElement.innerHTML = '<i class="fas fa-check"></i> Passed';
+                                                badgeElement.innerHTML = 'Passed';
                                             }
                                         }
                                     }
@@ -3677,6 +4552,49 @@ $module_files = []; // This would need to be implemented based on how files are 
                 if (!document.hidden) {
                     updateModuleProgress();
                 }
+            });
+        });
+        
+        // View Toggle Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButtons = document.querySelectorAll('.view-toggle-btn');
+            
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const view = this.getAttribute('data-view');
+                    const section = this.getAttribute('data-section') || 'video';
+                    
+                    // Remove active class from buttons in the same section
+                    const sectionButtons = document.querySelectorAll(`[data-section="${section}"]`);
+                    sectionButtons.forEach(btn => btn.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Toggle views based on section
+                    if (section === 'video') {
+                        const listView = document.getElementById('video-list-view');
+                        const cardView = document.getElementById('video-card-view');
+                        
+                        if (view === 'list') {
+                            listView.classList.add('active');
+                            cardView.classList.remove('active');
+                        } else if (view === 'cards') {
+                            listView.classList.remove('active');
+                            cardView.classList.add('active');
+                        }
+                    } else if (section === 'assessment') {
+                        const listView = document.getElementById('assessment-list-view');
+                        const cardView = document.getElementById('assessment-card-view');
+                        
+                        if (view === 'list') {
+                            listView.classList.add('active');
+                            cardView.classList.remove('active');
+                        } else if (view === 'cards') {
+                            listView.classList.remove('active');
+                            cardView.classList.add('active');
+                        }
+                    }
+                });
             });
         });
         

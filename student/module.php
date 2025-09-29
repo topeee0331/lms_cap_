@@ -380,19 +380,82 @@ $total_videos = count($videos);
 $watched_videos = 0;
 $total_watch_time = 0;
 $total_required_time = 0;
+$total_video_completion = 0; // Sum of all completion percentages
 
 foreach ($videos as $video) {
+    $completion_percentage = $video['completion_percentage'] ?? 0;
+    $total_video_completion += $completion_percentage;
+    
     // Check if video is watched based on completion percentage >= 80% or is_watched flag
-    $is_watched = $video['is_watched'] || ($video['completion_percentage'] ?? 0) >= 80;
+    $is_watched = $video['is_watched'] || $completion_percentage >= 80;
     
     if ($is_watched) {
         $watched_videos++;
-        $total_watch_time += $video['watch_duration'] ?? 0;
     }
+    
+    $total_watch_time += $video['watch_duration'] ?? 0;
     $total_required_time += ($video['min_watch_time'] ?? 5) * 60; // Convert minutes to seconds
 }
 
-$video_progress_percentage = $total_videos > 0 ? round(($watched_videos / $total_videos) * 100) : 0;
+// Calculate video progress as average completion percentage
+$video_progress_percentage = $total_videos > 0 ? round($total_video_completion / $total_videos) : 0;
+
+// Calculate assessment progress
+$total_assessments = count($assessments);
+$completed_assessments = 0;
+$total_points_earned = 0;
+$total_attempts = 0;
+$successful_attempts = 0;
+$total_assessment_progress = 0; // Sum of all assessment progress percentages
+
+foreach ($assessments as $assessment) {
+    $assessment_id = $assessment['id'];
+    $passing_rate = $assessment['passing_rate'] ?? 70;
+    
+    // Get best attempt for this assessment
+    $best_attempt = null;
+    $best_score = 0;
+    $assessment_progress = 0;
+    
+    if (isset($assessment['attempts']) && is_array($assessment['attempts'])) {
+        foreach ($assessment['attempts'] as $attempt) {
+            $total_attempts++;
+            if ($attempt['has_passed']) {
+                $successful_attempts++;
+            }
+            if ($attempt['score'] > $best_score) {
+                $best_score = $attempt['score'];
+                $best_attempt = $attempt;
+            }
+        }
+        
+        // Calculate progress for this assessment based on best score vs passing rate
+        if ($best_score > 0) {
+            $assessment_progress = min(100, round(($best_score / $passing_rate) * 100));
+        }
+    }
+    
+    $total_assessment_progress += $assessment_progress;
+    
+    // Count as completed if passed
+    if ($best_attempt && $best_attempt['score'] >= $passing_rate && $best_attempt['has_passed']) {
+        $completed_assessments++;
+        $total_points_earned += $best_attempt['score'];
+    } else {
+        // Still add points for attempts (partial credit)
+        $total_points_earned += $best_score;
+    }
+}
+
+// Calculate assessment progress as average progress percentage
+$assessment_progress_percentage = $total_assessments > 0 ? round($total_assessment_progress / $total_assessments) : 0;
+
+// Format total watch time
+$total_watch_time_formatted = gmdate("H:i:s", $total_watch_time);
+
+// Calculate average score and success rate
+$average_score = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
+$success_rate = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
 
 // Determine unlocked status for each assessment by order and passing scores
 $unlocked = [];
@@ -600,13 +663,12 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
         
         /* Module Header Styling */
-        .module-header {
+        .module-header-fullscreen {
             color: var(--gray-800);
             padding: 4rem 0;
-            margin-bottom: 2rem;
+            margin: 0 -15px 2rem -15px;
             position: relative;
             overflow: hidden;
-            border-radius: var(--border-radius-lg);
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.9) 100%);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(0, 0, 0, 0.1);
@@ -619,16 +681,16 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             bottom: 0;
-            opacity: 0.1;
+            opacity: 0.05;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
         .module-header-bg i {
-            font-size: 15rem;
+            font-size: 20rem;
             color: var(--primary-color);
-            opacity: 0.3;
+            opacity: 0.2;
         }
         
         .module-header-content {
@@ -636,14 +698,177 @@ $module_files = []; // This would need to be implemented based on how files are 
             z-index: 2;
         }
         
-        .module-title-text {
+        .header-main-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .module-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .module-title-new {
             font-family: 'Inter', sans-serif;
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 800;
             color: var(--gray-800);
-            text-align: center;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        
+        .course-title-new {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+        }
+        
+        .course-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            color: var(--gray-600);
+            font-weight: 500;
+        }
+        
+        .meta-item i {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+        
+        .instructor-info, .academic-info {
+            display: flex;
+            align-items: center;
+            color: var(--gray-600);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .instructor-info i, .academic-info i {
+            color: var(--primary-color);
+            font-size: 1rem;
+        }
+        
+        .header-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .course-icon-wrapper {
+            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .course-icon {
+            font-size: 3rem;
+            color: white;
+        }
+        
+        .module-description-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .description-header {
+            display: flex;
+            align-items: center;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 1.1rem;
             margin-bottom: 1rem;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .description-content {
+            color: var(--gray-700);
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+        
+        
+        /* Tabbed Interface Styling */
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 0;
+            color: var(--gray-600);
+            font-weight: 500;
+            padding: 1rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border: none;
+            color: var(--primary-color);
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), #667eea);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .nav-tabs .nav-link.active:hover {
+            background: linear-gradient(135deg, #0056b3, #5a6fd8);
+            color: white;
+        }
+        
+        .tab-content {
+            padding: 1.5rem 0;
+        }
+        
+        .assessment-performance-card {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+        }
+        
+        .assessment-performance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .performance-stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--gray-600);
+            font-weight: 500;
         }
 
         /* Video and Assessment Cards */
@@ -1028,9 +1253,37 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         /* Responsive Design */
         @media (max-width: 768px) {
-            .module-title-text {
+            .module-header-fullscreen {
+                margin: 0 -15px 2rem -15px;
+                padding: 2rem 0;
+            }
+            
+            .module-title-new {
                 font-size: 2rem;
             }
+            
+            .course-title-new {
+                font-size: 1.2rem;
+            }
+            
+            .header-main-card {
+                padding: 1.5rem;
+            }
+            
+            .course-meta {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            
+            .course-icon-wrapper {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .course-icon {
+                font-size: 2rem;
+            }
+            
             
             .module-header-bg i {
                 font-size: 10rem;
@@ -1054,6 +1307,34 @@ $module_files = []; // This would need to be implemented based on how files are 
                 padding: 0.75rem 1.5rem;
                 font-size: 0.9rem;
             }
+            
+            /* Tab responsive design */
+            .nav-tabs {
+                flex-wrap: wrap;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .progress-circle-large {
+                width: 120px;
+                height: 120px;
+            }
+            
+            .progress-circle-large::before {
+                width: 90px;
+                height: 90px;
+            }
+            
+            .progress-text-large {
+                font-size: 1.4rem;
+            }
+            
+            .tab-content {
+                padding: 1rem 0;
+            }
         }
 
         /* Animation for progress reveal */
@@ -1070,6 +1351,228 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .progress-circle {
             animation: progressReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Large progress circle for progress tab */
+        .progress-circle-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--success-color) 0deg, 
+                var(--success-color) <?php echo $video_progress_percentage * 3.6; ?>deg, 
+                var(--gray-200) <?php echo $video_progress_percentage * 3.6; ?>deg, 
+                var(--gray-200) 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-circle-large:hover {
+            transform: scale(1.05);
+        }
+
+        .progress-circle-large::before {
+            content: '';
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-text-large {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            z-index: 1;
+        }
+
+        /* Tab styling */
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border-color: transparent;
+            color: var(--primary-color);
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background-color: transparent;
+            border-color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            padding: 1.5rem 0;
+        }
+
+        /* Nested tabs styling */
+        .nav-pills .nav-link {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: rgba(13, 110, 253, 0.1);
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+
+        .nav-pills .nav-link.active:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        /* Optimize spacing for progress overview section */
+        .progress-stats-row {
+            margin-bottom: 1.5rem !important;
+        }
+        
+        .progress-stats-row .col-md-3 {
+            margin-bottom: 1rem;
+        }
+        
+        .progress-stats-row .d-flex {
+            padding: 0.75rem;
+            background: rgba(248, 249, 250, 0.5);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-stats-row .d-flex:hover {
+            background: rgba(248, 249, 250, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Reduce spacing for videos and assessments sections */
+        #video-section, #assessment-section {
+            margin-top: -1.5rem !important;
+        }
+        
+        #video-section h3, #assessment-section h3 {
+            margin-bottom: 0.75rem !important;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        /* Reduce spacing between videos and assessments */
+        #video-section {
+            margin-bottom: 0.25rem !important;
+        }
+        
+        #assessment-section {
+            margin-top: -0.5rem !important;
+        }
+        
+        /* Optimize video cards spacing */
+        .video-card {
+            margin-bottom: 1rem !important;
+        }
+        
+        .video-card .card-body {
+            padding: 1rem;
+        }
+        
+        .video-card .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .video-card .card-text {
+            font-size: 0.875rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+        
+        /* Improve progress bars */
+        .progress {
+            height: 6px !important;
+            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        .progress-bar {
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+        
+        /* Compact statistics layout */
+        .progress-stats-row .d-flex .me-3 {
+            margin-right: 0.75rem !important;
+        }
+        
+        .progress-stats-row .d-flex h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .progress-stats-row .d-flex p {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Video card improvements */
+        .video-card {
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        .video-card-preview {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .video-card-preview::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+        
+        .video-card:hover .video-card-preview::after {
+            transform: translateX(100%);
         }
 
         /* Staggered animation for cards */
@@ -1346,6 +1849,18 @@ $module_files = []; // This would need to be implemented based on how files are 
                 opacity: 1;
             }
         }
+        
+        .module-description-header {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .text-white-75 {
+            color: rgba(255, 255, 255, 0.85) !important;
+        }
     </style>
 </head>
 <body>
@@ -1359,46 +1874,91 @@ $module_files = []; // This would need to be implemented based on how files are 
                 <?php 
                 $theme = $course_themes[$course['id'] % count($course_themes)];
                 ?>
-                <div class="module-header <?php echo $theme['bg']; ?>">
+                <!-- Fullscreen Header -->
+                <div class="module-header-fullscreen <?php echo $theme['bg']; ?>">
                     <div class="module-header-bg">
                         <i class="<?php echo $theme['icon']; ?>"></i>
                     </div>
-                    <div class="module-header-content text-center">
-                        <h1 class="module-title-text">
+                    <div class="module-header-content">
+                        <div class="container-fluid px-4">
+                            <div class="row justify-content-center">
+                                <div class="col-12">
+                                    <!-- Main Header Card -->
+                                    <div class="header-main-card">
+                                        <div class="row align-items-center">
+                                            <div class="col-lg-8">
+                                                <div class="header-info">
+                                                    <div class="module-badge">
+                                                        <i class="fas fa-book me-2"></i>Module
+                                                    </div>
+                                                    <h1 class="module-title-new">
                             <?php echo htmlspecialchars($module['module_title'] ?? 'N/A'); ?>
                         </h1>
-                        <h2 class="h1 mb-2"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h2>
-                        <p class="lead mb-1">
-                            <strong><?php echo htmlspecialchars($course['course_code'] ?? ''); ?></strong> • 
-                            <?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?> • 
-                            <?php echo htmlspecialchars($course['credits'] ?? 0); ?> Credits
-                        </p>
-                        <p class="lead mb-1">
-                            by <?php echo htmlspecialchars($course['first_name'] . ' ' . $course['last_name']); ?>
-                        </p>
-                        <p class="mb-0">
-                            <small class="text-white-50">
-                                <?php echo htmlspecialchars($course['academic_year'] ?? ''); ?> • 
-                                <?php echo htmlspecialchars($course['semester_name'] ?? ''); ?>
+                                                    <h2 class="course-title-new">
+                                                        <?php echo htmlspecialchars($course['course_name'] ?? ''); ?>
+                                                    </h2>
+                                                    
+                                                    <div class="course-meta">
+                                                        <div class="meta-item">
+                                                            <i class="fas fa-code me-1"></i>
+                                                            <span><?php echo htmlspecialchars($course['course_code'] ?? ''); ?></span>
+                                                        </div>
+                                                        <div class="meta-item">
+                                                            <i class="fas fa-graduation-cap me-1"></i>
+                                                            <span><?php echo htmlspecialchars($course['year_level'] ?? 'N/A'); ?></span>
+                                                        </div>
+                                                        <div class="meta-item">
+                                                            <i class="fas fa-star me-1"></i>
+                                                            <span><?php echo htmlspecialchars($course['credits'] ?? 0); ?> Credits</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="instructor-info">
+                                                        <i class="fas fa-user-tie me-2"></i>
+                                                        <span>Instructor: <strong><?php echo htmlspecialchars($course['first_name'] . ' ' . $course['last_name']); ?></strong></span>
+                                                    </div>
+                                                    
+                                                    <div class="academic-info">
+                                                        <i class="fas fa-calendar me-2"></i>
+                                                        <span><?php echo htmlspecialchars($course['academic_year'] ?? ''); ?> • <?php echo htmlspecialchars($course['semester_name'] ?? ''); ?></span>
                                 <?php if ($course['start_date'] && $course['end_date']): ?>
+                                                            <span class="date-range">
                                     • <?php echo date('M j', strtotime($course['start_date'])); ?> - <?php echo date('M j, Y', strtotime($course['end_date'])); ?>
+                                                            </span>
                                 <?php endif; ?>
-                            </small>
-                        </p>
+                                                    </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <div>
-                        <h1 class="h2"><?php echo htmlspecialchars($module['module_title'] ?? ''); ?></h1>
-                        <p class="text-muted"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?> - by <?php echo htmlspecialchars($course['first_name'] . ' ' . $course['last_name']); ?></p>
+                                            <div class="col-lg-4">
+                                                <div class="header-visual">
+                                                    <div class="course-icon-wrapper">
+                                                        <i class="<?php echo $theme['icon']; ?> course-icon"></i>
                     </div>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <a href="course.php?id=<?php echo $course['id']; ?>" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Course
-                        </a>
+                                                </div>
                     </div>
                 </div>
+                                        
+                                        <!-- Module Description in Header -->
+                                        <?php if (!empty($module['module_description'])): ?>
+                                        <div class="module-description-section">
+                                            <div class="description-header">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <span>Module Description</span>
+                                            </div>
+                                            <div class="description-content">
+                                                <?php echo nl2br(htmlspecialchars($module['module_description'])); ?>
+                                            </div>
+                                        </div>
+                                        <?php endif; ?>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
 
                 <!-- Alert Messages -->
                 <?php if (isset($_SESSION['success'])): ?>
@@ -1417,19 +1977,42 @@ $module_files = []; // This would need to be implemented based on how files are 
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
 
-                <!-- Real-time Progress Statistics -->
+                <!-- Combined Progress and Assessment Statistics -->
                 <div class="row mb-4">
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-chart-line me-2"></i>Real-time Module Progress
-                                </h5>
+                                <ul class="nav nav-tabs card-header-tabs" id="progressTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                                            <i class="fas fa-chart-line me-2"></i>Progress Overview
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="assessments-tab" data-bs-toggle="tab" data-bs-target="#assessments" type="button" role="tab" aria-controls="assessments" aria-selected="false">
+                                            <i class="fas fa-clipboard-check me-2"></i>Assessment Details
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="module-info-tab" data-bs-toggle="tab" data-bs-target="#module-info" type="button" role="tab" aria-controls="module-info" aria-selected="false">
+                                            <i class="fas fa-info-circle me-2"></i>Module Information
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="video-progress-tab" data-bs-toggle="tab" data-bs-target="#video-progress" type="button" role="tab" aria-controls="video-progress" aria-selected="false">
+                                            <i class="fas fa-video me-2"></i>Video Progress
+                                        </button>
+                                    </li>
+                                </ul>
                             </div>
                             <div class="card-body">
-                                <div class="row text-center">
+                                <div class="tab-content" id="progressTabsContent">
+                                    <!-- Progress Overview Tab -->
+                                    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                                        <!-- Progress Statistics -->
+                                <div class="row text-center progress-stats-row">
                                     <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                        <div class="d-flex align-items-center justify-content-center">
                                             <div class="me-3">
                                                 <i class="fas fa-video fa-2x text-primary"></i>
                                             </div>
@@ -1445,52 +2028,205 @@ $module_files = []; // This would need to be implemented based on how files are 
                                         </div>
                                     </div>
                                     <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="me-3">
+                                                        <i class="fas fa-clipboard-check fa-2x text-success"></i>
+                                            </div>
+                                            <div>
+                                                        <h3 class="mb-0" id="assessment-progress-count"><?php echo $completed_assessments; ?> / <?php echo $total_assessments; ?></h3>
+                                                        <p class="text-muted mb-0">Assessments Completed</p>
+                                                        <div class="progress mt-2" style="height: 8px;">
+                                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                                 style="width: <?php echo $assessment_progress_percentage; ?>%" id="assessment-progress-bar">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <div class="me-3">
+                                                        <i class="fas fa-star fa-2x text-warning"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="mb-0" id="points-earned"><?php echo $total_points_earned; ?></h3>
+                                                        <p class="text-muted mb-0">Total Points Earned</p>
+                                                        <div class="progress mt-2" style="height: 8px;">
+                                                            <div class="progress-bar bg-warning" role="progressbar" 
+                                                                 style="width: 100%" id="points-progress-bar">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <div class="me-3">
+                                                        <i class="fas fa-clock fa-2x text-info"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="mb-0" id="total-watch-time"><?php echo $total_watch_time_formatted; ?></h3>
+                                                        <p class="text-muted mb-0">Total Watch Time</p>
+                                                        <div class="progress mt-2" style="height: 8px;">
+                                                            <div class="progress-bar bg-info" role="progressbar" 
+                                                                 style="width: <?php echo $video_progress_percentage; ?>%" id="time-progress-bar">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Module Information Tab -->
+                                    <div class="tab-pane fade" id="module-info" role="tabpanel" aria-labelledby="module-info-tab">
+                                        <!-- Module Files -->
+                                        <div class="mb-4">
+                                            <h6 class="text-primary mb-3">
+                                                <i class="fas fa-paperclip me-2"></i>Module Files
+                                            </h6>
+                                            <?php if (isset($module['files']) && !empty($module['files']) && is_array($module['files'])): ?>
+                                                <?php foreach ($module['files'] as $file): ?>
+                                                    <div class="d-flex align-items-center p-3 bg-light rounded hover-shadow mb-3" 
+                                                         style="transition: all 0.3s ease; cursor: pointer;"
+                                                         onclick="openFilePreview('<?php echo $module['id']; ?>', '<?php echo urlencode($file['filename']); ?>', '<?php echo urlencode($file['original_name']); ?>', '<?php echo $file['file_size']; ?>', '<?php echo $file['uploaded_at']; ?>')"
+                                                         onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                                         onmouseout="this.style.backgroundColor='#f8f9fa'">
+                                                        <i class="fas fa-file me-3 text-primary fs-4"></i>
+                                                        <div class="flex-grow-1">
+                                                            <div class="fw-semibold text-dark fs-6"><?php echo htmlspecialchars($file['original_name']); ?></div>
+                                                            <small class="text-muted">
+                                                                <?php echo round($file['file_size'] / 1024, 1); ?> KB • 
+                                                                Uploaded <?php echo date('M j, Y', strtotime($file['uploaded_at'])); ?>
+                                                            </small>
+                                                        </div>
+                                                        <span class="badge bg-primary fs-6">
+                                                            <i class="fas fa-eye"></i> Preview
+                                                        </span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php elseif (isset($module['file']) && !empty($module['file'])): ?>
+                                                <div class="d-flex align-items-center p-3 bg-light rounded hover-shadow" 
+                                                     style="transition: all 0.3s ease; cursor: pointer;"
+                                                     onclick="openFilePreview('<?php echo $module['id']; ?>', '<?php echo urlencode($module['file']['filename']); ?>', '<?php echo urlencode($module['file']['original_name']); ?>', '<?php echo $module['file']['file_size']; ?>', '<?php echo $module['file']['uploaded_at']; ?>')"
+                                                     onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                                     onmouseout="this.style.backgroundColor='#f8f9fa'">
+                                                    <i class="fas fa-file me-3 text-primary fs-4"></i>
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-semibold text-dark fs-6"><?php echo htmlspecialchars($module['file']['original_name']); ?></div>
+                                                        <small class="text-muted">
+                                                            <?php echo round($module['file']['file_size'] / 1024, 1); ?> KB • 
+                                                            Uploaded <?php echo date('M j, Y', strtotime($module['file']['uploaded_at'])); ?>
+                                                        </small>
+                                                    </div>
+                                                    <span class="badge bg-primary fs-6">
+                                                        <i class="fas fa-eye"></i> Preview
+                                                    </span>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="text-center text-muted py-4">
+                                                    <i class="fas fa-file fa-3x mb-3"></i>
+                                                    <p>No files available for this module.</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- Module Statistics -->
+                                                <div class="mb-4">
+                                                    <h6 class="text-primary mb-3">
+                                                        <i class="fas fa-chart-bar me-2"></i>Module Statistics
+                                                    </h6>
+                                                    <div class="row">
+                                                        <div class="col-md-3 col-6 mb-3">
+                                                            <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
+                                                                <i class="fas fa-video text-primary fs-3 mb-2"></i>
+                                                                <div class="fw-bold text-primary fs-4"><?php echo count($videos); ?></div>
+                                                                <small class="text-muted">Videos</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3 col-6 mb-3">
+                                                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                                                <i class="fas fa-question-circle text-success fs-3 mb-2"></i>
+                                                                <div class="fw-bold text-success fs-4"><?php echo count($assessments); ?></div>
+                                                                <small class="text-muted">Assessments</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3 col-6 mb-3">
+                                                            <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                                                                <i class="fas fa-file text-info fs-3 mb-2"></i>
+                                                                <div class="fw-bold text-info fs-4"><?php echo (isset($module['files']) && is_array($module['files'])) ? count($module['files']) : (isset($module['file']) ? 1 : 0); ?></div>
+                                                                <small class="text-muted">Files</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3 col-6 mb-3">
+                                                            <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                                                <i class="fas fa-calendar text-warning fs-3 mb-2"></i>
+                                                                <div class="fw-bold text-warning fs-4"><?php echo $module['module_order'] ?? 1; ?></div>
+                                                                <small class="text-muted">Module</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Prerequisites -->
+                                                <div class="mb-4">
+                                                    <h6 class="text-primary mb-3">
+                                                        <i class="fas fa-lock me-2"></i>Prerequisites
+                                                    </h6>
+                                                    <?php if (isset($module['unlock_score']) && $module['unlock_score'] > 0): ?>
+                                                        <div class="text-center py-3">
+                                                            <i class="fas fa-lock text-warning fa-3x mb-3"></i>
+                                                            <h6 class="text-warning mb-2">Prerequisites Required</h6>
+                                                            <p class="text-muted mb-3">
+                                                                This module requires a minimum score of <strong class="text-warning"><?php echo $module['unlock_score']; ?>%</strong> from previous assessments to unlock.
+                                                            </p>
+                                                            <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                Score Required: <?php echo $module['unlock_score']; ?>%
+                                                            </span>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <div class="text-center py-3">
+                                                            <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                                                            <h6 class="text-success mb-2">No Prerequisites</h6>
+                                                            <p class="text-muted mb-0">
+                                                                This module has no prerequisites and is available for immediate access.
+                                                            </p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+
+                                            <!-- Video Progress Tab -->
+                                            <div class="tab-pane fade" id="video-progress" role="tabpanel" aria-labelledby="video-progress-tab">
+                                                <!-- Progress Statistics -->
+                                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="me-3">
+                                                <i class="fas fa-video fa-2x text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0" id="video-progress-count"><?php echo $watched_videos; ?> / <?php echo $total_videos; ?></h3>
+                                                <p class="text-muted mb-0">Videos Watched</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                                         style="width: <?php echo $video_progress_percentage; ?>%" id="video-progress-bar">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center">
                                             <div class="me-3">
                                                 <i class="fas fa-question-circle fa-2x text-warning"></i>
                                             </div>
                                             <div>
                                                 <?php
-                                                $completed_assessments = 0;
-                                                $total_assessments_count = count($assessments);
-                                                $total_assessment_points = 0;
-                                                $total_attempts = 0;
-                                                $successful_attempts = 0;
-                                                
-                                                // Get detailed assessment attempt data
-                                                foreach ($assessments as $assessment) {
-                                                    $assessment_id = $assessment['id'];
-                                                    $passing_rate = $assessment['passing_rate'] ?? 70;
-                                                    
-                                                    // Get all attempts for this assessment
-                                                    $stmt = $pdo->prepare("
-                                                        SELECT score, has_passed, started_at, completed_at, time_taken
-                                                        FROM assessment_attempts 
-                                                        WHERE assessment_id = ? AND student_id = ? AND status = 'completed'
-                                                        ORDER BY score DESC
-                                                    ");
-                                                    $stmt->execute([$assessment_id, $user_id]);
-                                                    $attempts = $stmt->fetchAll();
-                                                    
-                                                    if (!empty($attempts)) {
-                                                        $total_attempts += count($attempts);
-                                                        $best_attempt = $attempts[0]; // Highest score attempt
-                                                        $successful_attempts += count(array_filter($attempts, function($attempt) use ($passing_rate) {
-                                                            return $attempt['score'] >= $passing_rate && $attempt['has_passed'];
-                                                        }));
-                                                        
-                                                        // Add points only from passed attempts
-                                                        if ($best_attempt['score'] >= $passing_rate && $best_attempt['has_passed']) {
-                                                            $completed_assessments++;
-                                                            $total_assessment_points += $best_attempt['score'];
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                $assessment_progress_percentage = $total_assessments_count > 0 ? round(($completed_assessments / $total_assessments_count) * 100) : 0;
-                                                $success_rate = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
+                                                // Variables are now calculated globally above
                                                 ?>
-                                                <h3 class="mb-0" id="assessment-progress-count"><?php echo $completed_assessments; ?> / <?php echo $total_assessments_count; ?></h3>
+                                                <h3 class="mb-0" id="assessment-progress-count"><?php echo $completed_assessments; ?> / <?php echo $total_assessments; ?></h3>
                                                 <p class="text-muted mb-0">Assessments Completed</p>
                                                 <div class="progress mt-2" style="height: 8px;">
                                                     <div class="progress-bar bg-warning" role="progressbar" 
@@ -1501,15 +2237,15 @@ $module_files = []; // This would need to be implemented based on how files are 
                                         </div>
                                     </div>
                                     <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                        <div class="d-flex align-items-center justify-content-center">
                                             <div class="me-3">
                                                 <i class="fas fa-trophy fa-2x text-success"></i>
                                             </div>
                                             <div>
-                                                <h3 class="mb-0" id="points-earned"><?php echo number_format($total_assessment_points, 1); ?></h3>
+                                                <h3 class="mb-0" id="points-earned"><?php echo number_format($total_points_earned ?? 0, 1); ?></h3>
                                                 <p class="text-muted mb-0">Total Points Earned</p>
                                                 <small class="text-muted" id="attempts-info">
-                                                    <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> attempts successful (<?php echo $success_rate; ?>%)
+                                                    <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> attempts successful (<?php echo $success_rate ?? 0; ?>%)
                                                 </small>
                                                 <div class="progress mt-2" style="height: 8px;">
                                                     <div class="progress-bar bg-success" role="progressbar" 
@@ -1520,7 +2256,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                         </div>
                                     </div>
                                     <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                        <div class="d-flex align-items-center justify-content-center">
                                             <div class="me-3">
                                                 <i class="fas fa-clock fa-2x text-info"></i>
                                             </div>
@@ -1537,168 +2273,293 @@ $module_files = []; // This would need to be implemented based on how files are 
                                     </div>
                                 </div>
                             </div>
+
+                                    <!-- Video Progress Tab -->
+                                    <div class="tab-pane fade" id="video-progress" role="tabpanel" aria-labelledby="video-progress-tab">
+                                        <!-- Video Progress Statistics -->
+                                        <div class="row text-center">
+                                            <div class="col-md-6 mb-4">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-body text-center">
+                                                        <div class="progress-circle-large mx-auto mb-3">
+                                                            <div class="progress-text-large"><?php echo $video_progress_percentage; ?>%</div>
+                                                        </div>
+                                                        <h5 class="card-title text-primary">Video Progress</h5>
+                                                        <p class="text-muted mb-0"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-4">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-body text-center">
+                                                        <div class="progress-circle-large mx-auto mb-3">
+                                                            <div class="progress-text-large"><?php echo $assessment_progress_percentage; ?>%</div>
+                                                        </div>
+                                                        <h5 class="card-title text-success">Assessment Progress</h5>
+                                                        <p class="text-muted mb-0"><?php echo $completed_assessments; ?> of <?php echo $total_assessments; ?> assessments completed</p>
+                                                    </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Module Overview -->
-                <div class="row mb-4">
-                    <div class="col-md-8">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Module Description</h5>
-                                <p class="card-text"><?php echo nl2br(htmlspecialchars($module['module_description'] ?? 'No description available.')); ?></p>
-
-                                <!-- Module Files Section -->
-                                <?php if (isset($module['files']) && !empty($module['files']) && is_array($module['files'])): ?>
-                                    <div class="mt-3">
-                                        <h6 class="text-primary">
-                                            <i class="fas fa-paperclip me-2"></i>Module Files (<?php echo count($module['files']); ?>)
-                                        </h6>
-                                        <?php foreach ($module['files'] as $file): ?>
-                                            <div class="d-flex align-items-center p-2 bg-light rounded hover-shadow mb-2" 
-                                                 style="transition: all 0.3s ease; cursor: pointer;"
-                                                 onclick="openFilePreview('<?php echo $module['id']; ?>', '<?php echo urlencode($file['filename']); ?>', '<?php echo urlencode($file['original_name']); ?>', '<?php echo $file['file_size']; ?>', '<?php echo $file['uploaded_at']; ?>')"
-                                                 onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                                                 onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                                <i class="fas fa-file me-2 text-primary"></i>
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-semibold text-dark"><?php echo htmlspecialchars($file['original_name']); ?></div>
-                                                    <small class="text-muted">
-                                                        <?php echo round($file['file_size'] / 1024, 1); ?> KB • 
-                                                        Uploaded <?php echo date('M j, Y', strtotime($file['uploaded_at'])); ?>
-                                                    </small>
+                                        <!-- Detailed Progress Stats -->
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
+                                                    <i class="fas fa-star text-primary fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-primary fs-4"><?php echo $total_points_earned; ?></div>
+                                                    <small class="text-muted">Total Points Earned</small>
                                                 </div>
-                                                <span class="badge bg-primary">
-                                                    <i class="fas fa-eye me-1"></i>Click to Preview
-                                                </span>
                                             </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php elseif (isset($module['file']) && !empty($module['file'])): ?>
-                                    <!-- Legacy single file support -->
-                                    <div class="mt-3">
-                                        <h6 class="text-primary">
-                                            <i class="fas fa-paperclip me-2"></i>Module Files
-                                        </h6>
-                                        <div class="d-flex align-items-center p-2 bg-light rounded hover-shadow" 
-                                             style="transition: all 0.3s ease; cursor: pointer;"
-                                             onclick="openFilePreview('<?php echo $module['id']; ?>', '<?php echo urlencode($module['file']['filename']); ?>', '<?php echo urlencode($module['file']['original_name']); ?>', '<?php echo $module['file']['file_size']; ?>', '<?php echo $module['file']['uploaded_at']; ?>')"
-                                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                                             onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                            <i class="fas fa-file me-2 text-primary"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="fw-semibold text-dark"><?php echo htmlspecialchars($module['file']['original_name']); ?></div>
-                                                <small class="text-muted">
-                                                    <?php echo round($module['file']['file_size'] / 1024, 1); ?> KB • 
-                                                    Uploaded <?php echo date('M j, Y', strtotime($module['file']['uploaded_at'])); ?>
-                                                </small>
+                                            <div class="col-md-4 mb-3">
+                                                <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                                                    <i class="fas fa-clock text-info fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-info fs-4"><?php echo $total_watch_time_formatted; ?></div>
+                                                    <small class="text-muted">Total Watch Time</small>
+                                                </div>
                                             </div>
-                                            <span class="badge bg-primary">
-                                                <i class="fas fa-eye me-1"></i>Click to Preview
-                                            </span>
+                                            <div class="col-md-4 mb-3">
+                                                <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                                    <i class="fas fa-percentage text-warning fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-warning fs-4"><?php echo $average_score; ?>%</div>
+                                                    <small class="text-muted">Average Score</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                <?php endif; ?>
+                                    
+                                    <!-- Assessment Details Tab -->
+                                    <div class="tab-pane fade" id="assessments" role="tabpanel" aria-labelledby="assessments-tab">
+                                        <?php if (!empty($assessments)): ?>
+                                        <div class="row" id="assessment-breakdown">
+                                            <?php foreach ($assessments as $assessment): ?>
+                                                <?php
+                                                $assessment_id = $assessment['id'];
+                                                $passing_rate = $assessment['passing_rate'] ?? 70;
+                                                
+                                                // Get detailed attempts for this assessment
+                                                $stmt = $pdo->prepare("
+                                                    SELECT score, has_passed, started_at, completed_at, time_taken
+                                                    FROM assessment_attempts 
+                                                    WHERE assessment_id = ? AND student_id = ? AND status = 'completed'
+                                                    ORDER BY score DESC
+                                                ");
+                                                $stmt->execute([$assessment_id, $user_id]);
+                                                $attempts = $stmt->fetchAll();
+                                                
+                                                $total_attempts = count($attempts);
+                                                $successful_attempts = 0;
+                                                $best_score = 0;
+                                                $latest_score = 0;
+                                                $is_passed = false;
+                                                
+                                                if (!empty($attempts)) {
+                                                    $best_score = $attempts[0]['score'];
+                                                    $latest_score = end($attempts)['score'];
+                                                    $successful_attempts = count(array_filter($attempts, function($attempt) use ($passing_rate) {
+                                                        return $attempt['score'] >= $passing_rate && $attempt['has_passed'];
+                                                    }));
+                                                    $is_passed = $best_score >= $passing_rate && $attempts[0]['has_passed'];
+                                                }
+                                                
+                                                // success_rate is now calculated globally above
+                                                ?>
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="card assessment-performance-card <?php echo $is_passed ? 'border-success' : 'border-warning'; ?>">
+                                                        <div class="card-body p-3">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <h6 class="card-title mb-0">
+                                                                    <i class="fas fa-question-circle me-2 text-primary"></i>
+                                                                    <?php echo htmlspecialchars($assessment['assessment_title']); ?>
+                                                                </h6>
+                                                                <span class="badge <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>">
+                                                                    <?php echo $is_passed ? 'Passed' : 'In Progress'; ?>
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            <div class="row text-center mb-3">
+                                                                <div class="col-4">
+                                                                    <div class="performance-stat">
+                                                                        <div class="stat-value text-primary"><?php echo $best_score; ?>%</div>
+                                                                        <div class="stat-label">Best Score</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <div class="performance-stat">
+                                                                        <div class="stat-value text-info"><?php echo $total_attempts; ?></div>
+                                                                        <div class="stat-label">Attempts</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <div class="performance-stat">
+                                                                        <div class="stat-value <?php echo $success_rate >= 50 ? 'text-success' : 'text-warning'; ?>"><?php echo $success_rate; ?>%</div>
+                                                                        <div class="stat-label">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
 
-                                <!-- Module Statistics -->
-                                <div class="row mt-3">
-                                    <div class="col-md-3">
-                                        <small class="text-muted">
-                                            <i class="fas fa-video"></i> <?php echo count($videos); ?> videos
-                                        </small>
+                                                            <div class="progress mb-2" style="height: 6px;">
+                                                                <div class="progress-bar <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>" 
+                                                                     style="width: <?php echo min(($best_score / $passing_rate) * 100, 100); ?>%">
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <small class="text-muted">
+                                                                Required: <?php echo $passing_rate; ?>% | 
+                                                                <?php if ($total_attempts > 0): ?>
+                                                                    Latest: <?php echo $latest_score; ?>% | 
+                                                                    <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> passed
+                                                                <?php else: ?>
+                                                                    No attempts yet
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <?php else: ?>
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No Assessments Available</h5>
+                                            <p class="text-muted">There are no assessments for this module yet.</p>
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted">
-                                            <i class="fas fa-question-circle"></i> <?php echo count($assessments); ?> assessments
-                                        </small>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted">
-                                            <i class="fas fa-file"></i> <?php echo (isset($module['files']) && is_array($module['files'])) ? count($module['files']) : (isset($module['file']) ? 1 : 0); ?> files
-                                        </small>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted">
-                                            <i class="fas fa-calendar"></i> Module <?php echo $module['module_order'] ?? 1; ?>
-                                        </small>
-                                    </div>
-                                        <small class="text-muted">
-                                            <i class="fas fa-clock"></i> 
-                                            <?php 
-                                            $total_video_time = 0;
-                                            foreach ($videos as $video) {
-                                                $total_video_time += $video['min_watch_time'] ?? 0;
-                                            }
-                                            echo $total_video_time > 0 ? $total_video_time . ' min' : 'N/A';
-                                            ?>
-                                        </small>
                                 </div>
-                            </div>
-
-                                <!-- Module Prerequisites -->
-                                <?php if (isset($module['unlock_score']) && $module['unlock_score'] > 0): ?>
-                                    <div class="mt-3">
-                                        <h6 class="text-warning">
-                                            <i class="fas fa-lock me-2"></i>Prerequisites
-                                        </h6>
-                                        <p class="text-muted mb-0">
-                                            <small>This module requires a minimum score of <?php echo $module['unlock_score']; ?>% from previous assessments to unlock.</small>
-                                        </p>
-                                    </div>
-                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <div class="position-relative">
-                                    <div class="progress-circle"></div>
-                                    <div class="progress-text"><?php echo $video_progress_percentage; ?>%</div>
+                </div>
+
+
+
+                                    </div>
+                                    </div>
+                                    </div>
+                            </div>
+
+                                    <!-- Statistics Tab -->
+                                    <div class="tab-pane fade" id="statistics" role="tabpanel" aria-labelledby="statistics-tab">
+                                        <div class="row">
+                                            <div class="col-md-3 col-6 mb-3">
+                                                <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
+                                                    <i class="fas fa-video text-primary fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-primary fs-4"><?php echo count($videos); ?></div>
+                                                    <small class="text-muted">Videos</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-6 mb-3">
+                                                <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                                    <i class="fas fa-question-circle text-success fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-success fs-4"><?php echo count($assessments); ?></div>
+                                                    <small class="text-muted">Assessments</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-6 mb-3">
+                                                <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                                                    <i class="fas fa-file text-info fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-info fs-4"><?php echo (isset($module['files']) && is_array($module['files'])) ? count($module['files']) : (isset($module['file']) ? 1 : 0); ?></div>
+                                                    <small class="text-muted">Files</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-6 mb-3">
+                                                <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                                    <i class="fas fa-calendar text-warning fs-3 mb-2"></i>
+                                                    <div class="fw-bold text-warning fs-4"><?php echo $module['module_order'] ?? 1; ?></div>
+                                                    <small class="text-muted">Module</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Prerequisites Tab -->
+                                    <div class="tab-pane fade" id="prerequisites" role="tabpanel" aria-labelledby="prerequisites-tab">
+                                <?php if (isset($module['unlock_score']) && $module['unlock_score'] > 0): ?>
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-lock text-warning fa-4x mb-4"></i>
+                                                <h5 class="text-warning mb-3">Prerequisites Required</h5>
+                                                <p class="text-muted fs-5">
+                                                    This module requires a minimum score of <strong class="text-warning"><?php echo $module['unlock_score']; ?>%</strong> from previous assessments to unlock.
+                                                </p>
+                                                <div class="mt-4">
+                                                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                                        Score Required: <?php echo $module['unlock_score']; ?>%
+                                                    </span>
+                                    </div>
+                            </div>
+                                        <?php else: ?>
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-check-circle text-success fa-4x mb-4"></i>
+                                                <h5 class="text-success mb-3">No Prerequisites</h5>
+                                                <p class="text-muted fs-5">
+                                                    This module has no prerequisites and is available for immediate access.
+                                                </p>
+                        </div>
+                                        <?php endif; ?>
+                    </div>
+
+                                    <!-- Progress Tab -->
+                                    <div class="tab-pane fade" id="progress" role="tabpanel" aria-labelledby="progress-tab">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="text-center">
+                                                    <div class="position-relative d-inline-block mb-4">
+                                                        <div class="progress-circle-large"></div>
+                                                        <div class="progress-text-large"><?php echo $video_progress_percentage; ?>%</div>
                                 </div>
-                                <h5 class="card-title mt-3">Video Progress</h5>
-                                <p class="card-text"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
+                                                    <h5 class="text-primary mb-3">Video Progress</h5>
+                                                    <p class="text-muted mb-4"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
                                 
                                 <?php if ($total_watch_time > 0): ?>
-                                    <div class="mt-2">
-                                        <small class="text-muted">Total Watch Time: </small>
-                                        <strong class="text-info"><?php echo gmdate("H:i:s", $total_watch_time); ?></strong>
+                                                        <div class="mb-4">
+                                                            <small class="text-muted">Total Watch Time:</small>
+                                                            <div class="fw-bold text-info fs-5"><?php echo gmdate("H:i:s", $total_watch_time); ?></div>
                                     </div>
                                 <?php endif; ?>
-                                
-                                <!-- Additional Progress Stats -->
-                                <div class="mt-3">
-                                    <div class="row text-center">
-                                        <div class="col-6">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="row">
+                                                    <div class="col-6 mb-3">
+                                                        <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
                                             <small class="text-muted">Course Progress</small>
-                                            <div class="fw-bold text-primary">
+                                                            <div class="fw-bold text-primary fs-4">
                                                 <?php echo number_format($student_progress['progress_percentage'] ?? 0, 1); ?>%
                                             </div>
                                         </div>
-                                        <div class="col-6">
+                                                    </div>
+                                                    <div class="col-6 mb-3">
+                                                        <div class="text-center p-3 bg-success bg-opacity-10 rounded">
                                             <small class="text-muted">Avg Score</small>
-                                            <div class="fw-bold text-success">
+                                                            <div class="fw-bold text-success fs-4">
                                                 <?php echo $student_progress['average_course_score'] ? number_format($student_progress['average_course_score'], 1) . '%' : 'N/A'; ?>
+                                                            </div>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <?php if ($student_progress['enrolled_at']): ?>
-                                        <div class="mt-2">
+                                                    <div class="mt-3 p-3 bg-light rounded">
                                             <small class="text-muted">
+                                                            <i class="fas fa-calendar-plus me-2"></i>
                                                 Enrolled: <?php echo date('M j, Y', strtotime($student_progress['enrolled_at'])); ?>
                                             </small>
                                         </div>
                                     <?php endif; ?>
                                     
                                     <?php if ($student_progress['last_accessed']): ?>
-                                        <div class="mt-1">
+                                                    <div class="mt-2 p-3 bg-light rounded">
                                             <small class="text-muted">
+                                                            <i class="fas fa-clock me-2"></i>
                                                 Last accessed: <?php echo date('M j, Y', strtotime($student_progress['last_accessed'])); ?>
                                             </small>
                                         </div>
                                     <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1707,11 +2568,11 @@ $module_files = []; // This would need to be implemented based on how files are 
 
                 <!-- Videos Section -->
                 <?php if (!empty($videos)): ?>
-                    <div class="mb-4">
-                        <h3>Videos</h3>
-                        <div class="row">
+                    <div id="video-section" class="mb-1">
+                        <h3><i class="fas fa-video me-2 text-primary"></i>Videos</h3>
+                        <div class="row g-3">
                             <?php foreach ($videos as $index => $video): ?>
-                                <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="col-md-6 col-lg-4">
                                     <div class="card video-card h-100 border-0 shadow-sm <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
                                         <!-- Video Preview Section -->
                                         <div class="video-card-preview">
@@ -1869,7 +2730,7 @@ $module_files = []; // This would need to be implemented based on how files are 
 
                 <!-- Assessments Section -->
                 <?php if (!empty($assessments)): ?>
-                    <div class="mb-4">
+                    <div id="assessment-section" class="mb-2">
                         <h3>Assessments</h3>
                         <div class="row">
                             <?php foreach ($assessments as $assessment): ?>
@@ -2008,107 +2869,6 @@ $module_files = []; // This would need to be implemented based on how files are 
 
 
 
-                <!-- Assessment Performance Breakdown -->
-                <?php if (!empty($assessments)): ?>
-                <div class="mb-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-chart-line me-2"></i>Assessment Performance Breakdown
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row" id="assessment-breakdown">
-                                <?php foreach ($assessments as $assessment): ?>
-                                    <?php
-                                    $assessment_id = $assessment['id'];
-                                    $passing_rate = $assessment['passing_rate'] ?? 70;
-                                    
-                                    // Get detailed attempts for this assessment
-                                    $stmt = $pdo->prepare("
-                                        SELECT score, has_passed, started_at, completed_at, time_taken
-                                        FROM assessment_attempts 
-                                        WHERE assessment_id = ? AND student_id = ? AND status = 'completed'
-                                        ORDER BY score DESC
-                                    ");
-                                    $stmt->execute([$assessment_id, $user_id]);
-                                    $attempts = $stmt->fetchAll();
-                                    
-                                    $total_attempts = count($attempts);
-                                    $successful_attempts = 0;
-                                    $best_score = 0;
-                                    $latest_score = 0;
-                                    $is_passed = false;
-                                    
-                                    if (!empty($attempts)) {
-                                        $best_score = $attempts[0]['score'];
-                                        $latest_score = end($attempts)['score'];
-                                        $successful_attempts = count(array_filter($attempts, function($attempt) use ($passing_rate) {
-                                            return $attempt['score'] >= $passing_rate && $attempt['has_passed'];
-                                        }));
-                                        $is_passed = $best_score >= $passing_rate && $attempts[0]['has_passed'];
-                                    }
-                                    
-                                    $success_rate = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
-                                    ?>
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card assessment-performance-card <?php echo $is_passed ? 'border-success' : 'border-warning'; ?>">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="card-title mb-0">
-                                                        <i class="fas fa-question-circle me-2 text-primary"></i>
-                                                        <?php echo htmlspecialchars($assessment['assessment_title']); ?>
-                                                    </h6>
-                                                    <span class="badge <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>">
-                                                        <?php echo $is_passed ? 'Passed' : 'In Progress'; ?>
-                                                    </span>
-                                                </div>
-                                                
-                                                <div class="row text-center mb-3">
-                                                    <div class="col-4">
-                                                        <div class="performance-stat">
-                                                            <div class="stat-value text-primary"><?php echo $best_score; ?>%</div>
-                                                            <div class="stat-label">Best Score</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="performance-stat">
-                                                            <div class="stat-value text-info"><?php echo $total_attempts; ?></div>
-                                                            <div class="stat-label">Attempts</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="performance-stat">
-                                                            <div class="stat-value <?php echo $success_rate >= 50 ? 'text-success' : 'text-warning'; ?>"><?php echo $success_rate; ?>%</div>
-                                                            <div class="stat-label">Success Rate</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="progress mb-2" style="height: 6px;">
-                                                    <div class="progress-bar <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>" 
-                                                         style="width: <?php echo min(($best_score / $passing_rate) * 100, 100); ?>%">
-                                                    </div>
-                                                </div>
-                                                
-                                                <small class="text-muted">
-                                                    Required: <?php echo $passing_rate; ?>% | 
-                                                    <?php if ($total_attempts > 0): ?>
-                                                        Latest: <?php echo $latest_score; ?>% | 
-                                                        <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> passed
-                                                    <?php else: ?>
-                                                        No attempts yet
-                                                    <?php endif; ?>
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
 
                 <!-- Module Completion -->
                 <div class="mb-4">
@@ -2919,6 +3679,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                 }
             });
         });
+        
     </script>
 </body>
 </html> 

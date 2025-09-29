@@ -196,6 +196,58 @@ foreach ($modules as $module) {
 }
 $course_progress = $total_modules > 0 ? round(($completed_modules / $total_modules) * 100) : 0;
 
+// Calculate real-time progress statistics
+$total_videos = 0;
+$total_assessments = 0;
+$total_files = 0;
+$completed_videos = 0;
+$completed_assessments = 0;
+$total_points_earned = 0;
+
+// Get student's video progress
+$video_progress = [];
+if ($enrollment && !empty($enrollment['video_progress'])) {
+    $video_progress = json_decode($enrollment['video_progress'], true) ?: [];
+}
+
+// Calculate totals and completed counts
+foreach ($modules as $module) {
+    $total_videos += $module['video_count'];
+    $total_assessments += $module['assessment_count'];
+    $total_files += $module['file_count'];
+    
+    // Count completed videos for this module
+    if (isset($module['videos']) && is_array($module['videos'])) {
+        foreach ($module['videos'] as $video) {
+            $video_id = is_array($video) ? $video['id'] : $video;
+            if (isset($video_progress[$video_id]) && $video_progress[$video_id]['is_watched'] == 1) {
+                $completed_videos++;
+            }
+        }
+    }
+    
+    // Count completed assessments for this module
+    if (isset($module['assessments']) && is_array($module['assessments'])) {
+        foreach ($module['assessments'] as $assessment) {
+            $assessment_id = is_array($assessment) ? $assessment['id'] : $assessment;
+            
+            // Get student's best score for this assessment
+            $stmt = $pdo->prepare("
+                SELECT MAX(score) as best_score, MAX(has_passed) as has_passed
+                FROM assessment_attempts 
+                WHERE student_id = ? AND assessment_id = ? AND status = 'completed'
+            ");
+            $stmt->execute([$user_id, $assessment_id]);
+            $attempt = $stmt->fetch();
+            
+            if ($attempt && $attempt['best_score'] > 0) {
+                $completed_assessments++;
+                $total_points_earned += $attempt['best_score'];
+            }
+        }
+    }
+}
+
 // Handle module completion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
     $module_id = $_POST['module_id'];
@@ -510,18 +562,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                 </div>
 
                 <!-- Course Statistics -->
-                <?php
-                // Calculate total counts across all modules
-                $total_videos = 0;
-                $total_assessments = 0;
-                $total_files = 0;
-                
-                foreach ($modules as $module) {
-                    $total_videos += $module['video_count'];
-                    $total_assessments += $module['assessment_count'];
-                    $total_files += $module['file_count'];
-                }
-                ?>
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="card text-center">
@@ -556,6 +596,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                                 <i class="fas fa-layer-group fa-2x text-success mb-2"></i>
                                 <h4 class="card-title"><?php echo $total_modules; ?></h4>
                                 <p class="card-text text-muted">Total Modules</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Module Progress -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>Real-time Module Progress
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-video fa-2x text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0"><?php echo $completed_videos; ?> / <?php echo $total_videos; ?></h3>
+                                                <p class="text-muted mb-0">Videos Watched</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                                         style="width: <?php echo $total_videos > 0 ? round(($completed_videos / $total_videos) * 100) : 0; ?>%">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-question-circle fa-2x text-warning"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0"><?php echo $completed_assessments; ?> / <?php echo $total_assessments; ?></h3>
+                                                <p class="text-muted mb-0">Assessments Completed</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                                         style="width: <?php echo $total_assessments > 0 ? round(($completed_assessments / $total_assessments) * 100) : 0; ?>%">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-trophy fa-2x text-success"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0"><?php echo number_format($total_points_earned, 1); ?></h3>
+                                                <p class="text-muted mb-0">Total Points Earned</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: <?php echo $total_assessments > 0 ? round(($completed_assessments / $total_assessments) * 100) : 0; ?>%">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -673,5 +778,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Real-time progress updates
+        function updateProgressData() {
+            fetch(`../ajax_get_course_progress.php?course_id=<?php echo $course_id; ?>`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update total counts
+                        document.querySelector('.card-body .fas.fa-video').parentElement.querySelector('h4').textContent = data.data.total_videos;
+                        document.querySelector('.card-body .fas.fa-question-circle').parentElement.querySelector('h4').textContent = data.data.total_assessments;
+                        document.querySelector('.card-body .fas.fa-file').parentElement.querySelector('h4').textContent = data.data.total_files;
+                        document.querySelector('.card-body .fas.fa-layer-group').parentElement.querySelector('h4').textContent = data.data.total_modules;
+                        
+                        // Update real-time progress section
+                        const videoProgress = document.querySelector('.fas.fa-video').closest('.col-md-4');
+                        videoProgress.querySelector('h3').textContent = `${data.data.completed_videos} / ${data.data.total_videos}`;
+                        videoProgress.querySelector('.progress-bar').style.width = `${data.data.video_progress_percentage}%`;
+                        
+                        const assessmentProgress = document.querySelector('.fas.fa-question-circle').closest('.col-md-4');
+                        assessmentProgress.querySelector('h3').textContent = `${data.data.completed_assessments} / ${data.data.total_assessments}`;
+                        assessmentProgress.querySelector('.progress-bar').style.width = `${data.data.assessment_progress_percentage}%`;
+                        
+                        const pointsProgress = document.querySelector('.fas.fa-trophy').closest('.col-md-4');
+                        pointsProgress.querySelector('h3').textContent = parseFloat(data.data.total_points_earned).toFixed(1);
+                        pointsProgress.querySelector('.progress-bar').style.width = `${data.data.assessment_progress_percentage}%`;
+                        
+                        // Update course progress circle
+                        const progressCircle = document.querySelector('.progress-circle');
+                        const progressText = document.querySelector('.progress-text');
+                        if (progressCircle && progressText) {
+                            progressCircle.style.background = `conic-gradient(#28a745 ${data.data.course_progress}%, #e9ecef 0)`;
+                            progressText.textContent = `${data.data.course_progress}%`;
+                        }
+                        
+                        // Update course progress text
+                        const courseProgressText = document.querySelector('.card-text');
+                        if (courseProgressText && courseProgressText.textContent.includes('modules completed')) {
+                            courseProgressText.textContent = `${data.data.completed_modules} of ${data.data.total_modules} modules completed`;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating progress:', error);
+                });
+        }
+
+        // Update progress every 30 seconds
+        setInterval(updateProgressData, 30000);
+        
+        // Also update when page becomes visible (user switches back to tab)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                updateProgressData();
+            }
+        });
+    </script>
 </body>
 </html> 

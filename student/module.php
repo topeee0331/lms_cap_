@@ -182,6 +182,9 @@ $stmt = $pdo->prepare("
         round(($attempt_data['passed_attempts'] / $attempt_data['attempt_count']) * 100, 1) : 0;
 }
 
+// Check module completion requirements (after videos and assessments are defined)
+$requirements = checkModuleCompletionRequirements($module, $videos, $assessments, $video_progress, $user_id, $pdo);
+
 // Check academic period status
 $is_acad_year_active = (bool)$course['academic_period_active'];
 $is_semester_active = $is_acad_year_active;
@@ -195,52 +198,155 @@ if (isset($_POST['mark_video_watched'])) {
     exit();
 }
 
-// Handle module completion
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
-    // Update module progress
-    $module_progress[$module_id] = [
-        'is_completed' => 1,
-        'completed_at' => date('Y-m-d H:i:s')
+// Check module completion requirements
+function checkModuleCompletionRequirements($module, $videos, $assessments, $video_progress, $user_id, $pdo) {
+    $requirements = [
+        'can_complete' => true,
+        'missing_requirements' => [],
+        'video_requirements' => [],
+        'assessment_requirements' => []
     ];
     
-    // Calculate progress percentage
-    $total_modules = count($modules_data);
-    $completed_count = count($module_progress);
-    $progress_percentage = $total_modules > 0 ? round(($completed_count / $total_modules) * 100, 2) : 0;
+    // Check video requirements
+    if (!empty($videos)) {
+        foreach ($videos as $video) {
+            $video_id = $video['id'];
+            $min_watch_time = ($video['min_watch_time'] ?? 5) * 60; // Convert to seconds
+            $required_completion = 80; // Minimum completion percentage
+            
+            $is_watched = isset($video_progress[$video_id]) && $video_progress[$video_id]['is_watched'] == 1;
+            $completion_percentage = isset($video_progress[$video_id]) ? ($video_progress[$video_id]['completion_percentage'] ?? 0) : 0;
+            $watch_duration = isset($video_progress[$video_id]) ? ($video_progress[$video_id]['watch_duration'] ?? 0) : 0;
+            
+            $video_met = $is_watched || $completion_percentage >= $required_completion;
+            
+            $requirements['video_requirements'][] = [
+                'video_id' => $video_id,
+                'video_title' => $video['video_title'] ?? 'Untitled Video',
+                'required_completion' => $required_completion,
+                'current_completion' => $completion_percentage,
+                'required_watch_time' => $min_watch_time,
+                'current_watch_time' => $watch_duration,
+                'is_met' => $video_met,
+                'is_watched' => $is_watched
+            ];
+            
+            if (!$video_met) {
+                $requirements['can_complete'] = false;
+                $requirements['missing_requirements'][] = [
+                    'type' => 'video',
+                    'title' => $video['video_title'] ?? 'Untitled Video',
+                    'message' => "Video '{$video['video_title']}' must be watched completely (minimum {$required_completion}% completion)"
+                ];
+            }
+        }
+    }
     
-    // Update enrollment
-    $stmt = $pdo->prepare("
-        UPDATE course_enrollments 
-        SET module_progress = ?, progress_percentage = ?
-        WHERE student_id = ? AND course_id = ?
-    ");
-    $stmt->execute([
-        json_encode($module_progress),
-        $progress_percentage,
-        $user_id,
-        $course['id']
-    ]);
+    // Check assessment requirements
+    if (!empty($assessments)) {
+        foreach ($assessments as $assessment) {
+            $assessment_id = $assessment['id'];
+            $required_score = $assessment['passing_rate'] ?? 70;
+            
+            // Get student's best score for this assessment
+            $stmt = $pdo->prepare("
+                SELECT MAX(score) as best_score, MAX(has_passed) as has_passed
+                FROM assessment_attempts 
+                WHERE student_id = ? AND assessment_id = ? AND status = 'completed'
+            ");
+            $stmt->execute([$user_id, $assessment_id]);
+            $attempt = $stmt->fetch();
+            
+            $student_score = $attempt['best_score'] ?? 0;
+            $has_passed = $attempt['has_passed'] ?? 0;
+            $assessment_met = $student_score >= $required_score && $has_passed;
+            
+            // Calculate progress percentage for the progress bar
+            $progress_percentage = $required_score > 0 ? min(($student_score / $required_score) * 100, 100) : 0;
+            
+            $requirements['assessment_requirements'][] = [
+                'assessment_id' => $assessment_id,
+                'assessment_title' => $assessment['assessment_title'] ?? 'Untitled Assessment',
+                'required_score' => $required_score,
+                'current_score' => $student_score,
+                'progress_percentage' => $progress_percentage,
+                'has_passed' => $has_passed,
+                'is_met' => $assessment_met
+            ];
+            
+            if (!$assessment_met) {
+                $requirements['can_complete'] = false;
+                $requirements['missing_requirements'][] = [
+                    'type' => 'assessment',
+                    'title' => $assessment['assessment_title'] ?? 'Untitled Assessment',
+                    'message' => "Assessment '{$assessment['assessment_title']}' must be passed with at least {$required_score}% (current: {$student_score}%)"
+                ];
+            }
+        }
+    }
     
-    // Send Pusher notifications
-    require_once '../config/pusher.php';
-    require_once '../includes/pusher_notifications.php';
+    return $requirements;
+}
+
+// Handle module completion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
+    // Check if student meets all requirements
+    $requirements = checkModuleCompletionRequirements($module, $videos, $assessments, $video_progress, $user_id, $pdo);
     
+    if ($requirements['can_complete']) {
+        // Update module progress
+        $module_progress[$module_id] = [
+            'is_completed' => 1,
+            'completed_at' => date('Y-m-d H:i:s')
+        ];
+        
+        // Calculate progress percentage
+        $total_modules = count($modules_data);
+        $completed_count = count($module_progress);
+        $progress_percentage = $total_modules > 0 ? round(($completed_count / $total_modules) * 100, 2) : 0;
+        
+        // Update enrollment
+        $stmt = $pdo->prepare("
+            UPDATE course_enrollments 
+            SET module_progress = ?, progress_percentage = ?
+            WHERE student_id = ? AND course_id = ?
+        ");
+        $stmt->execute([
+            json_encode($module_progress),
+            $progress_percentage,
+            $user_id,
+            $course['id']
+        ]);
+        
+        // Send Pusher notifications
+        require_once '../config/pusher.php';
+        require_once '../includes/pusher_notifications.php';
+        
         // Send notification to student
         PusherNotifications::sendModuleCompleted(
             $user_id,
-        $module['module_title'],
-        $course['course_name']
+            $module['module_title'],
+            $course['course_name']
         );
         
         // Send notification to teacher
         PusherNotifications::sendModuleProgressToTeacher(
-        $course['teacher_id'],
+            $course['teacher_id'],
             $_SESSION['first_name'] . ' ' . $_SESSION['last_name'],
-        $module['module_title'],
-        $course['course_name']
+            $module['module_title'],
+            $course['course_name']
         );
+        
+        $_SESSION['success'] = "Module marked as completed!";
+    } else {
+        // Build detailed error message
+        $error_messages = [];
+        foreach ($requirements['missing_requirements'] as $req) {
+            $error_messages[] = $req['message'];
+        }
+        $_SESSION['error'] = "Cannot complete module. Requirements not met:\n• " . implode("\n• ", $error_messages);
+    }
     
-    $_SESSION['success'] = "Module marked as completed!";
     header('Location: module.php?id=' . $module_id);
     exit();
 }
@@ -269,14 +375,17 @@ $course_themes = [
     ['bg' => 'bg-success', 'icon' => 'fas fa-lightbulb']
 ];
 
-// Calculate video progress
+// Calculate video progress with more accurate data
 $total_videos = count($videos);
 $watched_videos = 0;
 $total_watch_time = 0;
 $total_required_time = 0;
 
 foreach ($videos as $video) {
-    if ($video['is_watched']) {
+    // Check if video is watched based on completion percentage >= 80% or is_watched flag
+    $is_watched = $video['is_watched'] || ($video['completion_percentage'] ?? 0) >= 80;
+    
+    if ($is_watched) {
         $watched_videos++;
         $total_watch_time += $video['watch_duration'] ?? 0;
     }
@@ -1034,6 +1143,209 @@ $module_files = []; // This would need to be implemented based on how files are 
         .modal-xl {
             max-width: 95vw;
         }
+        
+        /* Enhanced Alert Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes celebration {
+            0% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(5deg); }
+            50% { transform: scale(1.2) rotate(-5deg); }
+            75% { transform: scale(1.1) rotate(3deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        
+        
+        /* Enhanced Requirement Cards */
+        .requirement-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .requirement-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .requirement-card.completed {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            animation: slideInUp 0.6s ease-out;
+        }
+        
+        .requirement-card.pending {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+        }
+        
+        .requirement-card.failed {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+        }
+        
+        .requirement-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Celebration Effects - Simplified */
+        
+        /* Enhanced Progress Bars */
+        .progress-enhanced {
+            height: 12px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-enhanced .progress-bar {
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-enhanced .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 25%, rgba(255, 255, 255, 0.3) 50%, transparent 50%, transparent 75%, rgba(255, 255, 255, 0.3) 75%);
+            background-size: 20px 20px;
+            animation: progress-stripes 1s linear infinite;
+        }
+
+        /* Ensure progress bars are visible and working */
+        .progress-enhanced .progress-bar {
+            transition: width 0.6s ease-in-out;
+            min-width: 0%;
+        }
+
+        .progress-enhanced .progress-bar.bg-success {
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        }
+
+        .progress-enhanced .progress-bar.bg-warning {
+            background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+        }
+
+        .progress-enhanced .progress-bar.bg-danger {
+            background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+        }
+
+        /* Add pulse animation for active progress bars */
+        .progress-enhanced .progress-bar:not(.bg-success) {
+            animation: progress-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Assessment Performance Cards */
+        .assessment-performance-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .assessment-performance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .assessment-performance-card.border-success {
+            border-color: #28a745 !important;
+            background: linear-gradient(135deg, #d4edda 0%, #f8f9fa 100%);
+        }
+
+        .assessment-performance-card.border-warning {
+            border-color: #ffc107 !important;
+            background: linear-gradient(135deg, #fff3cd 0%, #f8f9fa 100%);
+        }
+
+        .performance-stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        @keyframes progress-stripes {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
+        
+        /* Auto-completion notification */
+        .auto-completion-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+            animation: slideInRight 0.5s ease-out;
+            max-width: 350px;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1104,6 +1416,130 @@ $module_files = []; // This would need to be implemented based on how files are 
                     </div>
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
+
+                <!-- Real-time Progress Statistics -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>Real-time Module Progress
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-video fa-2x text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0" id="video-progress-count"><?php echo $watched_videos; ?> / <?php echo $total_videos; ?></h3>
+                                                <p class="text-muted mb-0">Videos Watched</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                                         style="width: <?php echo $video_progress_percentage; ?>%" id="video-progress-bar">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-question-circle fa-2x text-warning"></i>
+                                            </div>
+                                            <div>
+                                                <?php
+                                                $completed_assessments = 0;
+                                                $total_assessments_count = count($assessments);
+                                                $total_assessment_points = 0;
+                                                $total_attempts = 0;
+                                                $successful_attempts = 0;
+                                                
+                                                // Get detailed assessment attempt data
+                                                foreach ($assessments as $assessment) {
+                                                    $assessment_id = $assessment['id'];
+                                                    $passing_rate = $assessment['passing_rate'] ?? 70;
+                                                    
+                                                    // Get all attempts for this assessment
+                                                    $stmt = $pdo->prepare("
+                                                        SELECT score, has_passed, started_at, completed_at, time_taken
+                                                        FROM assessment_attempts 
+                                                        WHERE assessment_id = ? AND student_id = ? AND status = 'completed'
+                                                        ORDER BY score DESC
+                                                    ");
+                                                    $stmt->execute([$assessment_id, $user_id]);
+                                                    $attempts = $stmt->fetchAll();
+                                                    
+                                                    if (!empty($attempts)) {
+                                                        $total_attempts += count($attempts);
+                                                        $best_attempt = $attempts[0]; // Highest score attempt
+                                                        $successful_attempts += count(array_filter($attempts, function($attempt) use ($passing_rate) {
+                                                            return $attempt['score'] >= $passing_rate && $attempt['has_passed'];
+                                                        }));
+                                                        
+                                                        // Add points only from passed attempts
+                                                        if ($best_attempt['score'] >= $passing_rate && $best_attempt['has_passed']) {
+                                                            $completed_assessments++;
+                                                            $total_assessment_points += $best_attempt['score'];
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                $assessment_progress_percentage = $total_assessments_count > 0 ? round(($completed_assessments / $total_assessments_count) * 100) : 0;
+                                                $success_rate = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
+                                                ?>
+                                                <h3 class="mb-0" id="assessment-progress-count"><?php echo $completed_assessments; ?> / <?php echo $total_assessments_count; ?></h3>
+                                                <p class="text-muted mb-0">Assessments Completed</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                                         style="width: <?php echo $assessment_progress_percentage; ?>%" id="assessment-progress-bar">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-trophy fa-2x text-success"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0" id="points-earned"><?php echo number_format($total_assessment_points, 1); ?></h3>
+                                                <p class="text-muted mb-0">Total Points Earned</p>
+                                                <small class="text-muted" id="attempts-info">
+                                                    <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> attempts successful (<?php echo $success_rate; ?>%)
+                                                </small>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: <?php echo $assessment_progress_percentage; ?>%" id="points-progress-bar">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <div class="me-3">
+                                                <i class="fas fa-clock fa-2x text-info"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="mb-0" id="watch-time"><?php echo gmdate("H:i", $total_watch_time); ?></h3>
+                                                <p class="text-muted mb-0">Total Watch Time</p>
+                                                <div class="progress mt-2" style="height: 8px;">
+                                                    <div class="progress-bar bg-info" role="progressbar" 
+                                                         style="width: <?php echo $video_progress_percentage; ?>%" id="time-progress-bar">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Module Overview -->
                 <div class="row mb-4">
@@ -1569,6 +2005,111 @@ $module_files = []; // This would need to be implemented based on how files are 
                     </div>
                 <?php endif; ?>
 
+
+
+
+                <!-- Assessment Performance Breakdown -->
+                <?php if (!empty($assessments)): ?>
+                <div class="mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Assessment Performance Breakdown
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="assessment-breakdown">
+                                <?php foreach ($assessments as $assessment): ?>
+                                    <?php
+                                    $assessment_id = $assessment['id'];
+                                    $passing_rate = $assessment['passing_rate'] ?? 70;
+                                    
+                                    // Get detailed attempts for this assessment
+                                    $stmt = $pdo->prepare("
+                                        SELECT score, has_passed, started_at, completed_at, time_taken
+                                        FROM assessment_attempts 
+                                        WHERE assessment_id = ? AND student_id = ? AND status = 'completed'
+                                        ORDER BY score DESC
+                                    ");
+                                    $stmt->execute([$assessment_id, $user_id]);
+                                    $attempts = $stmt->fetchAll();
+                                    
+                                    $total_attempts = count($attempts);
+                                    $successful_attempts = 0;
+                                    $best_score = 0;
+                                    $latest_score = 0;
+                                    $is_passed = false;
+                                    
+                                    if (!empty($attempts)) {
+                                        $best_score = $attempts[0]['score'];
+                                        $latest_score = end($attempts)['score'];
+                                        $successful_attempts = count(array_filter($attempts, function($attempt) use ($passing_rate) {
+                                            return $attempt['score'] >= $passing_rate && $attempt['has_passed'];
+                                        }));
+                                        $is_passed = $best_score >= $passing_rate && $attempts[0]['has_passed'];
+                                    }
+                                    
+                                    $success_rate = $total_attempts > 0 ? round(($successful_attempts / $total_attempts) * 100) : 0;
+                                    ?>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card assessment-performance-card <?php echo $is_passed ? 'border-success' : 'border-warning'; ?>">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title mb-0">
+                                                        <i class="fas fa-question-circle me-2 text-primary"></i>
+                                                        <?php echo htmlspecialchars($assessment['assessment_title']); ?>
+                                                    </h6>
+                                                    <span class="badge <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>">
+                                                        <?php echo $is_passed ? 'Passed' : 'In Progress'; ?>
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="row text-center mb-3">
+                                                    <div class="col-4">
+                                                        <div class="performance-stat">
+                                                            <div class="stat-value text-primary"><?php echo $best_score; ?>%</div>
+                                                            <div class="stat-label">Best Score</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="performance-stat">
+                                                            <div class="stat-value text-info"><?php echo $total_attempts; ?></div>
+                                                            <div class="stat-label">Attempts</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="performance-stat">
+                                                            <div class="stat-value <?php echo $success_rate >= 50 ? 'text-success' : 'text-warning'; ?>"><?php echo $success_rate; ?>%</div>
+                                                            <div class="stat-label">Success Rate</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="progress mb-2" style="height: 6px;">
+                                                    <div class="progress-bar <?php echo $is_passed ? 'bg-success' : 'bg-warning'; ?>" 
+                                                         style="width: <?php echo min(($best_score / $passing_rate) * 100, 100); ?>%">
+                                                    </div>
+                                                </div>
+                                                
+                                                <small class="text-muted">
+                                                    Required: <?php echo $passing_rate; ?>% | 
+                                                    <?php if ($total_attempts > 0): ?>
+                                                        Latest: <?php echo $latest_score; ?>% | 
+                                                        <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> passed
+                                                    <?php else: ?>
+                                                        No attempts yet
+                                                    <?php endif; ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Module Completion -->
                 <div class="mb-4">
                     <div class="card">
@@ -1583,13 +2124,32 @@ $module_files = []; // This would need to be implemented based on how files are 
                                 </a>
                             <?php else: ?>
                                 <h5 class="card-title">Complete Module</h5>
-                                <p class="card-text">Mark this module as completed when you're done with all videos and assessments.</p>
-                                <form method="POST" class="d-inline">
-                                    <button type="submit" name="complete_module" class="action-button start">
-                                        <i class="fas fa-check"></i>
-                                        <span>Mark as Complete</span>
+                                <p class="card-text">
+                                    <?php if ($requirements['can_complete']): ?>
+                                        All requirements have been met. You can now mark this module as completed.
+                                    <?php else: ?>
+                                        Complete all videos and assessments to unlock module completion.
+                                    <?php endif; ?>
+                                </p>
+                                
+                                <?php if ($requirements['can_complete']): ?>
+                                    <form method="POST" class="d-inline">
+                                        <button type="submit" name="complete_module" class="action-button start">
+                                            <i class="fas fa-check"></i>
+                                            <span>Mark as Complete</span>
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <button class="action-button view-only" disabled>
+                                        <i class="fas fa-lock"></i>
+                                        <span>Requirements Not Met</span>
                                     </button>
-                                </form>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Complete all requirements above to unlock module completion
+                                        </small>
+                                    </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1841,6 +2401,14 @@ $module_files = []; // This would need to be implemented based on how files are 
         
         // Initialize modal event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Mark initial load as complete to prevent auto-completion on page load
+            window.initialLoadComplete = true;
+            
+            // Animate progress bars on page load
+            setTimeout(() => {
+                animateProgressBars();
+            }, 500);
+            
             const modal = document.getElementById('filePreviewModal');
             
             // Reset modal content when hidden
@@ -1932,6 +2500,424 @@ $module_files = []; // This would need to be implemented based on how files are 
             } else {
                 console.warn('⚠️ Pusher not available for video progress');
             }
+
+        // Animate progress bars on page load
+        function animateProgressBars() {
+            const progressBars = document.querySelectorAll('.progress-enhanced .progress-bar');
+            progressBars.forEach((bar, index) => {
+                setTimeout(() => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    bar.style.transition = 'width 0.8s ease-in-out';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                }, index * 200);
+            });
+        }
+
+        // Auto-complete module when all requirements are met
+        function autoCompleteModule() {
+                console.log('Checking auto-completion conditions...');
+                
+                // Double-check that requirements are actually met
+                const statusAlert = document.getElementById('requirements-status');
+                if (!statusAlert || !statusAlert.classList.contains('alert-success')) {
+                    console.log('Requirements not met, skipping auto-completion');
+                    return;
+                }
+                
+                // Check if module is already completed
+                const completionButton = document.querySelector('.action-button.start');
+                if (!completionButton || completionButton.disabled) {
+                    console.log('Module already completed or button disabled');
+                    return;
+                }
+                
+                // Additional validation: check if there are any pending requirements
+                const pendingCards = document.querySelectorAll('.requirement-card.pending, .requirement-card.failed');
+                if (pendingCards.length > 0) {
+                    console.log('Still have pending requirements, skipping auto-completion');
+                    return;
+                }
+                
+                console.log('All conditions met, proceeding with auto-completion');
+                
+                // Show simple notification
+                showCompletionNotification();
+                
+                // Auto-submit the completion form after a short delay
+                setTimeout(() => {
+                    const form = document.querySelector('form[method="POST"]');
+                    if (form) {
+                        console.log('Submitting completion form...');
+                        // Create a hidden input for the completion
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'complete_module';
+                        input.value = '1';
+                        form.appendChild(input);
+                        
+                        // Submit the form
+                        form.submit();
+                    } else {
+                        console.log('No completion form found');
+                    }
+                }, 2000); // 2 second delay
+            }
+            
+            // Show simple completion notification
+            function showCompletionNotification() {
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.className = 'auto-completion-notification';
+                notification.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-check-circle fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 text-white">Module Complete!</h6>
+                            <p class="mb-0 small text-white">All requirements met! Auto-completing module...</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Add to page
+                document.body.appendChild(notification);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 3000);
+            }
+            
+            // Update requirement status in real-time
+            function updateRequirementStatus(requirements) {
+                // Update video requirements
+                if (requirements.video_requirements) {
+                    requirements.video_requirements.forEach(videoReq => {
+                        const videoCards = document.querySelectorAll('.requirement-card.pending, .requirement-card.completed');
+                        videoCards.forEach(card => {
+                            const titleElement = card.querySelector('.card-title');
+                            if (titleElement && titleElement.textContent.includes(videoReq.video_title)) {
+                                // Update card class and styling
+                                if (videoReq.is_met) {
+                                    card.className = 'card requirement-card completed';
+                                    const badge = card.querySelector('.badge');
+                                    if (badge) {
+                                        badge.className = 'badge bg-success';
+                                        badge.innerHTML = '<i class="fas fa-check"></i> Complete';
+                                        badge.style.animation = 'celebration 1s ease-in-out';
+                                    }
+                                    
+                                    // Update status text
+                                    const statusText = card.querySelector('.text-muted');
+                                    if (statusText) {
+                                        statusText.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Video completed successfully!';
+                                    }
+                                } else {
+                                    card.className = 'card requirement-card pending';
+                                    const badge = card.querySelector('.badge');
+                                    if (badge) {
+                                        badge.className = 'badge bg-warning';
+                                        badge.innerHTML = `<i class="fas fa-clock"></i> ${videoReq.current_completion}%`;
+                                    }
+                                    
+                                    // Update status text
+                                    const statusText = card.querySelector('.text-muted');
+                                    if (statusText) {
+                                        statusText.innerHTML = `<i class="fas fa-clock text-warning me-1"></i>${100 - videoReq.current_completion}% remaining`;
+                                    }
+                                }
+                                
+                                // Update progress bar
+                                const progressBar = card.querySelector('.progress-bar');
+                                if (progressBar) {
+                                    const newWidth = Math.min(videoReq.current_completion, 100);
+                                    progressBar.style.width = `${newWidth}%`;
+                                    progressBar.className = `progress-bar ${videoReq.is_met ? 'bg-success' : 'bg-warning'}`;
+                                    
+                                    // Add animation class for smooth transition
+                                    progressBar.classList.add('progress-bar-animated');
+                                    
+                                    // Remove animation class after transition
+                                    setTimeout(() => {
+                                        progressBar.classList.remove('progress-bar-animated');
+                                    }, 600);
+                                }
+                            }
+                        });
+                    });
+                }
+                
+                // Update assessment requirements
+                if (requirements.assessment_requirements) {
+                    requirements.assessment_requirements.forEach(assessmentReq => {
+                        const assessmentCards = document.querySelectorAll('.requirement-card.failed, .requirement-card.completed');
+                        assessmentCards.forEach(card => {
+                            const titleElement = card.querySelector('.card-title');
+                            if (titleElement && titleElement.textContent.includes(assessmentReq.assessment_title)) {
+                                // Update card class and styling
+                                if (assessmentReq.is_met) {
+                                    card.className = 'card requirement-card completed';
+                                    const badge = card.querySelector('.badge');
+                                    if (badge) {
+                                        badge.className = 'badge bg-success';
+                                        badge.innerHTML = '<i class="fas fa-check"></i> Passed';
+                                        badge.style.animation = 'celebration 1s ease-in-out';
+                                    }
+                                    
+                                    // Update status text
+                                    const statusText = card.querySelector('.text-muted');
+                                    if (statusText) {
+                                        statusText.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Assessment passed successfully!';
+                                    }
+                                } else {
+                                    card.className = 'card requirement-card failed';
+                                    const badge = card.querySelector('.badge');
+                                    if (badge) {
+                                        badge.className = 'badge bg-danger';
+                                        badge.innerHTML = `<i class="fas fa-times"></i> ${assessmentReq.current_score}%`;
+                                    }
+                                    
+                                    // Update status text
+                                    const statusText = card.querySelector('.text-muted');
+                                    if (statusText) {
+                                        statusText.innerHTML = `<i class="fas fa-exclamation-triangle text-danger me-1"></i>Need ${assessmentReq.required_score - assessmentReq.current_score}% more to pass`;
+                                    }
+                                }
+                                
+                                // Update progress bar
+                                const progressBar = card.querySelector('.progress-bar');
+                                if (progressBar) {
+                                    const newWidth = assessmentReq.progress_percentage || 0;
+                                    progressBar.style.width = `${newWidth}%`;
+                                    progressBar.className = `progress-bar ${assessmentReq.is_met ? 'bg-success' : 'bg-danger'}`;
+                                    
+                                    // Add animation class for smooth transition
+                                    progressBar.classList.add('progress-bar-animated');
+                                    
+                                    // Remove animation class after transition
+                                    setTimeout(() => {
+                                        progressBar.classList.remove('progress-bar-animated');
+                                    }, 600);
+                                }
+                            }
+                        });
+                    });
+                }
+                
+                // Update overall status alert
+                const statusAlert = document.getElementById('requirements-status');
+                if (statusAlert) {
+                    if (requirements.can_complete) {
+                        statusAlert.className = 'alert alert-success border-0 shadow-lg';
+                        statusAlert.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)';
+                        statusAlert.style.borderLeft = '4px solid #28a745 !important';
+                        statusAlert.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="me-3">
+                                    <i class="fas fa-check-circle fa-2x text-success" style="animation: pulse 2s infinite;"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading mb-1 text-success">
+                                        <strong>🎉 All Requirements Met!</strong>
+                                    </h5>
+                                    <p class="mb-0 text-success">
+                                        Congratulations! You've completed all videos and assessments. 
+                                        <span class="fw-bold">This module will be automatically marked as complete.</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="progress" style="height: 8px; border-radius: 4px;">
+                                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 100%">
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        statusAlert.className = 'alert alert-warning border-0 shadow-lg';
+                        statusAlert.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
+                        statusAlert.style.borderLeft = '4px solid #ffc107 !important';
+                        
+                        // Calculate progress
+                        const totalRequirements = (requirements.video_requirements?.length || 0) + (requirements.assessment_requirements?.length || 0);
+                        const metRequirements = (requirements.video_requirements?.filter(r => r.is_met).length || 0) + (requirements.assessment_requirements?.filter(r => r.is_met).length || 0);
+                        const progressPercentage = totalRequirements > 0 ? Math.round((metRequirements / totalRequirements) * 100) : 0;
+                        
+                        statusAlert.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="me-3">
+                                    <i class="fas fa-exclamation-triangle fa-2x text-warning" style="animation: bounce 2s infinite;"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading mb-1 text-warning">
+                                        <strong>⚠️ Requirements Not Met</strong>
+                                    </h5>
+                                    <p class="mb-0 text-warning">
+                                        Please complete all videos and assessments before this module can be marked as complete.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="progress" style="height: 8px; border-radius: 4px;">
+                                    <div class="progress-bar bg-warning progress-bar-striped" 
+                                         role="progressbar" style="width: ${progressPercentage}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted mt-2 d-block">
+                                    ${metRequirements} of ${totalRequirements} requirements completed (${progressPercentage}%)
+                                </small>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Update completion button
+                const completionButton = document.querySelector('.action-button.start, .action-button.view-only');
+                if (completionButton) {
+                    if (requirements.can_complete) {
+                        completionButton.className = 'action-button start';
+                        completionButton.innerHTML = '<i class="fas fa-check"></i><span>Mark as Complete</span>';
+                        completionButton.disabled = false;
+                    } else {
+                        completionButton.className = 'action-button view-only';
+                        completionButton.innerHTML = '<i class="fas fa-lock"></i><span>Requirements Not Met</span>';
+                        completionButton.disabled = true;
+                    }
+                }
+            }
+
+            // Real-time progress updates
+            function updateModuleProgress() {
+                fetch(`../ajax_get_module_progress.php?module_id=<?php echo $module_id; ?>`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update video progress
+                            document.getElementById('video-progress-count').textContent = `${data.data.watched_videos} / ${data.data.total_videos}`;
+                            document.getElementById('video-progress-bar').style.width = `${data.data.video_progress_percentage}%`;
+                            
+                            // Update assessment progress
+                            document.getElementById('assessment-progress-count').textContent = `${data.data.completed_assessments} / ${data.data.total_assessments}`;
+                            document.getElementById('assessment-progress-bar').style.width = `${data.data.assessment_progress_percentage}%`;
+                            
+                            // Update points earned with detailed info
+                            document.getElementById('points-earned').textContent = parseFloat(data.data.total_assessment_points).toFixed(1);
+                            document.getElementById('points-progress-bar').style.width = `${data.data.assessment_progress_percentage}%`;
+                            
+                            // Update attempts info
+                            const attemptsInfo = document.getElementById('attempts-info');
+                            if (attemptsInfo) {
+                                attemptsInfo.textContent = `${data.data.successful_attempts} of ${data.data.total_attempts} attempts successful (${data.data.success_rate}%)`;
+                            }
+                            
+                            // Update watch time
+                            const watchTime = new Date(data.data.total_watch_time * 1000).toISOString().substr(11, 5);
+                            document.getElementById('watch-time').textContent = watchTime;
+                            document.getElementById('time-progress-bar').style.width = `${data.data.video_progress_percentage}%`;
+                            
+                            // Update main progress circle
+                            const progressCircle = document.querySelector('.progress-circle');
+                            const progressText = document.querySelector('.progress-text');
+                            if (progressCircle && progressText) {
+                                progressCircle.style.background = `conic-gradient(
+                                    var(--success-color) 0deg, 
+                                    var(--success-color) ${data.data.video_progress_percentage * 3.6}deg, 
+                                    var(--gray-200) ${data.data.video_progress_percentage * 3.6}deg, 
+                                    var(--gray-200) 360deg
+                                )`;
+                                progressText.textContent = `${data.data.video_progress_percentage}%`;
+                            }
+                            
+                            // Update video cards with new progress data
+                            data.data.videos.forEach(video => {
+                                const videoCard = document.querySelector(`[data-video-id="${video.id}"]`);
+                                if (videoCard) {
+                                    // Update completion percentage
+                                    const progressElement = videoCard.querySelector('.text-warning');
+                                    if (progressElement) {
+                                        progressElement.textContent = `${video.completion_percentage}%`;
+                                    }
+                                    
+                                    // Update watch status
+                                    if (video.is_watched && !videoCard.classList.contains('watched')) {
+                                        videoCard.classList.add('watched');
+                                        
+                                        // Update badge
+                                        const badgeElement = videoCard.querySelector('.badge');
+                                        if (badgeElement) {
+                                            badgeElement.className = 'badge bg-success';
+                                            badgeElement.innerHTML = '<i class="fas fa-check"></i> Watched';
+                                        }
+                                        
+                                        // Update action button
+                                        const actionButton = videoCard.querySelector('.action-button');
+                                        if (actionButton) {
+                                            actionButton.className = 'action-button completed';
+                                            actionButton.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            // Update assessment cards with new progress data
+                            data.data.assessments.forEach(assessment => {
+                                const assessmentCards = document.querySelectorAll('.assessment-card');
+                                assessmentCards.forEach(card => {
+                                    const titleElement = card.querySelector('.card-title');
+                                    if (titleElement && titleElement.textContent.includes(assessment.assessment_title)) {
+                                        // Update completion status
+                                        if (assessment.best_score >= (assessment.passing_rate || 70) && !card.classList.contains('completed')) {
+                                            card.classList.add('completed');
+                                            
+                                            // Update badge
+                                            const badgeElement = card.querySelector('.badge');
+                                            if (badgeElement && badgeElement.textContent.includes('Locked')) {
+                                                badgeElement.className = 'badge bg-success';
+                                                badgeElement.innerHTML = '<i class="fas fa-check"></i> Passed';
+                                            }
+                                        }
+                                    }
+                                });
+                            });
+                            
+                            // Update requirement status
+                            if (data.data.requirements) {
+                                updateRequirementStatus(data.data.requirements);
+                                
+                                // Only auto-complete if requirements are met AND this is a real-time update
+                                // Don't auto-complete on initial page load
+                                if (data.data.requirements.can_complete && !window.initialLoadComplete) {
+                                    // Add a small delay to ensure UI is updated
+                                    setTimeout(() => {
+                                        autoCompleteModule();
+                                    }, 1000);
+                                }
+                            }
+                            
+                            console.log('✅ Module progress updated successfully');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating module progress:', error);
+                    });
+            }
+
+            // Update progress every 30 seconds
+            setInterval(updateModuleProgress, 30000);
+            
+            // Also update when page becomes visible (user switches back to tab)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    updateModuleProgress();
+                }
+            });
         });
     </script>
 </body>

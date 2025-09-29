@@ -359,13 +359,13 @@ $is_view_only = !$assessment_status['is_active'];
         :root {
             --primary-color: #2E5E4E;
             --primary-dark: #1e3a2e;
-            --success-color: #2E5E4E;
-            --success-light: #f0f8f0;
-            --danger-color: #2E5E4E;
-            --danger-light: #f0f8f0;
-            --warning-color: #2E5E4E;
-            --warning-light: #f0f8f0;
-            --info-color: #2E5E4E;
+            --success-color: #28a745;
+            --success-light: #d4edda;
+            --danger-color: #dc3545;
+            --danger-light: #f8d7da;
+            --warning-color: #ffc107;
+            --warning-light: #fff3cd;
+            --info-color: #17a2b8;
             --info-light: #f0f8f0;
             --gray-50: #f9fafb;
             --gray-100: #f3f4f6;
@@ -519,10 +519,18 @@ $is_view_only = !$assessment_status['is_active'];
 
         .badge.bg-success {
             background: var(--success-color) !important;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
         }
 
         .badge.bg-danger {
             background: var(--danger-color) !important;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
         }
 
         .badge.bg-primary {
@@ -554,13 +562,27 @@ $is_view_only = !$assessment_status['is_active'];
         }
 
         .question-result.correct {
-            border-left: 4px solid var(--success-color);
+            border-left: 6px solid var(--success-color);
             background: var(--success-light);
+            border: 2px solid var(--success-color);
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.15);
+        }
+
+        .question-result.correct:hover {
+            box-shadow: 0 0 12px rgba(40, 167, 69, 0.25);
+            transform: translateY(-2px);
         }
 
         .question-result.incorrect {
-            border-left: 4px solid var(--danger-color);
+            border-left: 6px solid var(--danger-color);
             background: var(--danger-light);
+            border: 2px solid var(--danger-color);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.2);
+        }
+
+        .question-result.incorrect:hover {
+            box-shadow: 0 0 15px rgba(220, 53, 69, 0.3);
+            transform: translateY(-2px);
         }
 
         .question-result.unanswered {

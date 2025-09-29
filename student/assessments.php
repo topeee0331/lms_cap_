@@ -423,6 +423,84 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             color: white;
         }
 
+        /* Assessment Results Styles */
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .question-numbers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .question-badge {
+            display: inline-block;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 2.5rem;
+            text-align: center;
+        }
+
+        .question-badge.correct {
+            background-color: #28a745;
+            color: white;
+            border: 1px solid #28a745;
+            font-weight: bold;
+        }
+
+        .question-badge.incorrect {
+            background-color: #dc3545;
+            color: white;
+            border: 1px solid #dc3545;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .question-badge.incorrect:hover {
+            background-color: #c82333;
+            border-color: #c82333;
+            transform: scale(1.05);
+        }
+
+        .question-badge.correct:hover {
+            background-color: #218838;
+            border-color: #218838;
+            transform: scale(1.05);
+        }
+
+        .correct-questions, .incorrect-questions {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .results-summary {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
         /* Question Details Styles */
         .question-item {
             background: white;
@@ -2587,10 +2665,27 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 `;
             }
 
-            // Function to view attempt details
-            function viewAttemptDetails(attemptId) {
-                const questionDetailsModal = new bootstrap.Modal(document.getElementById('questionDetailsModal'));
+            // Function to view attempt details (moved to global scope)
+            window.viewAttemptDetails = function(attemptId) {
+                console.log('Viewing attempt details for ID:', attemptId);
+                
+                // Validate attemptId
+                if (!attemptId || isNaN(attemptId)) {
+                    console.error('Invalid attempt ID:', attemptId);
+                    alert('Invalid attempt ID. Please try again.');
+                    return;
+                }
+                
+                const questionDetailsModalElement = document.getElementById('questionDetailsModal');
                 const questionDetailsContent = document.getElementById('questionDetailsContent');
+                
+                if (!questionDetailsModalElement || !questionDetailsContent) {
+                    console.error('Modal elements not found');
+                    alert('Modal elements not found. Please refresh the page and try again.');
+                    return;
+                }
+                
+                const questionDetailsModal = new bootstrap.Modal(questionDetailsModalElement);
                 
                 // Show loading state
                 questionDetailsContent.innerHTML = `
@@ -2606,9 +2701,16 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 questionDetailsModal.show();
                 
                 // Load question details
-                fetch(`../ajax_get_attempt_details.php?attempt_id=${attemptId}`)
-                    .then(response => response.json())
+                const url = `../ajax_get_attempt_details.php?attempt_id=${attemptId}`;
+                console.log('Fetching from URL:', url);
+                
+                fetch(url)
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Response data:', data);
                         if (data.success && data.questions) {
                             displayQuestionDetails(data.questions, data.attempt);
                         } else {
@@ -2619,108 +2721,132 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                         console.error('Error loading question details:', error);
                         displayQuestionError('An error occurred while loading question details');
                     });
-            }
+            };
 
-            // Function to display question details
-            function displayQuestionDetails(questions, attempt) {
+            // Function to display question details (moved to global scope)
+            window.displayQuestionDetails = function(questions, attempt) {
                 const questionDetailsContent = document.getElementById('questionDetailsContent');
+                
+                // Calculate statistics
+                const totalQuestions = questions.length;
+                const correctQuestions = questions.filter(q => q.is_correct).length;
+                const incorrectQuestions = totalQuestions - correctQuestions;
+                const correctPercentage = totalQuestions > 0 ? Math.round((correctQuestions / totalQuestions) * 100) : 0;
+                
                 let html = `
                     <div class="attempt-summary mb-4">
                         <div class="row">
                             <div class="col-md-6">
-                                <h6 class="mb-2">Attempt Information</h6>
-                                <p class="mb-1"><strong>Score:</strong> ${attempt.score || 0}%</p>
-                                <p class="mb-1"><strong>Status:</strong> <span class="question-result ${attempt.has_passed ? 'correct' : 'incorrect'}">${attempt.has_passed ? 'PASSED' : 'FAILED'}</span></p>
-                                <p class="mb-0"><strong>Completed:</strong> ${new Date(attempt.completed_at || attempt.started_at).toLocaleString()}</p>
+                                <h6 class="mb-2">Assessment Information</h6>
+                                <p class="mb-1"><strong>Assessment:</strong> ${attempt.assessment_title || 'N/A'}</p>
+                                <p class="mb-1"><strong>Course:</strong> ${attempt.course_name || 'N/A'}</p>
+                                <p class="mb-1"><strong>Difficulty:</strong> <span class="badge bg-${attempt.difficulty === 'easy' ? 'success' : (attempt.difficulty === 'medium' ? 'warning' : 'danger')}">${(attempt.difficulty || 'N/A').charAt(0).toUpperCase() + (attempt.difficulty || 'N/A').slice(1)}</span></p>
+                                <p class="mb-0"><strong>Time Limit:</strong> ${attempt.time_limit ? attempt.time_limit + ' minutes' : 'No limit'}</p>
                             </div>
                             <div class="col-md-6">
-                                <h6 class="mb-2">Question Summary</h6>
-                                <p class="mb-1"><strong>Total Questions:</strong> ${questions.length}</p>
-                                <p class="mb-1"><strong>Correct:</strong> ${questions.filter(q => q.is_correct).length}</p>
-                                <p class="mb-0"><strong>Incorrect:</strong> ${questions.filter(q => !q.is_correct).length}</p>
+                                <h6 class="mb-2">Attempt Results</h6>
+                                <p class="mb-1"><strong>Score:</strong> <span class="fw-bold ${attempt.score >= 70 ? 'text-success' : 'text-danger'}">${attempt.score || 0}%</span></p>
+                                <p class="mb-1"><strong>Status:</strong> <span class="badge ${attempt.has_passed ? 'bg-success' : 'bg-danger'}">${attempt.has_passed ? 'PASSED' : 'FAILED'}</span></p>
+                                <p class="mb-1"><strong>Completed:</strong> ${new Date(attempt.completed_at || attempt.started_at).toLocaleString()}</p>
+                                ${attempt.time_taken ? `<p class="mb-0"><strong>Time Taken:</strong> ${attempt.time_taken}</p>` : ''}
                             </div>
                         </div>
                     </div>
-                    <div class="questions-container">
+                    
+                    <div class="results-summary mb-4">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-number text-primary">${totalQuestions}</div>
+                                    <div class="stat-label">Total Questions</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-number text-success">${correctQuestions}</div>
+                                    <div class="stat-label">Correct</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-number text-danger">${incorrectQuestions}</div>
+                                    <div class="stat-label">Incorrect</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-number ${correctPercentage >= 70 ? 'text-success' : 'text-danger'}">${correctPercentage}%</div>
+                                    <div class="stat-label">Accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="question-results">
+                        <h6 class="mb-3">Question Results</h6>
+                        <div class="row">
                 `;
 
-                questions.forEach((question, index) => {
-                    const questionNumber = index + 1;
-                    const isCorrect = question.is_correct;
-                    const resultClass = isCorrect ? 'correct' : 'incorrect';
-                    const resultText = isCorrect ? 'CORRECT' : 'INCORRECT';
-                    
+                // Group questions by correct/incorrect
+                const correctQuestionsList = questions.filter(q => q.is_correct);
+                const incorrectQuestionsList = questions.filter(q => !q.is_correct);
+
+                // Show correct questions
+                if (correctQuestionsList.length > 0) {
                     html += `
-                        <div class="question-item">
-                            <div class="question-header">
-                                <div class="question-number">${questionNumber}</div>
-                                <div class="question-result ${resultClass}">${resultText}</div>
-                            </div>
-                            <div class="question-text">${question.question_text}</div>
-                            <div class="answer-options">
+                        <div class="col-md-6">
+                            <div class="correct-questions">
+                                <h6 class="text-success mb-3">
+                                    <i class="fas fa-check-circle me-2"></i>Correct Questions (${correctQuestionsList.length})
+                                </h6>
+                                <div class="question-numbers">
                     `;
                     
-                    // Display answer options
-                    if (question.question_type === 'multiple_choice' && question.options) {
-                        try {
-                            const options = JSON.parse(question.options);
-                            options.forEach((option, optIndex) => {
-                                const optionClass = option.is_correct ? 'correct' : 
-                                                 (option.text === question.student_answer) ? 'selected' : '';
-                                const optionLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
-                                
-                                html += `
-                                    <div class="answer-option ${optionClass}">
-                                        <span class="answer-label">${optionLabel}.</span>
-                                        <span class="answer-text">${option.text}</span>
-                                        ${option.is_correct ? '<i class="fas fa-check ms-2"></i>' : ''}
-                                    </div>
-                                `;
-                            });
-                        } catch (e) {
-                            html += `<p class="text-muted">Error parsing options</p>`;
-                        }
-                    } else if (question.question_type === 'true_false') {
-                        const correctAnswer = question.correct_answer;
-                        const studentAnswer = question.student_answer;
-                        
-                        html += `
-                            <div class="answer-option ${correctAnswer === 'true' ? 'correct' : ''}">
-                                <span class="answer-label">A.</span>
-                                <span class="answer-text">True</span>
-                                ${correctAnswer === 'true' ? '<i class="fas fa-check ms-2"></i>' : ''}
-                            </div>
-                            <div class="answer-option ${correctAnswer === 'false' ? 'correct' : ''}">
-                                <span class="answer-label">B.</span>
-                                <span class="answer-text">False</span>
-                                ${correctAnswer === 'false' ? '<i class="fas fa-check ms-2"></i>' : ''}
-                            </div>
-                        `;
-                    } else if (question.question_type === 'identification') {
-                        html += `
-                            <div class="answer-option correct">
-                                <span class="answer-label">Correct Answer:</span>
-                                <span class="answer-text">${question.correct_answer}</span>
-                            </div>
-                            <div class="answer-option ${question.student_answer ? 'selected' : ''}">
-                                <span class="answer-label">Your Answer:</span>
-                                <span class="answer-text">${question.student_answer || 'No answer provided'}</span>
-                            </div>
-                        `;
-                    }
+                    correctQuestionsList.forEach((question, index) => {
+                        const questionNumber = questions.indexOf(question) + 1;
+                        html += `<span class="question-badge correct">${questionNumber}</span>`;
+                    });
                     
                     html += `
+                                </div>
                             </div>
                         </div>
                     `;
-                });
+                }
 
-                html += `</div>`;
+                // Show incorrect questions
+                if (incorrectQuestionsList.length > 0) {
+                    html += `
+                        <div class="col-md-6">
+                            <div class="incorrect-questions">
+                                <h6 class="text-danger mb-3">
+                                    <i class="fas fa-times-circle me-2"></i>Incorrect Questions (${incorrectQuestionsList.length})
+                                </h6>
+                                <div class="question-numbers">
+                    `;
+                    
+                    incorrectQuestionsList.forEach((question, index) => {
+                        const questionNumber = questions.indexOf(question) + 1;
+                        html += `<span class="question-badge incorrect">${questionNumber}</span>`;
+                    });
+                    
+                    html += `
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
                 questionDetailsContent.innerHTML = html;
-            }
+            };
 
-            // Function to display question error
-            function displayQuestionError(message) {
+            // Function to display question error (moved to global scope)
+            window.displayQuestionError = function(message) {
                 const questionDetailsContent = document.getElementById('questionDetailsContent');
                 questionDetailsContent.innerHTML = `
                     <div class="alert alert-danger">
@@ -2728,7 +2854,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                         <strong>Error:</strong> ${message}
                     </div>
                 `;
-            }
+            };
         });
     </script>
 </body>

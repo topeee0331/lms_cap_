@@ -610,8 +610,6 @@ foreach ($enrollment_requests as $request) {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
 <!-- Include Pusher for real-time updates -->
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 <script src="../assets/js/pusher-client.js"></script>

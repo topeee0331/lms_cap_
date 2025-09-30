@@ -732,7 +732,7 @@ $course_themes = [
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1060;
+            z-index: 1025;
             display: none;
         }
         
@@ -760,7 +760,7 @@ $course_themes = [
         
         /* Toast Notifications */
         .toast-container {
-            z-index: 1060;
+            z-index: 1025;
         }
         
         .toast {
@@ -1143,9 +1143,6 @@ $course_themes = [
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
                             <i class="fas fa-graduation-cap"></i> Browse Year Level Courses
                         </button>
-                    </div>
-                    <div class="alert alert-info alert-dismissible fade show auto-dismiss" role="alert" data-dismiss-delay="3000">
-                        <i class="fas fa-info-circle"></i> You can request enrollment in courses from other sections that match your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>). These courses are designed for your year level but assigned to different sections.
                     </div>
                 </div>
 
@@ -1658,25 +1655,27 @@ $course_themes = [
     </div>
 
     <!-- Toast Container for Notifications -->
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1025;"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Course filter functionality
     var filterInput = document.getElementById('modalCourseFilter');
     var courseItems = document.querySelectorAll('#modalCourseList .modal-course-item');
-    filterInput.addEventListener('input', function() {
-        var filter = filterInput.value.toLowerCase();
-        courseItems.forEach(function(item) {
-            var name = item.querySelector('.course-name').textContent.toLowerCase();
-            var teacher = item.querySelector('.teacher-name').textContent.toLowerCase();
-            if (name.includes(filter) || teacher.includes(filter)) {
-                item.style.display = '';
-            } else {
-                item.style.display = 'none';
-            }
+    if (filterInput) {
+        filterInput.addEventListener('input', function() {
+            var filter = filterInput.value.toLowerCase();
+            courseItems.forEach(function(item) {
+                var name = item.querySelector('.course-name').textContent.toLowerCase();
+                var teacher = item.querySelector('.teacher-name').textContent.toLowerCase();
+                if (name.includes(filter) || teacher.includes(filter)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         });
-    });
+    }
 
     // Rejection Reason Modal
     var rejectionModal = document.getElementById('rejectionReasonModal');
@@ -1856,8 +1855,7 @@ function initCourseSlider(sliderId, prevBtnId, nextBtnId) {
     }
 }
 
-// Initialize sliders when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
+    // Initialize sliders
     initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
     initCourseSlider('available-slider', 'available-prev', 'available-next');
     
@@ -1931,6 +1929,8 @@ function initAutoDismissAlerts() {
         }, delay);
     });
 }
+
+}); // End of DOMContentLoaded function
 
 </script>
 </body>

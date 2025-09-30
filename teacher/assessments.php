@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Assessments';
 require_once '../config/config.php';
+require_once '../includes/header.php';
 requireRole('teacher');
 
 $message = '';

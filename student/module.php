@@ -563,15 +563,15 @@ $module_files = []; // This would need to be implemented based on how files are 
         
         /* Root Variables */
         :root {
-            --primary-color: #6366f1;
-            --primary-dark: #4f46e5;
-            --success-color: #10b981;
+            --primary-color: #2E5E4E;
+            --primary-dark: #1e5631;
+            --success-color: #7DCB80;
             --success-light: #d1fae5;
             --danger-color: #ef4444;
             --danger-light: #fee2e2;
             --warning-color: #f59e0b;
             --warning-light: #fef3c7;
-            --info-color: #3b82f6;
+            --info-color: #7DCB80;
             --info-light: #dbeafe;
             --gray-50: #f9fafb;
             --gray-100: #f3f4f6;
@@ -709,7 +709,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         
         .module-badge {
             display: inline-block;
-            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 25px;
@@ -776,7 +776,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
         
         .course-icon-wrapper {
-            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             border-radius: 50%;
             width: 120px;
             height: 120px;
@@ -826,23 +826,29 @@ $module_files = []; // This would need to be implemented based on how files are 
         .nav-tabs .nav-link:hover {
             border: none;
             color: var(--primary-color);
-            background-color: rgba(0, 123, 255, 0.1);
+            background-color: rgba(125, 203, 128, 0.1);
         }
         
         .nav-tabs .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
-            color: white;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--primary-color);
             border: none;
             font-weight: 600;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            position: relative;
+            z-index: 1;
         }
         
         .nav-tabs .nav-link.active:hover {
-            background: linear-gradient(135deg, #0056b3, #3b82f6);
-            color: white;
+            background: rgba(125, 203, 128, 0.1);
+            color: var(--primary-color);
         }
         
         .tab-content {
             padding: 1.5rem 0;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+            margin-top: -1px;
         }
         
         .assessment-performance-card {
@@ -874,7 +880,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         /* Video and Assessment Cards */
         .video-card, .assessment-card {
             background: #ffffff;
-            border: 1px solid rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(46, 94, 78, 0.1);
             border-radius: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -889,15 +895,15 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), #4f46e5, var(--primary-color));
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark), var(--primary-color));
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .video-card:hover, .assessment-card:hover {
             transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 60px rgba(0, 123, 255, 0.15);
-            border-color: rgba(0, 123, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(46, 94, 78, 0.15);
+            border-color: rgba(46, 94, 78, 0.3);
         }
 
         .video-card:hover::before, .assessment-card:hover::before {
@@ -919,7 +925,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: relative;
             overflow: hidden;
             border-radius: 15px 15px 0 0;
-            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             height: 160px;
         }
 
@@ -951,7 +957,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(0, 123, 255, 0.9), rgba(102, 126, 234, 0.9));
+            background: linear-gradient(135deg, rgba(46, 94, 78, 0.9), rgba(30, 86, 49, 0.9));
             color: white;
             border: none;
             border-radius: 50%;
@@ -963,14 +969,14 @@ $module_files = []; // This would need to be implemented based on how files are 
             font-size: 1.4rem;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
+            box-shadow: 0 6px 20px rgba(46, 94, 78, 0.3);
             backdrop-filter: blur(10px);
         }
 
         .video-card-preview .play-button:hover {
-            background: linear-gradient(135deg, rgba(0, 123, 255, 1), rgba(102, 126, 234, 1));
+            background: linear-gradient(135deg, rgba(46, 94, 78, 1), rgba(30, 86, 49, 1));
             transform: translate(-50%, -50%) scale(1.15);
-            box-shadow: 0 12px 35px rgba(0, 123, 255, 0.4);
+            box-shadow: 0 12px 35px rgba(46, 94, 78, 0.4);
         }
 
         .video-card-preview .play-button::before {
@@ -1128,7 +1134,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             width: 60px;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
             border-radius: 2px;
         }
 
@@ -1274,7 +1280,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             padding: 0.5rem;
             background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
             border-radius: 8px;
-            border: 1px solid rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(46, 94, 78, 0.1);
         }
 
         .stat-value {
@@ -1327,7 +1333,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .video-overview-card {
-            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             border-radius: 20px;
             overflow: hidden;
             position: relative;
@@ -1371,7 +1377,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             align-items: center;
             padding: 1rem;
             background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-            border: 1px solid rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(46, 94, 78, 0.1);
             border-radius: 15px;
             margin-bottom: 0.75rem;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1386,15 +1392,15 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .video-list-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
-            border-color: rgba(0, 123, 255, 0.3);
+            box-shadow: 0 8px 25px rgba(46, 94, 78, 0.15);
+            border-color: rgba(46, 94, 78, 0.3);
         }
 
         .video-list-item:hover::before {
@@ -1416,7 +1422,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             height: 60px;
             border-radius: 10px;
             overflow: hidden;
-            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             position: relative;
             flex-shrink: 0;
             margin-right: 1rem;
@@ -1436,7 +1442,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(0, 123, 255, 0.9), rgba(102, 126, 234, 0.9));
+            background: linear-gradient(135deg, rgba(46, 94, 78, 0.9), rgba(30, 86, 49, 0.9));
             color: white;
             border: none;
             border-radius: 50%;
@@ -1448,11 +1454,11 @@ $module_files = []; // This would need to be implemented based on how files are 
             font-size: 0.8rem;
             transition: all 0.3s ease;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(46, 94, 78, 0.3);
         }
 
         .video-list-thumbnail .play-button:hover {
-            background: linear-gradient(135deg, rgba(0, 123, 255, 1), rgba(102, 126, 234, 1));
+            background: linear-gradient(135deg, rgba(46, 94, 78, 1), rgba(30, 86, 49, 1));
             transform: translate(-50%, -50%) scale(1.1);
         }
 
@@ -1535,13 +1541,13 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .view-toggle-btn:hover {
             color: var(--primary-color);
-            background: rgba(0, 123, 255, 0.1);
+            background: rgba(46, 94, 78, 0.1);
         }
 
         .view-toggle-btn.active {
             background: var(--primary-color);
             color: white;
-            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+            box-shadow: 0 2px 8px rgba(46, 94, 78, 0.3);
         }
 
         /* View Container */
@@ -1575,7 +1581,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             align-items: center;
             padding: 1rem;
             background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-            border: 1px solid rgba(0, 123, 255, 0.1);
+            border: 1px solid rgba(46, 94, 78, 0.1);
             border-radius: 15px;
             margin-bottom: 0.75rem;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1590,15 +1596,15 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), #4f46e5);
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .assessment-list-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
-            border-color: rgba(0, 123, 255, 0.3);
+            box-shadow: 0 8px 25px rgba(46, 94, 78, 0.15);
+            border-color: rgba(46, 94, 78, 0.3);
         }
 
         .assessment-list-item:hover::before {
@@ -1628,7 +1634,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             width: 60px;
             height: 60px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #4f46e5 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1745,8 +1751,8 @@ $module_files = []; // This would need to be implemented based on how files are 
             height: 120px;
             border-radius: 50%;
             background: conic-gradient(
-                var(--success-color) 0deg, 
-                var(--success-color) <?php echo $video_progress_percentage * 3.6; ?>deg, 
+                var(--primary-color) 0deg, 
+                var(--primary-color) <?php echo $video_progress_percentage * 3.6; ?>deg, 
                 var(--gray-200) <?php echo $video_progress_percentage * 3.6; ?>deg, 
                 var(--gray-200) 360deg
             );
@@ -1776,7 +1782,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: absolute;
             font-size: 1.5rem;
             font-weight: 800;
-            color: var(--success-color);
+            color: var(--primary-color);
             z-index: 2;
         }
 
@@ -1790,7 +1796,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .badge.bg-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%) !important;
+            background: linear-gradient(135deg, var(--success-color) 0%, var(--primary-color) 100%) !important;
         }
 
         .badge.bg-danger {
@@ -1806,7 +1812,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .badge.bg-warning {
-            background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%) !important;
+            background: linear-gradient(135deg, var(--warning-color) 0%, var(--primary-color) 100%) !important;
         }
 
         /* Button Styling */
@@ -1841,16 +1847,18 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .btn-primary:hover {
+            background: linear-gradient(135deg, #1e5631 0%, #2E5E4E 100%);
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
 
         .btn-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+            background: linear-gradient(135deg, var(--success-color) 0%, var(--primary-color) 100%);
             box-shadow: var(--shadow-md);
         }
 
         .btn-success:hover {
+            background: linear-gradient(135deg, #1e5631 0%, #2E5E4E 100%);
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
@@ -1863,8 +1871,8 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .btn-outline-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.5);
+            background: #1e5631;
+            border-color: #1e5631;
             color: white;
             transform: translateY(-2px);
         }
@@ -1877,8 +1885,8 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .btn-outline-success:hover {
-            background: var(--success-color);
-            border-color: var(--success-color);
+            background: #1e5631;
+            border-color: #1e5631;
             color: white;
             transform: translateY(-2px);
         }
@@ -1916,7 +1924,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             justify-content: center;
             gap: 0.75rem;
             padding: 1.2rem 2.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
             text-decoration: none;
             border-radius: 15px;
@@ -1926,7 +1934,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(46, 94, 78, 0.2);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -1947,11 +1955,11 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .action-button:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
             color: white;
             text-decoration: none;
             transform: translateY(-4px) scale(1.05);
-            box-shadow: 0 15px 40px rgba(0, 123, 255, 0.3);
+            box-shadow: 0 15px 40px rgba(46, 94, 78, 0.3);
         }
 
         .action-button.retake {
@@ -2123,8 +2131,8 @@ $module_files = []; // This would need to be implemented based on how files are 
             height: 150px;
             border-radius: 50%;
             background: conic-gradient(
-                var(--success-color) 0deg, 
-                var(--success-color) <?php echo $video_progress_percentage * 3.6; ?>deg, 
+                var(--primary-color) 0deg, 
+                var(--primary-color) <?php echo $video_progress_percentage * 3.6; ?>deg, 
                 var(--gray-200) <?php echo $video_progress_percentage * 3.6; ?>deg, 
                 var(--gray-200) 360deg
             );
@@ -2163,7 +2171,6 @@ $module_files = []; // This would need to be implemented based on how files are 
         /* Tab styling */
         .nav-tabs .nav-link {
             border: none;
-            border-bottom: 3px solid transparent;
             color: #6c757d;
             font-weight: 500;
             padding: 0.75rem 1.5rem;
@@ -2173,14 +2180,22 @@ $module_files = []; // This would need to be implemented based on how files are 
         .nav-tabs .nav-link:hover {
             border-color: transparent;
             color: var(--primary-color);
-            background-color: rgba(13, 110, 253, 0.1);
+            background-color: rgba(125, 203, 128, 0.1);
         }
 
         .nav-tabs .nav-link.active {
             color: var(--primary-color);
-            background-color: transparent;
-            border-color: var(--primary-color);
-            border-bottom-color: var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .nav-tabs .nav-link.active:hover {
+            color: var(--primary-color);
+            background-color: rgba(125, 203, 128, 0.1);
+            border: none;
         }
 
         .tab-content {
@@ -2593,7 +2608,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 9999;
+            z-index: 1025;
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             padding: 1rem 1.5rem;
@@ -2762,11 +2777,6 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             <i class="fas fa-info-circle me-2"></i>Module Information
                                         </button>
                                     </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="video-progress-tab" data-bs-toggle="tab" data-bs-target="#video-progress" type="button" role="tab" aria-controls="video-progress" aria-selected="false">
-                                            <i class="fas fa-video me-2"></i>Video Progress
-                                        </button>
-                                    </li>
                                 </ul>
                             </div>
                             <div class="card-body">
@@ -2829,7 +2839,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                         <i class="fas fa-clock fa-2x text-info"></i>
                                                     </div>
                                                     <div>
-                                                        <h3 class="mb-0" id="total-watch-time"><?php echo $total_watch_time_formatted; ?></h3>
+                                                        <h3 class="mb-0" id="watch-time"><?php echo $total_watch_time_formatted; ?></h3>
                                                         <p class="text-muted mb-0">Total Watch Time</p>
                                                         <div class="progress mt-2" style="height: 8px;">
                                                             <div class="progress-bar bg-info" role="progressbar" 
@@ -2961,136 +2971,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 </div>
                                             </div>
 
-                                            <!-- Video Progress Tab -->
-                                            <div class="tab-pane fade" id="video-progress" role="tabpanel" aria-labelledby="video-progress-tab">
-                                                <!-- Progress Statistics -->
-                                                <div class="row text-center">
-                                    <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <div class="me-3">
-                                                <i class="fas fa-video fa-2x text-primary"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="mb-0" id="video-progress-count"><?php echo $watched_videos; ?> / <?php echo $total_videos; ?></h3>
-                                                <p class="text-muted mb-0">Videos Watched</p>
-                                                <div class="progress mt-2" style="height: 8px;">
-                                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                                         style="width: <?php echo $video_progress_percentage; ?>%" id="video-progress-bar">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <div class="me-3">
-                                                <i class="fas fa-question-circle fa-2x text-warning"></i>
-                                            </div>
-                                            <div>
-                                                <?php
-                                                // Variables are now calculated globally above
-                                                ?>
-                                                <h3 class="mb-0" id="assessment-progress-count"><?php echo $completed_assessments; ?> / <?php echo $total_assessments; ?></h3>
-                                                <p class="text-muted mb-0">Assessments Completed</p>
-                                                <div class="progress mt-2" style="height: 8px;">
-                                                    <div class="progress-bar bg-warning" role="progressbar" 
-                                                         style="width: <?php echo $assessment_progress_percentage; ?>%" id="assessment-progress-bar">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <div class="me-3">
-                                                <i class="fas fa-trophy fa-2x text-success"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="mb-0" id="points-earned"><?php echo number_format($total_points_earned ?? 0, 1); ?></h3>
-                                                <p class="text-muted mb-0">Total Points Earned</p>
-                                                <small class="text-muted" id="attempts-info">
-                                                    <?php echo $successful_attempts; ?> of <?php echo $total_attempts; ?> attempts successful (<?php echo $success_rate ?? 0; ?>%)
-                                                </small>
-                                                <div class="progress mt-2" style="height: 8px;">
-                                                    <div class="progress-bar bg-success" role="progressbar" 
-                                                         style="width: <?php echo $assessment_progress_percentage; ?>%" id="points-progress-bar">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <div class="me-3">
-                                                <i class="fas fa-clock fa-2x text-info"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="mb-0" id="watch-time"><?php echo gmdate("H:i", $total_watch_time); ?></h3>
-                                                <p class="text-muted mb-0">Total Watch Time</p>
-                                                <div class="progress mt-2" style="height: 8px;">
-                                                    <div class="progress-bar bg-info" role="progressbar" 
-                                                         style="width: <?php echo $video_progress_percentage; ?>%" id="time-progress-bar">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
-                                    <!-- Video Progress Tab -->
-                                    <div class="tab-pane fade" id="video-progress" role="tabpanel" aria-labelledby="video-progress-tab">
-                                        <!-- Video Progress Statistics -->
-                                        <div class="row text-center">
-                                            <div class="col-md-6 mb-4">
-                                                <div class="card border-0 shadow-sm h-100">
-                                                    <div class="card-body text-center">
-                                                        <div class="progress-circle-large mx-auto mb-3">
-                                                            <div class="progress-text-large"><?php echo $video_progress_percentage; ?>%</div>
-                                                        </div>
-                                                        <h5 class="card-title text-primary">Video Progress</h5>
-                                                        <p class="text-muted mb-0"><?php echo $watched_videos; ?> of <?php echo $total_videos; ?> videos watched</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-4">
-                                                <div class="card border-0 shadow-sm h-100">
-                                                    <div class="card-body text-center">
-                                                        <div class="progress-circle-large mx-auto mb-3">
-                                                            <div class="progress-text-large"><?php echo $assessment_progress_percentage; ?>%</div>
-                                                        </div>
-                                                        <h5 class="card-title text-success">Assessment Progress</h5>
-                                                        <p class="text-muted mb-0"><?php echo $completed_assessments; ?> of <?php echo $total_assessments; ?> assessments completed</p>
-                                                    </div>
-                        </div>
-                    </div>
-                </div>
-
-                                        <!-- Detailed Progress Stats -->
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
-                                                    <i class="fas fa-star text-primary fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-primary fs-4"><?php echo $total_points_earned; ?></div>
-                                                    <small class="text-muted">Total Points Earned</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <div class="text-center p-3 bg-info bg-opacity-10 rounded">
-                                                    <i class="fas fa-clock text-info fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-info fs-4"><?php echo $total_watch_time_formatted; ?></div>
-                                                    <small class="text-muted">Total Watch Time</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
-                                                    <i class="fas fa-percentage text-warning fs-3 mb-2"></i>
-                                                    <div class="fw-bold text-warning fs-4"><?php echo $average_score; ?>%</div>
-                                                    <small class="text-muted">Average Score</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                     
                                     <!-- Assessment Details Tab -->
                                     <div class="tab-pane fade" id="assessments" role="tabpanel" aria-labelledby="assessments-tab">
@@ -3824,8 +3705,6 @@ $module_files = []; // This would need to be implemented based on how files are 
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
         // File preview modal functionality
         function openFilePreview(moduleId, filename, originalName, fileSize, uploadedAt) {
@@ -4073,65 +3952,6 @@ $module_files = []; // This would need to be implemented based on how files are 
                 
                 // Subscribe to student-specific channel
                 const studentChannel = pusher.subscribe(`user-<?php echo $user_id; ?>`);
-                studentChannel.bind('video_progress_update', function(data) {
-                    console.log('📊 Received video progress update:', data);
-                    updateVideoProgress(data);
-                });
-                
-                // Subscribe to module-specific channel
-                const moduleChannel = pusher.subscribe('module-<?php echo $module_id; ?>');
-                moduleChannel.bind('video_progress_update', function(data) {
-                    console.log('📊 Received module video progress update:', data);
-                    updateVideoProgress(data);
-                });
-                
-                // Function to update video progress in real-time
-                function updateVideoProgress(data) {
-                    const videoId = data.video_id;
-                    const progress = data.progress;
-                    
-                    // Find the video card by ID
-                    const videoCards = document.querySelectorAll('.video-card');
-                    videoCards.forEach(card => {
-                        const cardVideoId = card.getAttribute('data-video-id');
-                        if (cardVideoId === videoId) {
-                            // Update progress percentage
-                            const progressElement = card.querySelector('.text-warning');
-                            if (progressElement) {
-                                progressElement.textContent = progress.completion_percentage + '%';
-                            }
-                            
-                            // Update watch status if completed
-                            if (progress.completion_percentage >= 100) {
-                                card.classList.add('watched');
-                                
-                                // Update badge
-                                const badgeElement = card.querySelector('.badge');
-                                if (badgeElement) {
-                                    badgeElement.className = 'badge bg-success';
-                                    badgeElement.innerHTML = 'Watched';
-                                }
-                                
-                                // Update action button
-                                const actionButton = card.querySelector('.action-button');
-                                if (actionButton) {
-                                    actionButton.className = 'action-button completed';
-                                    actionButton.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
-                                }
-                            }
-                            
-                            // Add visual feedback
-                            card.classList.add('progress-updated');
-                            setTimeout(() => {
-                                card.classList.remove('progress-updated');
-                            }, 2000);
-                            
-                            console.log(`✅ Updated progress for video ${videoId}:`, progress);
-                        }
-                    });
-                }
-                
-                console.log('✅ Pusher video progress initialized');
             } else {
                 console.warn('⚠️ Pusher not available for video progress');
             }
@@ -4462,8 +4282,8 @@ $module_files = []; // This would need to be implemented based on how files are 
                             const progressText = document.querySelector('.progress-text');
                             if (progressCircle && progressText) {
                                 progressCircle.style.background = `conic-gradient(
-                                    var(--success-color) 0deg, 
-                                    var(--success-color) ${data.data.video_progress_percentage * 3.6}deg, 
+                                    var(--primary-color) 0deg, 
+                                    var(--primary-color) ${data.data.video_progress_percentage * 3.6}deg, 
                                     var(--gray-200) ${data.data.video_progress_percentage * 3.6}deg, 
                                     var(--gray-200) 360deg
                                 )`;
@@ -4553,10 +4373,8 @@ $module_files = []; // This would need to be implemented based on how files are 
                     updateModuleProgress();
                 }
             });
-        });
-        
-        // View Toggle Functionality
-        document.addEventListener('DOMContentLoaded', function() {
+            
+            // View Toggle Functionality
             const toggleButtons = document.querySelectorAll('.view-toggle-btn');
             
             toggleButtons.forEach(button => {

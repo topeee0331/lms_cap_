@@ -2263,6 +2263,82 @@ $(document).on('click', '#teacher-mark-all-read', function() {
   });
 });
 
+// Function to handle "Mark All as Read" button for student enrollment notifications
+$(document).on('click', '#student-mark-enrollment-read', function() {
+  var btn = $(this);
+  var notifications = $('#student-enrollment-list .list-group-item');
+  
+  if (notifications.length === 0) {
+    alert('No enrollment notifications to mark as read.');
+    return;
+  }
+  
+  btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Marking...');
+  
+  var totalNotifications = notifications.length;
+  var markedCount = 0;
+  var errors = [];
+  
+  notifications.each(function(index, element) {
+    var $element = $(element);
+    var notificationId = $element.attr('id').replace('enrollment-notif-', '');
+    
+    $.post('<?php echo SITE_URL; ?>/student/mark_notification_read.php', { 
+      notification_id: notificationId 
+    }, function(response) {
+      markedCount++;
+      
+      if (response.success) {
+        $element.fadeOut(300, function() { $(this).remove(); });
+      } else {
+        errors.push('Notification ' + notificationId + ': ' + response.error);
+      }
+      
+      // Check if all notifications have been processed
+      if (markedCount === totalNotifications) {
+        btn.prop('disabled', false).html('<i class="bi bi-check-all me-1"></i>Mark All as Read');
+        
+        // Check if there are any remaining notifications
+        var remainingNotifications = $('#student-enrollment-list .list-group-item').length;
+        
+        if (remainingNotifications === 0) {
+          $('#student-enrollment-list').html(`
+            <div class="text-center py-5">
+              <i class="bi bi-person-check text-success" style="font-size: 3rem;"></i>
+              <h5 class="mt-3 text-muted">All Caught Up!</h5>
+              <p class="text-muted">No unread enrollment notifications at this time.</p>
+            </div>
+          `);
+          
+          // Hide badges when ALL enrollment notifications are read
+          console.log('🚫 All enrollment notifications marked as read - hiding notification badges');
+          hideAllStudentNotificationBadges();
+        }
+        
+        // Update tab badges and notification count
+        updateEnrollmentTabBadge(remainingNotifications);
+        updateStudentNotificationCount();
+        updateNavbarBadgeCount();
+        
+        // Show results
+        if (errors.length > 0) {
+          alert('Marked ' + (totalNotifications - errors.length) + ' notifications as read. Errors: ' + errors.join(', '));
+        } else {
+          alert('Successfully marked all ' + totalNotifications + ' enrollment notifications as read!');
+        }
+      }
+    }).fail(function(xhr, status, error) {
+      markedCount++;
+      errors.push('Notification ' + notificationId + ': ' + error);
+      
+      if (markedCount === totalNotifications) {
+        btn.prop('disabled', false).html('<i class="bi bi-check-all me-1"></i>Mark All as Read');
+        alert('Some errors occurred while marking notifications as read. Errors: ' + errors.join(', '));
+      }
+    });
+  });
+});
+
 // Function to handle "Mark All as Read" button for student announcements
 $(document).on('click', '#student-mark-all-read', function() {
   var btn = $(this);
@@ -2528,6 +2604,9 @@ function loadTeacherAnnouncements() {
 function loadStudentEnrollmentNotifications() {
   console.log('Loading student enrollment notifications...');
   
+  // Clear existing notifications to prevent duplication
+  $('#student-enrollment-list').html('<div class="text-center py-3"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading enrollment notifications...</p></div>');
+  
   $.get('<?php echo SITE_URL; ?>/student/get_notifications.php', function(data) {
     console.log('Student enrollment notifications data:', data);
     
@@ -2671,9 +2750,13 @@ $(document).on('show.bs.modal', '#studentNotificationModal', function() {
   $('#student-notification-loading').show();
   $('#studentNotificationTabContent').hide();
   
-  // Load both enrollment notifications and announcements
-  loadStudentEnrollmentNotifications();
-  loadStudentAnnouncements();
+  // Only load if not already loaded (prevent duplication)
+  if ($('#student-enrollment-list .list-group-item').length === 0) {
+    loadStudentEnrollmentNotifications();
+  }
+  if ($('#student-announcements-content .list-group-item').length === 0) {
+    loadStudentAnnouncements();
+  }
   
   // Hide loading and show content
   setTimeout(function() {
@@ -2697,17 +2780,16 @@ function updateNavbarBadgeCount(count) {
   
   if (count > 0) {
     if (badge.length) {
-      // Update existing badge count
+      // Update existing badge count and show it
       badge.text(count).show();
     } else {
-      // Create new badge with count
-      notificationBell.append('<span class="badge bg-danger">' + count + '</span>');
+      // Create new badge with count - ensure proper HTML rendering
+      var badgeElement = $('<span class="badge bg-danger">' + count + '</span>');
+      notificationBell.append(badgeElement);
     }
   } else {
-    // Hide badge but keep bell icon visible
-    if (badge.length) {
-      badge.hide();
-    }
+    // Completely clear all notification indicators when no notifications
+    clearAllNotificationIndicators();
   }
   
   console.log('🔄 Navbar badge count updated to:', count + ' (bell icon preserved)');
@@ -2802,7 +2884,7 @@ function loadStudentAnnouncements() {
   });
 }
 
-// Notification polling (every 30 seconds)
+// Real-time notification polling (every 5 seconds for better responsiveness)
 function refreshNotifications() {
   // Get current user role
   var userRole = '<?php echo $_SESSION['role'] ?? ''; ?>';
@@ -2819,12 +2901,18 @@ function refreshNotifications() {
       
       if (announcementCount > 0) {
         if (badge.length) {
-          badge.text(announcementCount);
+          // Update existing badge with actual count and show it
+          badge.text(announcementCount).show();
         } else {
-          $('#navbarAnnounceDropdown').append('<span class="badge bg-danger">'+announcementCount+'</span>');
+          // Create new badge with actual announcement count - ensure proper HTML rendering
+          var badgeElement = $('<span class="badge bg-danger">' + announcementCount + '</span>');
+          $('#navbarAnnounceDropdown').append(badgeElement);
         }
+        console.log('✅ Teacher notification badge updated to:', announcementCount);
       } else {
-        badge.remove();
+        // Completely clear all notification indicators when no notifications
+        clearAllNotificationIndicators();
+        console.log('✅ All notification indicators cleared (no notifications)');
       }
       
       // Update modal content only if teacher notification modal is not currently open
@@ -2862,12 +2950,18 @@ function refreshNotifications() {
       
       if (announcementCount > 0) {
         if (badge.length) {
-          badge.text(announcementCount);
+          // Update existing badge with actual count and show it
+          badge.text(announcementCount).show();
         } else {
-          $('#navbarAnnounceDropdown').append('<span class="badge bg-danger">'+announcementCount+'</span>');
+          // Create new badge with actual announcement count - ensure proper HTML rendering
+          var badgeElement = $('<span class="badge bg-danger">' + announcementCount + '</span>');
+          $('#navbarAnnounceDropdown').append(badgeElement);
         }
+        console.log('✅ Teacher notification badge updated to:', announcementCount);
       } else {
-        badge.remove();
+        // Completely clear all notification indicators when no notifications
+        clearAllNotificationIndicators();
+        console.log('✅ All notification indicators cleared (no notifications)');
       }
       
       // Update modal content only if student notification modal is not currently open
@@ -2901,12 +2995,18 @@ function refreshNotifications() {
       var badge = $('#navbarAnnounceDropdown .badge');
       if (parsed.count > 0) {
         if (badge.length) {
-          badge.text(parsed.count);
+          // Update existing badge with actual count and show it
+          badge.text(parsed.count).show();
         } else {
-          $('#navbarAnnounceDropdown').append('<span class="badge bg-danger">'+parsed.count+'</span>');
+          // Create new badge with actual announcement count - ensure proper HTML rendering
+          var badgeElement = $('<span class="badge bg-danger">' + parsed.count + '</span>');
+          $('#navbarAnnounceDropdown').append(badgeElement);
         }
+        console.log('✅ Admin notification badge updated to:', parsed.count);
       } else {
-        badge.remove();
+        // Completely clear all notification indicators when no notifications
+        clearAllNotificationIndicators();
+        console.log('✅ All notification indicators cleared (no notifications)');
       }
       // Update modal content only if announcement modal is not currently open
       var announcementModal = $('#announcementModal');
@@ -2928,7 +3028,46 @@ function refreshNotifications() {
     });
   }
 }
-setInterval(refreshNotifications, 30000);
+// Function to completely clear all notification indicators
+function clearAllNotificationIndicators() {
+  console.log('🧹 Clearing all notification indicators...');
+  
+  // Remove all badges from notification bell
+  $('#navbarAnnounceDropdown .badge').remove();
+  
+  // Remove all red dots from notification bell
+  $('#navbarAnnounceDropdown .red-dot').remove();
+  
+  // Remove red dots from enrollment request links
+  $('#teacher-enrollment-requests-link .red-dot').remove();
+  $('#student-enrollment-requests-link .red-dot').remove();
+  
+  // Remove red dots from tab badges
+  $('.announcement-count-badge').hide();
+  $('.enrollment-count-badge').hide();
+  
+  console.log('✅ All notification indicators cleared');
+}
+
+// Real-time notification polling every 5 seconds
+setInterval(refreshNotifications, 5000);
+
+// Refresh notifications immediately on page load
+$(document).ready(function() {
+  refreshNotifications();
+});
+
+// Refresh notifications when user becomes active (switches back to tab)
+$(document).on('visibilitychange', function() {
+  if (!document.hidden) {
+    refreshNotifications();
+  }
+});
+
+// Refresh notifications when user focuses on the window
+$(window).on('focus', function() {
+  refreshNotifications();
+});
 
 // Pusher Configuration
 <?php
@@ -3172,10 +3311,16 @@ function updateNavbarEnrollmentBadge() {
               existingBadge.remove();
             }
             
-            // Add new badge with count
+            // Add new badge with actual count
             if (count > 0) {
-              notificationBell.append('<span class="badge bg-danger">' + count + '</span>');
-              console.log('✅ Teacher notification bell badge updated:', count);
+              // Ensure we're using the actual count, not a hardcoded value
+              var badgeElement = $('<span class="badge bg-danger">' + count + '</span>');
+              $(notificationBell).append(badgeElement);
+              console.log('✅ Teacher notification bell badge updated with count:', count);
+            } else {
+              // Completely clear all notification indicators when no notifications
+              clearAllNotificationIndicators();
+              console.log('✅ All notification indicators cleared (no notifications)');
             }
           }
         }

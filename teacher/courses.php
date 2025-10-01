@@ -32,6 +32,16 @@ require_once '../includes/header.php';
     
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+    
+    /* Clickable card styles */
+    .clickable-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .clickable-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
 </style>
 <?php
 
@@ -320,12 +330,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-success text-white">
+                <div class="card bg-success text-white clickable-card" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#studentsAttemptsModal">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h4 class="mb-0"><?php echo $total_students; ?></h4>
-                                <p class="mb-0">Total Students</p>
+                                <p class="mb-0">Total Students <i class="bi bi-arrow-right-circle ms-1"></i></p>
                             </div>
                             <div class="align-self-center">
                                 <i class="bi bi-people fs-1"></i>
@@ -494,6 +504,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
     </div>
 </div>
 
+<!-- Students Attempts Modal -->
+<div class="modal fade" id="studentsAttemptsModal" tabindex="-1" aria-labelledby="studentsAttemptsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentsAttemptsModalLabel">
+                    <i class="bi bi-people me-2"></i>
+                    Students Assessment Attempts
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="studentsAttemptsContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading students and their attempts...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Single Dynamic Students Modal -->
 <div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -576,7 +614,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
 </div>
 
 <script>
+// Function to load students with their assessment attempts
+function loadStudentsWithAttempts() {
+    const modalContent = document.getElementById('studentsAttemptsContent');
+    
+    // Show loading state
+    modalContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading students and their attempts...</p>
+        </div>
+    `;
 
+    // Fetch students with attempts data
+    fetch('get_students_attempts.php?teacher_id=<?php echo $teacher_id; ?>&academic_period_id=<?php echo $selected_year_id; ?>')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.students.length === 0) {
+                modalContent.innerHTML = '<p class="text-center text-muted">No students found for the selected academic period.</p>';
+            } else {
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-people-fill text-primary me-2"></i>
+                                <span class="fw-bold">${data.students.length} Total Students</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-graph-up text-success me-2"></i>
+                                <span class="fw-bold">${data.total_attempts} Total Attempts</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Username</th>
+                                    <th>Course</th>
+                                    <th>Assessment</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Attempt Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                data.students.forEach(student => {
+                    if (student.attempts && student.attempts.length > 0) {
+                        student.attempts.forEach(attempt => {
+                            html += `
+                                <tr>
+                                    <td>
+                                        <strong>${student.last_name}, ${student.first_name}</strong>
+                                        ${student.is_irregular ? '<span class="badge bg-danger ms-2">Irregular</span>' : '<span class="badge bg-success ms-2">Regular</span>'}
+                                    </td>
+                                    <td>@${student.username}</td>
+                                    <td>${attempt.course_name}</td>
+                                    <td>${attempt.assessment_title}</td>
+                                    <td>
+                                        <span class="fw-bold ${attempt.has_passed ? 'text-success' : 'text-danger'}">
+                                            ${attempt.score}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-${attempt.has_passed ? 'success' : 'danger'}">
+                                            ${attempt.has_passed ? 'Passed' : 'Failed'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            ${new Date(attempt.attempted_at).toLocaleDateString()} ${new Date(attempt.attempted_at).toLocaleTimeString()}
+                                        </small>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        // Show student even if no attempts
+                        html += `
+                            <tr>
+                                <td>
+                                    <strong>${student.last_name}, ${student.first_name}</strong>
+                                    ${student.is_irregular ? '<span class="badge bg-danger ms-2">Irregular</span>' : '<span class="badge bg-success ms-2">Regular</span>'}
+                                </td>
+                                <td>@${student.username}</td>
+                                <td colspan="5" class="text-center text-muted">No attempts yet</td>
+                            </tr>
+                        `;
+                    }
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                modalContent.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            modalContent.innerHTML = '<div class="alert alert-danger">Error loading students and attempts. Please try again.</div>';
+            console.error('Error fetching students with attempts:', error);
+        });
+}
+
+// Add event listener for the modal
+document.addEventListener('DOMContentLoaded', function() {
+    const studentsAttemptsModal = document.getElementById('studentsAttemptsModal');
+    if (studentsAttemptsModal) {
+        studentsAttemptsModal.addEventListener('show.bs.modal', function() {
+            loadStudentsWithAttempts();
+        });
+    }
+});
 
 // Function to load and display students for a specific section
 function viewStudents(courseId, sectionId, sectionName, courseName) {

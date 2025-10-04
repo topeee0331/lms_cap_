@@ -1270,54 +1270,231 @@ function createViewModal(teacherId) {
         console.log('Teacher details response:', data);
         
         if (data.success) {
-            const teacher = data.teacher;
+            const teacherData = data.teacher;
+            const basicInfo = teacherData.basic_info;
+            const courses = teacherData.courses || [];
+            const sections = teacherData.sections || [];
+            const stats = teacherData.statistics || {};
+            const recentActivity = teacherData.recent_activity || [];
+            
             const modalHtml = `
                 <div class="modal fade" id="viewTeacherModal${teacherId}" tabindex="-1" aria-labelledby="viewTeacherLabel${teacherId}" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
+                    <div class="modal-dialog modal-xl">
                         <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="viewTeacherLabel${teacherId}">Teacher Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="viewTeacherLabel${teacherId}">
+                                    <i class="bi bi-person-badge me-2"></i>Teacher Details
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-4 text-center">
-                                        <img src="${teacher.profile_picture_url}" 
-                                             class="rounded-circle mb-3" 
+                            <div class="modal-body p-0">
+                                <!-- Teacher Profile Section -->
+                                <div class="bg-light p-4 border-bottom">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <img src="${basicInfo.profile_picture_url}" 
+                                                 class="rounded-circle mb-3 shadow" 
                                              width="120" height="120" 
                                              alt="Profile Picture">
-                                        <h5 class="mb-1">${teacher.first_name} ${teacher.last_name}</h5>
-                                        <p class="text-muted mb-0">@${teacher.username}</p>
+                                            <h4 class="mb-1">${basicInfo.first_name} ${basicInfo.last_name}</h4>
+                                            <p class="text-muted mb-0">@${basicInfo.username}</p>
+                                            <span class="badge bg-${basicInfo.status === 'inactive' ? 'secondary' : 'success'} fs-6">
+                                                <i class="bi bi-${basicInfo.status === 'inactive' ? 'archive' : 'check-circle'} me-1"></i>
+                                                ${basicInfo.status === 'inactive' ? 'Archived' : 'Active'}
+                                            </span>
                                     </div>
-                                    <div class="col-md-8">
-                                        <div class="row mb-3">
-                                            <div class="col-sm-4"><strong>Teacher ID:</strong></div>
-                                            <div class="col-sm-8">
-                                                ${teacher.identifier ? `<span class="badge bg-success">${teacher.identifier}</span>` : '<span class="text-muted">Not assigned</span>'}
+                                        <div class="col-md-9">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <strong><i class="bi bi-card-text me-2"></i>Teacher ID:</strong>
+                                                        <div class="mt-1">
+                                                            ${basicInfo.identifier ? `<span class="badge bg-success fs-6">${basicInfo.identifier}</span>` : '<span class="text-muted">Not assigned</span>'}
                                             </div>
                                         </div>
-                                        <div class="row mb-3">
-                                            <div class="col-sm-4"><strong>Email:</strong></div>
-                                            <div class="col-sm-8">${teacher.email}</div>
+                                                    <div class="mb-3">
+                                                        <strong><i class="bi bi-envelope me-2"></i>Email:</strong>
+                                                        <div class="mt-1">${basicInfo.email}</div>
                                         </div>
-                                        <div class="row mb-3">
-                                            <div class="col-sm-4"><strong>Status:</strong></div>
-                                            <div class="col-sm-8">
-                                                <span class="badge bg-${teacher.status === 'inactive' ? 'secondary' : 'success'}">
-                                                    <i class="bi bi-${teacher.status === 'inactive' ? 'archive' : 'check-circle'} me-1"></i>
-                                                    ${teacher.status === 'inactive' ? 'Archived' : 'Active'}
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <strong><i class="bi bi-building me-2"></i>Department:</strong>
+                                                        <div class="mt-1">${basicInfo.department || 'Not specified'}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <strong><i class="bi bi-calendar me-2"></i>Joined:</strong>
+                                                        <div class="mt-1">${new Date(basicInfo.created_at).toLocaleDateString()}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Statistics Cards -->
+                                <div class="p-4">
+                                    <h5 class="mb-3"><i class="bi bi-graph-up me-2"></i>Statistics</h5>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-book fs-1 mb-2"></i>
+                                                    <h3 class="mb-1">${stats.total_courses || 0}</h3>
+                                                    <small>Total Courses</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-people fs-1 mb-2"></i>
+                                                    <h3 class="mb-1">${stats.total_students || 0}</h3>
+                                                    <small>Total Students</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-clipboard-check fs-1 mb-2"></i>
+                                                    <h3 class="mb-1">${stats.total_assessments || 0}</h3>
+                                                    <small>Assessments</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-percent fs-1 mb-2"></i>
+                                                    <h3 class="mb-1">${stats.average_score || 0}%</h3>
+                                                    <small>Avg Score</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Tabs for detailed information -->
+                                    <ul class="nav nav-tabs" id="teacherTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab">
+                                                <i class="bi bi-book me-2"></i>Courses (${courses.length})
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="sections-tab" data-bs-toggle="tab" data-bs-target="#sections" type="button" role="tab">
+                                                <i class="bi bi-people me-2"></i>Sections (${sections.length})
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                                                <i class="bi bi-clock-history me-2"></i>Recent Activity
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="teacherTabContent">
+                                        <!-- Courses Tab -->
+                                        <div class="tab-pane fade show active" id="courses" role="tabpanel">
+                                            <div class="mt-3">
+                                                ${courses.length > 0 ? `
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead class="table-light">
+                                                                <tr>
+                                                                    <th>Course Code</th>
+                                                                    <th>Course Name</th>
+                                                                    <th>Year Level</th>
+                                                                    <th>Students</th>
+                                                                    <th>Modules</th>
+                                                                    <th>Videos</th>
+                                                                    <th>Assessments</th>
+                                                                    <th>Status</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                ${courses.map(course => `
+                                                                    <tr>
+                                                                        <td><span class="badge bg-primary">${course.course_code}</span></td>
+                                                                        <td>${course.course_name}</td>
+                                                                        <td>${course.year_level ? course.year_level + ' Year' : 'N/A'}</td>
+                                                                        <td><span class="badge bg-info">${course.student_count || 0}</span></td>
+                                                                        <td><span class="badge bg-secondary">${course.module_count || 0}</span></td>
+                                                                        <td><span class="badge bg-warning">${course.video_count || 0}</span></td>
+                                                                        <td><span class="badge bg-danger">${course.assessment_count || 0}</span></td>
+                                                                        <td>
+                                                                            <span class="badge bg-${course.status === 'active' ? 'success' : 'secondary'}">
+                                                                                ${course.status}
                                                 </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                `).join('')}
+                                                            </tbody>
+                                                        </table>
+                                            </div>
+                                                ` : '<div class="text-center py-4 text-muted"><i class="bi bi-book fs-1 mb-3"></i><p>No courses assigned</p></div>'}
+                                        </div>
+                                        </div>
+                                        
+                                        <!-- Sections Tab -->
+                                        <div class="tab-pane fade" id="sections" role="tabpanel">
+                                            <div class="mt-3">
+                                                ${sections.length > 0 ? `
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead class="table-light">
+                                                                <tr>
+                                                                    <th>Section Name</th>
+                                                                    <th>Year Level</th>
+                                                                    <th>Academic Year</th>
+                                                                    <th>Semester</th>
+                                                                    <th>Students</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                ${sections.map(section => `
+                                                                    <tr>
+                                                                        <td><strong>${section.section_name}</strong></td>
+                                                                        <td><span class="badge bg-primary">${section.year_level} Year</span></td>
+                                                                        <td>${section.academic_year || 'N/A'}</td>
+                                                                        <td>${section.semester_name || 'N/A'}</td>
+                                                                        <td><span class="badge bg-info">${section.student_count || 0}</span></td>
+                                                                    </tr>
+                                                                `).join('')}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                ` : '<div class="text-center py-4 text-muted"><i class="bi bi-people fs-1 mb-3"></i><p>No sections assigned</p></div>'}
                                             </div>
                                         </div>
-                                        <div class="row mb-3">
-                                            <div class="col-sm-4"><strong>Joined:</strong></div>
-                                            <div class="col-sm-8">${new Date(teacher.created_at).toLocaleDateString()}</div>
+                                        
+                                        <!-- Activity Tab -->
+                                        <div class="tab-pane fade" id="activity" role="tabpanel">
+                                            <div class="mt-3">
+                                                ${recentActivity.length > 0 ? `
+                                                    <div class="list-group">
+                                                        ${recentActivity.map(activity => `
+                                                            <div class="list-group-item">
+                                                                <div class="d-flex w-100 justify-content-between">
+                                                                    <h6 class="mb-1">
+                                                                        <i class="bi bi-${activity.activity_type === 'course_created' ? 'plus-circle' : 'check-circle'} me-2"></i>
+                                                                        ${activity.title}
+                                                                    </h6>
+                                                                    <small>${new Date(activity.activity_date).toLocaleDateString()}</small>
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                ` : '<div class="text-center py-4 text-muted"><i class="bi bi-clock-history fs-1 mb-3"></i><p>No recent activity</p></div>'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-2"></i>Close
+                                </button>
                                 <button type="button" class="btn btn-primary" onclick="editTeacher(${teacherId})">
                                     <i class="bi bi-pencil me-2"></i>Edit Teacher
                                 </button>

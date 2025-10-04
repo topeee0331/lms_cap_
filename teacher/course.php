@@ -1858,7 +1858,8 @@ function previewFile(moduleId, filename, originalName, fileExtension) {
     // Determine preview method based on file type (using same logic as student)
     const previewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'txt', 'mp4', 'avi', 'mov', 'wmv', 'mp3', 'wav'];
     const docxPreviewableTypes = ['docx'];
-    const nonPreviewableTypes = ['doc', 'xlsx', 'xls', 'pptx', 'ppt', 'zip', 'rar', '7z'];
+    const pptxPreviewableTypes = ['pptx'];
+    const nonPreviewableTypes = ['doc', 'xlsx', 'xls', 'ppt', 'zip', 'rar', '7z'];
     
     if (docxPreviewableTypes.includes(fileExtension)) {
         // Use DOCX preview with PhpOffice/PhpWord (same as student)
@@ -1879,6 +1880,29 @@ function previewFile(moduleId, filename, originalName, fileExtension) {
                 console.log('DOCX iframe loaded successfully');
             } else {
                 console.log('DOCX iframe failed to load, showing fallback');
+                showFileInfo(moduleId, filename, originalName, fileExtension);
+            }
+        }, 5000);
+        
+    } else if (pptxPreviewableTypes.includes(fileExtension)) {
+        // Use PPTX preview with PhpOffice/PhpPresentation (same as student)
+        const iframe = document.createElement('iframe');
+        iframe.src = `../preview_pptx.php?module_id=${moduleId}&filename=${filename}&original_name=${encodeURIComponent(originalName)}`;
+        iframe.style.width = '100%';
+        iframe.style.height = '700px';
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '8px';
+        iframe.style.minHeight = '600px';
+        
+        content.innerHTML = '';
+        content.appendChild(iframe);
+        
+        // Add fallback timeout
+        setTimeout(() => {
+            if (content.innerHTML.includes('iframe')) {
+                console.log('PPTX iframe loaded successfully');
+            } else {
+                console.log('PPTX iframe failed to load, showing fallback');
                 showFileInfo(moduleId, filename, originalName, fileExtension);
             }
         }, 5000);

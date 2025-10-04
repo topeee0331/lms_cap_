@@ -345,6 +345,72 @@ requireRole('admin');
         justify-content: space-between;
     }
 }
+
+/* Accordion Styling */
+.announcement-accordion-item {
+    border: 1px solid #e9ecef;
+    border-radius: var(--border-radius) !important;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.announcement-accordion-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.announcement-accordion-item .accordion-button {
+    background: #f8f9fa;
+    border: none;
+    border-radius: var(--border-radius) !important;
+    padding: 1rem 1.25rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.announcement-accordion-item .accordion-button:not(.collapsed) {
+    background: var(--main-green);
+    color: white;
+    box-shadow: none;
+}
+
+.announcement-accordion-item .accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(46, 94, 78, 0.25);
+}
+
+.announcement-accordion-item .accordion-button::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23212529'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    transition: transform 0.2s ease-in-out;
+}
+
+.announcement-accordion-item .accordion-button:not(.collapsed)::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+}
+
+.announcement-accordion-item .accordion-body {
+    background: white;
+    border-top: 1px solid #e9ecef;
+    padding: 1.25rem;
+}
+
+.announcement-content {
+    line-height: 1.6;
+}
+
+.announcement-content p {
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+    .announcement-accordion-item .accordion-button {
+        padding: 0.75rem 1rem;
+    }
+    
+    .announcement-accordion-item .accordion-body {
+        padding: 1rem;
+    }
+}
 </style>
 
 <?php
@@ -613,47 +679,61 @@ $courses = $stmt->fetchAll();
                                 </button>
                             </div>
                         <?php else: ?>
-                            <div class="scrollable-announcements">
-                                <?php foreach ($announcements as $announcement): ?>
-                                    <div class="card announcement-card">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <div class="d-flex align-items-start gap-2">
-                                                    <div class="form-check">
+                            <div class="accordion" id="announcementsAccordion">
+                                <?php foreach ($announcements as $index => $announcement): ?>
+                                    <div class="accordion-item announcement-accordion-item">
+                                        <h2 class="accordion-header" id="heading<?php echo $announcement['id']; ?>">
+                                            <button class="accordion-button collapsed" type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#collapse<?php echo $announcement['id']; ?>" 
+                                                    aria-expanded="false" 
+                                                    aria-controls="collapse<?php echo $announcement['id']; ?>">
+                                                <div class="d-flex align-items-center w-100">
+                                                    <div class="form-check me-3">
                                                         <input class="form-check-input announcement-checkbox" type="checkbox" 
                                                                value="<?php echo $announcement['id']; ?>" 
-                                                               id="announcement_<?php echo $announcement['id']; ?>">
+                                                               id="announcement_<?php echo $announcement['id']; ?>"
+                                                               onclick="event.stopPropagation();">
                                                     </div>
-                                                    <h6 class="card-title mb-0 fw-semibold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0 fw-semibold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <span class="badge bg-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'secondary' : 'info'; ?> me-2">
+                                                                    <i class="bi bi-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'globe' : 'book'; ?> me-1"></i>
+                                                                    <?php echo htmlspecialchars($announcement['announcement_type']); ?>
+                                                                </span>
+                                                                <small class="text-muted">
+                                                                    <i class="bi bi-calendar me-1"></i><?php echo formatDate($announcement['created_at']); ?>
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-person me-1"></i>By <?php echo htmlspecialchars($announcement['author_name'] ?? 'Unknown User'); ?>
+                                                        </small>
+                                                    </div>
                                                 </div>
-                                                <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-primary" 
-                                                            onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                    <button class="btn btn-outline-danger delete-confirm" 
-                                                            onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
+                                            </button>
+                                        </h2>
+                                        <div id="collapse<?php echo $announcement['id']; ?>" 
+                                             class="accordion-collapse collapse" 
+                                             aria-labelledby="heading<?php echo $announcement['id']; ?>" 
+                                             data-bs-parent="#announcementsAccordion">
+                                            <div class="accordion-body">
+                                                <div class="announcement-content">
+                                                    <p class="text-muted mb-3"><?php echo nl2br(htmlspecialchars($announcement['content'])); ?></p>
+                                                    
+                                                    <div class="d-flex justify-content-end gap-2">
+                                                        <button class="btn btn-outline-primary btn-sm" 
+                                                                onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
+                                                            <i class="bi bi-pencil me-1"></i>Edit
+                                                        </button>
+                                                        <button class="btn btn-outline-danger btn-sm" 
+                                                                onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
+                                                            <i class="bi bi-trash me-1"></i>Delete
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            
-                                            <p class="card-text text-muted"><?php echo nl2br(htmlspecialchars($announcement['content'])); ?></p>
-                                            
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <small class="text-muted">
-                                                        <i class="bi bi-person me-1"></i>By <?php echo htmlspecialchars($announcement['author_name'] ?? 'Unknown User'); ?>
-                                                    </small>
-                                                    <br>
-                                                    <span class="badge bg-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'secondary' : 'info'; ?>">
-                                                        <i class="bi bi-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'globe' : 'book'; ?> me-1"></i>
-                                                        <?php echo htmlspecialchars($announcement['announcement_type']); ?>
-                                                    </span>
-                                                </div>
-                                                <small class="text-muted">
-                                                    <i class="bi bi-calendar me-1"></i><?php echo formatDate($announcement['created_at']); ?>
-                                                </small>
                                             </div>
                                         </div>
                                     </div>

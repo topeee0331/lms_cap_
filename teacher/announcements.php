@@ -827,6 +827,72 @@ echo '<style>
             transform: translateX(-100%);
         }
     }
+    
+    /* Accordion Styling */
+    .announcement-accordion-item {
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius) !important;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: var(--transition);
+    }
+    
+    .announcement-accordion-item:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .announcement-accordion-item .accordion-button {
+        background: #f8f9fa;
+        border: none;
+        border-radius: var(--border-radius) !important;
+        padding: 1rem 1.25rem;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .announcement-accordion-item .accordion-button:not(.collapsed) {
+        background: var(--main-green);
+        color: white;
+        box-shadow: none;
+    }
+    
+    .announcement-accordion-item .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 94, 78, 0.25);
+    }
+    
+    .announcement-accordion-item .accordion-button::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23212529'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .announcement-accordion-item .accordion-button:not(.collapsed)::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+    
+    .announcement-accordion-item .accordion-body {
+        background: white;
+        border-top: 1px solid #e9ecef;
+        padding: 1.25rem;
+    }
+    
+    .announcement-content {
+        line-height: 1.6;
+    }
+    
+    .announcement-content p {
+        margin-bottom: 1rem;
+        white-space: pre-wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .announcement-accordion-item .accordion-button {
+            padding: 0.75rem 1rem;
+        }
+        
+        .announcement-accordion-item .accordion-body {
+            padding: 1rem;
+        }
+    }
 </style>';
 
 $message = '';
@@ -1106,64 +1172,69 @@ $courses = $stmt->fetchAll();
                             <?php endif; ?>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive announcements-table-container">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                        <th>Course</th>
-                                        <th>Content Preview</th>
-                                        <th>Created</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($announcements as $announcement): ?>
-                                        <tr>
-                                            <td>
-                                                <strong><?php echo htmlspecialchars($announcement['title']); ?></strong>
-                                            </td>
-                                            <td>
-                                                <?php if ($announcement['course_name']): ?>
-                                                    <span class="badge bg-primary">
-                                                        <?php echo htmlspecialchars($announcement['course_name'] . ' (' . $announcement['course_code'] . ')'); ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-secondary">General</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <?php echo htmlspecialchars(substr($announcement['content'], 0, 100)); ?>
-                                                <?php if (strlen($announcement['content']) > 100): ?>...<?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">
-                                                    <?php echo formatDate($announcement['created_at']); ?>
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button class="btn btn-sm btn-outline-primary" 
+                        <div class="accordion" id="announcementsAccordion">
+                            <?php foreach ($announcements as $index => $announcement): ?>
+                                <div class="accordion-item announcement-accordion-item">
+                                    <h2 class="accordion-header" id="heading<?php echo $announcement['id']; ?>">
+                                        <button class="accordion-button collapsed" type="button" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#collapse<?php echo $announcement['id']; ?>" 
+                                                aria-expanded="false" 
+                                                aria-controls="collapse<?php echo $announcement['id']; ?>">
+                                            <div class="d-flex align-items-center w-100">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0 fw-semibold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <?php if ($announcement['course_name']): ?>
+                                                                <span class="badge bg-primary me-2">
+                                                                    <i class="bi bi-book me-1"></i>
+                                                                    <?php echo htmlspecialchars($announcement['course_name'] . ' (' . $announcement['course_code'] . ')'); ?>
+                                                                </span>
+                                                            <?php else: ?>
+                                                                <span class="badge bg-secondary me-2">
+                                                                    <i class="bi bi-globe me-1"></i>General
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-calendar me-1"></i><?php echo formatDate($announcement['created_at']); ?>
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse<?php echo $announcement['id']; ?>" 
+                                         class="accordion-collapse collapse" 
+                                         aria-labelledby="heading<?php echo $announcement['id']; ?>" 
+                                         data-bs-parent="#announcementsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="announcement-content">
+                                                <p class="text-muted mb-3"><?php echo nl2br(htmlspecialchars($announcement['content'])); ?></p>
+                                                
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <button class="btn btn-outline-primary btn-sm" 
                                                             onclick="viewAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)"
                                                             title="View Announcement">
-                                                        <i class="bi bi-eye"></i>
+                                                        <i class="bi bi-eye me-1"></i>View
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-warning" 
+                                                    <button class="btn btn-outline-warning btn-sm" 
                                                             onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)"
                                                             title="Edit Announcement">
-                                                        <i class="bi bi-pencil"></i>
+                                                        <i class="bi bi-pencil me-1"></i>Edit
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                    <button class="btn btn-outline-danger btn-sm" 
                                                             onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')"
                                                             title="Delete Announcement">
-                                                        <i class="bi bi-trash"></i>
+                                                        <i class="bi bi-trash me-1"></i>Delete
                                                     </button>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </div>

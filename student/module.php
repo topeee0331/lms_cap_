@@ -3753,7 +3753,8 @@ $module_files = []; // This would need to be implemented based on how files are 
             // Check if it's a previewable file type
             const previewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'txt', 'mp4', 'avi', 'mov', 'wmv', 'mp3', 'wav'];
             const docxPreviewableTypes = ['docx'];
-            const nonPreviewableTypes = ['doc', 'xlsx', 'xls', 'pptx', 'ppt', 'zip', 'rar', '7z'];
+            const pptxPreviewableTypes = ['pptx'];
+            const nonPreviewableTypes = ['doc', 'xlsx', 'xls', 'ppt', 'zip', 'rar', '7z'];
             
             if (docxPreviewableTypes.includes(fileExtension)) {
                 // Simple iframe approach for DOCX files
@@ -3780,6 +3781,34 @@ $module_files = []; // This would need to be implemented based on how files are 
                 setTimeout(() => {
                     if (!hasLoaded) {
                         console.log('DOCX iframe failed to load, showing fallback');
+                        showFileInfo(moduleId, filename, originalName, fileExtension);
+                    }
+                }, 5000);
+            } else if (pptxPreviewableTypes.includes(fileExtension)) {
+                // Simple iframe approach for PPTX files
+                const iframe = document.createElement('iframe');
+                iframe.src = `../preview_pptx.php?module_id=${moduleId}&filename=${filename}&original_name=${originalName}`;
+                iframe.style.width = '100%';
+                iframe.style.height = '700px';
+                iframe.style.border = 'none';
+                iframe.style.borderRadius = '8px';
+                iframe.style.minHeight = '600px';
+                
+                // Add iframe immediately
+                content.appendChild(iframe);
+                
+                // Set up error handling with timeout
+                let hasLoaded = false;
+                
+                iframe.onload = function() {
+                    hasLoaded = true;
+                    console.log('PPTX iframe loaded successfully');
+                };
+                
+                // Handle iframe error after timeout
+                setTimeout(() => {
+                    if (!hasLoaded) {
+                        console.log('PPTX iframe failed to load, showing fallback');
                         showFileInfo(moduleId, filename, originalName, fileExtension);
                     }
                 }, 5000);

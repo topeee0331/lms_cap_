@@ -3021,18 +3021,36 @@ function refreshNotifications() {
       if (!studentNotificationModal.hasClass('show')) {
         // Update announcements tab content
         if (announcementCount > 0) {
-          var announcementHtml = '<ul class="list-group list-group-flush">';
-          announcementParsed.announcements.forEach(function(ann) {
-            announcementHtml += '<li class="list-group-item" id="ann-row-'+ann.id+'">';
+          var announcementHtml = '<div class="accordion" id="navbarAnnouncementsAccordion">';
+          announcementParsed.announcements.forEach(function(ann, index) {
+            announcementHtml += '<div class="accordion-item announcement-accordion-item">';
+            announcementHtml += '<h2 class="accordion-header" id="navbarHeading'+ann.id+'">';
+            announcementHtml += '<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse'+ann.id+'" aria-expanded="false" aria-controls="navbarCollapse'+ann.id+'">';
+            announcementHtml += '<div class="d-flex align-items-center w-100">';
+            announcementHtml += '<div class="flex-grow-1">';
             announcementHtml += '<div class="d-flex justify-content-between align-items-center">';
-            announcementHtml += '<div><strong>'+ann.title+'</strong><div class="text-muted small">'+ann.created_at+'</div></div>';
-            announcementHtml += '<div class="btn-group" role="group">';
-            announcementHtml += '<button class="btn btn-sm btn-outline-primary view-ann-details" data-ann-id="'+ann.id+'" data-ann-title="'+ann.title+'" data-ann-content="'+ann.content+'" data-ann-author="'+ann.author_name+'" data-ann-context="'+ann.context+'"><i class="bi bi-eye"></i> View Details</button>';
-            announcementHtml += '<button class="btn btn-sm btn-outline-success mark-ann-read" data-ann-id="'+ann.id+'">Mark as Read</button>';
+            announcementHtml += '<h6 class="mb-0 fw-semibold">'+ann.title+'</h6>';
+            announcementHtml += '<small class="text-muted"><i class="bi bi-calendar me-1"></i>'+ann.created_at+'</small>';
             announcementHtml += '</div>';
-            announcementHtml += '</div><div class="mt-1 text-muted small">'+ann.preview+'</div></li>';
+            announcementHtml += '<small class="text-muted"><i class="bi bi-person me-1"></i>By '+ann.author_name+'</small>';
+            announcementHtml += '</div>';
+            announcementHtml += '</div>';
+            announcementHtml += '</button>';
+            announcementHtml += '</h2>';
+            announcementHtml += '<div id="navbarCollapse'+ann.id+'" class="accordion-collapse collapse" aria-labelledby="navbarHeading'+ann.id+'" data-bs-parent="#navbarAnnouncementsAccordion">';
+            announcementHtml += '<div class="accordion-body">';
+            announcementHtml += '<div class="announcement-content">';
+            announcementHtml += '<p class="text-muted mb-3">'+ann.content+'</p>';
+            announcementHtml += '<div class="d-flex justify-content-end gap-2">';
+            announcementHtml += '<button class="btn btn-outline-primary btn-sm view-ann-details" data-ann-id="'+ann.id+'" data-ann-title="'+ann.title+'" data-ann-content="'+ann.content+'" data-ann-author="'+ann.author_name+'" data-ann-context="'+ann.context+'"><i class="bi bi-eye me-1"></i>View Details</button>';
+            announcementHtml += '<button class="btn btn-outline-success btn-sm mark-ann-read" data-ann-id="'+ann.id+'"><i class="bi bi-check me-1"></i>Mark as Read</button>';
+            announcementHtml += '</div>';
+            announcementHtml += '</div>';
+            announcementHtml += '</div>';
+            announcementHtml += '</div>';
+            announcementHtml += '</div>';
           });
-          announcementHtml += '</ul>';
+          announcementHtml += '</div>';
           $('#student-announcements-content').html(announcementHtml);
         } else {
           $('#student-announcements-content').html('<div class="text-center py-5"><i class="bi bi-megaphone text-success" style="font-size: 3rem;"></i><h5 class="mt-3 text-muted">All Caught Up!</h5><p class="text-muted">No unread announcements at this time.</p></div>');

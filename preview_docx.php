@@ -80,15 +80,30 @@ try {
     // Parse modules to find the specific module
     $modules = json_decode($course['modules'], true);
     $target_module = null;
+    $target_file = null;
     
     foreach ($modules as $module) {
-        if ($module['id'] === $module_id && isset($module['file']['filename']) && $module['file']['filename'] === $filename) {
+        if ($module['id'] === $module_id) {
             $target_module = $module;
-            break;
+            
+            // Check new multiple files structure first
+            if (isset($module['files']) && is_array($module['files'])) {
+                foreach ($module['files'] as $file) {
+                    if ($file['filename'] === $filename) {
+                        $target_file = $file;
+                        break 2;
+                    }
+                }
+            }
+            // Fallback to old single file structure
+            elseif (isset($module['file']['filename']) && $module['file']['filename'] === $filename) {
+                $target_file = $module['file'];
+                break;
+            }
         }
     }
     
-    if (!$target_module) {
+    if (!$target_module || !$target_file) {
         http_response_code(404);
         die('File not found in module.');
     }
@@ -184,9 +199,96 @@ try {
                 background-color: #f8f9fa;
                 font-weight: 600;
             }
+            
+            /* Zoom functionality styles */
+            .zoom-controls {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 1000;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 10px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .zoom-btn {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            
+            .zoom-btn:hover {
+                background: #0056b3;
+                transform: translateY(-1px);
+            }
+            
+            .zoom-btn:disabled {
+                background: #6c757d;
+                cursor: not-allowed;
+                transform: none;
+            }
+            
+            .zoom-level {
+                background: #f8f9fa;
+                color: #495057;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 600;
+                min-width: 60px;
+                text-align: center;
+                border: 1px solid #dee2e6;
+            }
+            
+            .zoom-reset {
+                background: #28a745;
+            }
+            
+            .zoom-reset:hover {
+                background: #1e7e34;
+            }
+            
+            .document-content {
+                transition: transform 0.3s ease;
+                transform-origin: top left;
+            }
+            
+            .zoom-container {
+                overflow: auto;
+                max-height: calc(100vh - 100px);
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                background: white;
+            }
         </style>
     </head>
     <body>
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOut" onclick="zoomOut()" title="Zoom Out">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <div class="zoom-level" id="zoomLevel">100%</div>
+            <button class="zoom-btn" id="zoomIn" onclick="zoomIn()" title="Zoom In">
+                <i class="fas fa-search-plus"></i>
+            </button>
+            <button class="zoom-btn zoom-reset" onclick="resetZoom()" title="Reset Zoom">
+                <i class="fas fa-expand-arrows-alt"></i>
+            </button>
+        </div>
+
         <div class="document-preview">
             <div class="document-header">
                 <h1 class="document-title"><?php echo htmlspecialchars($original_name); ?></h1>
@@ -194,13 +296,14 @@ try {
                     <i class="fas fa-file-alt me-1"></i>
                     <?php echo strtoupper($file_extension); ?> Document • 
                     <i class="fas fa-calendar me-1"></i>
-                    Uploaded: <?php echo date('M j, Y', strtotime($target_module['file']['uploaded_at'])); ?> • 
+                    Uploaded: <?php echo date('M j, Y', strtotime($target_file['uploaded_at'])); ?> • 
                     <i class="fas fa-weight me-1"></i>
-                    Size: <?php echo round($target_module['file']['file_size'] / 1024, 1); ?> KB
+                    Size: <?php echo round($target_file['file_size'] / 1024, 1); ?> KB
                 </div>
             </div>
             
-            <div class="document-content">
+            <div class="zoom-container">
+                <div class="document-content" id="documentContent">
                 <?php
                 try {
                     // Convert to HTML
@@ -215,8 +318,86 @@ try {
                     echo '</div>';
                 }
                 ?>
+                </div>
             </div>
         </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let currentZoom = 100;
+            const minZoom = 25;
+            const maxZoom = 300;
+            const zoomStep = 25;
+            
+            function updateZoom() {
+                const content = document.getElementById('documentContent');
+                const zoomLevel = document.getElementById('zoomLevel');
+                const zoomOutBtn = document.getElementById('zoomOut');
+                const zoomInBtn = document.getElementById('zoomIn');
+                
+                content.style.transform = `scale(${currentZoom / 100})`;
+                zoomLevel.textContent = currentZoom + '%';
+                
+                // Update button states
+                zoomOutBtn.disabled = currentZoom <= minZoom;
+                zoomInBtn.disabled = currentZoom >= maxZoom;
+            }
+            
+            function zoomIn() {
+                if (currentZoom < maxZoom) {
+                    currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                    updateZoom();
+                }
+            }
+            
+            function zoomOut() {
+                if (currentZoom > minZoom) {
+                    currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                    updateZoom();
+                }
+            }
+            
+            function resetZoom() {
+                currentZoom = 100;
+                updateZoom();
+            }
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key) {
+                        case '=':
+                        case '+':
+                            e.preventDefault();
+                            zoomIn();
+                            break;
+                        case '-':
+                            e.preventDefault();
+                            zoomOut();
+                            break;
+                        case '0':
+                            e.preventDefault();
+                            resetZoom();
+                            break;
+                    }
+                }
+            });
+            
+            // Mouse wheel zoom (Ctrl + scroll)
+            document.addEventListener('wheel', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        zoomIn();
+                    } else {
+                        zoomOut();
+                    }
+                }
+            });
+            
+            // Initialize zoom
+            updateZoom();
+        </script>
     </body>
     </html>
     <?php

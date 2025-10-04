@@ -2,10 +2,13 @@
 session_start();
 require_once 'config/database.php';
 
-// Check if user is logged in
+// Check if user is logged in - if not, return empty announcements
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Not authenticated']);
+    echo json_encode([
+        'success' => true,
+        'count' => 0,
+        'announcements' => []
+    ]);
     exit;
 }
 
@@ -18,6 +21,8 @@ try {
         $stmt = $db->prepare("
             SELECT 
                 a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
+                CONCAT(u.first_name, ' ', u.last_name) as author_name,
+                u.first_name, u.last_name,
                 CASE 
                     WHEN a.is_global = 1 THEN 'General Announcement'
                     WHEN a.target_audience IS NOT NULL THEN (
@@ -32,6 +37,7 @@ try {
                     ELSE 'Course'
                 END as announcement_type
             FROM announcements a
+            LEFT JOIN users u ON a.author_id = u.id
             WHERE (a.author_id = ? 
                OR a.is_global = 1
                OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL))
@@ -47,6 +53,8 @@ try {
         $stmt = $db->prepare("
             SELECT 
                 a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
+                CONCAT(u.first_name, ' ', u.last_name) as author_name,
+                u.first_name, u.last_name,
                 CASE 
                     WHEN a.is_global = 1 THEN 'General Announcement'
                     WHEN a.target_audience IS NOT NULL THEN (
@@ -61,6 +69,7 @@ try {
                     ELSE 'Course'
                 END as announcement_type
             FROM announcements a
+            LEFT JOIN users u ON a.author_id = u.id
             WHERE (a.is_global = 1
                OR (a.target_audience IS NOT NULL AND JSON_SEARCH(a.target_audience, 'one', ?) IS NOT NULL))
                AND (a.read_by IS NULL OR JSON_SEARCH(a.read_by, 'one', ?) IS NULL)
@@ -75,6 +84,8 @@ try {
         $stmt = $db->prepare("
             SELECT 
                 a.id, a.title, a.content, a.created_at, a.is_global, a.target_audience,
+                CONCAT(u.first_name, ' ', u.last_name) as author_name,
+                u.first_name, u.last_name,
                 CASE 
                     WHEN a.is_global = 1 THEN 'General Announcement'
                     WHEN a.target_audience IS NOT NULL THEN (
@@ -89,6 +100,7 @@ try {
                     ELSE 'Course'
                 END as announcement_type
             FROM announcements a
+            LEFT JOIN users u ON a.author_id = u.id
             WHERE a.read_by IS NULL OR JSON_SEARCH(a.read_by, 'one', ?) IS NULL
             ORDER BY a.created_at DESC
             LIMIT 10
@@ -107,7 +119,10 @@ try {
             'preview' => substr($ann['content'], 0, 100) . (strlen($ann['content']) > 100 ? '...' : ''),
             'created_at' => date('M j, Y g:i A', strtotime($ann['created_at'])),
             'context' => $ann['context'],
-            'announcement_type' => $ann['announcement_type']
+            'announcement_type' => $ann['announcement_type'],
+            'author_name' => $ann['author_name'] ?? 'Unknown User',
+            'first_name' => $ann['first_name'] ?? '',
+            'last_name' => $ann['last_name'] ?? ''
         ];
     }
     

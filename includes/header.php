@@ -550,6 +550,33 @@ if (!defined('NO_HTML_OUTPUT')) {
             z-index: 1000 !important;
         }
         
+        /* Modal Stacking Fix */
+        .modal-backdrop {
+            z-index: 1040;
+        }
+        
+        .modal {
+            z-index: 1050;
+        }
+        
+        /* Ensure announcement detail modal appears above notification modal */
+        #announcementDetailModal {
+            z-index: 1060 !important;
+        }
+        
+        #announcementDetailModal .modal-backdrop {
+            z-index: 1055 !important;
+        }
+        
+        /* When detail modal is open, ensure notification modal stays behind */
+        body.modal-open #teacherNotificationModal {
+            z-index: 1045 !important;
+        }
+        
+        body.modal-open #studentNotificationModal {
+            z-index: 1045 !important;
+        }
+
         /* Ensure the notification bell container has proper positioning context */
          .notification-bell {
              position: relative !important;
@@ -1552,7 +1579,7 @@ if (!defined('NO_HTML_OUTPUT')) {
     </div>
 
     <!-- Individual Announcement Detail Modal -->
-    <div class="modal fade" id="announcementDetailModal" tabindex="-1" aria-labelledby="announcementDetailModalLabel" aria-hidden="true">
+    <div class="modal fade" id="announcementDetailModal" tabindex="-1" aria-labelledby="announcementDetailModalLabel" aria-hidden="true" style="z-index: 1060;">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1849,9 +1876,23 @@ $(document).on('click', '.view-ann-details', function() {
   // Set the mark as read button to work with this announcement
   $('#mark-detail-read').data('ann-id', annId);
   
+  // Ensure proper z-index stacking
+  $('#announcementDetailModal').css('z-index', '1060');
+  
   // Show the detail modal
   var detailModal = new bootstrap.Modal(document.getElementById('announcementDetailModal'));
   detailModal.show();
+  
+  // Add event listener to close the detail modal and return to notification modal
+  $('#announcementDetailModal').off('hidden.bs.modal').on('hidden.bs.modal', function() {
+    // Ensure the notification modal is still visible and properly stacked
+    if ($('#teacherNotificationModal').hasClass('show')) {
+      $('#teacherNotificationModal').css('z-index', '1050');
+    }
+    if ($('#studentNotificationModal').hasClass('show')) {
+      $('#studentNotificationModal').css('z-index', '1050');
+    }
+  });
 });
 
 // View announcement details from homepage
@@ -1882,6 +1923,9 @@ $(document).on('click', '.view-ann-details-home', function() {
   
   // Hide the mark as read button since this is just for viewing from homepage
   $('#mark-detail-read').hide();
+  
+  // Ensure proper z-index stacking
+  $('#announcementDetailModal').css('z-index', '1060');
   
   // Show the detail modal
   var detailModal = new bootstrap.Modal(document.getElementById('announcementDetailModal'));
@@ -2084,6 +2128,9 @@ function updateTabBadges(enrollmentCount, announcementCount) {
     // Remove red dot if no notifications
     bellRedDot.remove();
   }
+  
+  // Remove any existing number badges from bell icon
+  $('#navbarAnnounceDropdown .badge').remove();
   
   console.log('✅ Tab badges updated successfully');
 }
@@ -2776,23 +2823,26 @@ $(document).on('show.bs.modal', '#studentNotificationModal', function() {
 // Function to update navbar badge count in real-time
 function updateNavbarBadgeCount(count) {
   var notificationBell = $('#navbarAnnounceDropdown');
-  var badge = notificationBell.find('.badge');
+  var redDot = notificationBell.find('.red-dot');
   
   if (count > 0) {
-    if (badge.length) {
-      // Update existing badge count and show it
-      badge.text(count).show();
-    } else {
-      // Create new badge with count - ensure proper HTML rendering
-      var badgeElement = $('<span class="badge bg-danger">' + count + '</span>');
-      notificationBell.append(badgeElement);
+    if (!redDot.length) {
+      // Create red dot if it doesn't exist
+      var redDotElement = $('<span class="red-dot"></span>');
+      notificationBell.append(redDotElement);
+      console.log('✅ Red dot added to bell icon');
     }
   } else {
-    // Completely clear all notification indicators when no notifications
+    // Remove red dot if no notifications
+    if (redDot.length) {
+      redDot.remove();
+      console.log('✅ Red dot removed from bell icon');
+    }
+    // Also clear all other notification indicators
     clearAllNotificationIndicators();
   }
   
-  console.log('🔄 Navbar badge count updated to:', count + ' (bell icon preserved)');
+  console.log('🔄 Navbar notification indicator updated to:', count > 0 ? 'red dot only' : 'no indicator');
 }
 
 // Function to show alerts
@@ -2897,20 +2947,21 @@ function refreshNotifications() {
       // Get announcements count
       var announcementCount = announcementParsed.count || 0;
       
-      var badge = $('#navbarAnnounceDropdown .badge');
+      var redDot = $('#navbarAnnounceDropdown .red-dot');
       
       if (announcementCount > 0) {
-        if (badge.length) {
-          // Update existing badge with actual count and show it
-          badge.text(announcementCount).show();
-        } else {
-          // Create new badge with actual announcement count - ensure proper HTML rendering
-          var badgeElement = $('<span class="badge bg-danger">' + announcementCount + '</span>');
-          $('#navbarAnnounceDropdown').append(badgeElement);
+        if (!redDot.length) {
+          // Create red dot if it doesn't exist
+          var redDotElement = $('<span class="red-dot"></span>');
+          $('#navbarAnnounceDropdown').append(redDotElement);
         }
-        console.log('✅ Teacher notification badge updated to:', announcementCount);
+        console.log('✅ Teacher notification red dot added');
       } else {
-        // Completely clear all notification indicators when no notifications
+        // Remove red dot if no notifications
+        if (redDot.length) {
+          redDot.remove();
+        }
+        // Also clear all other notification indicators
         clearAllNotificationIndicators();
         console.log('✅ All notification indicators cleared (no notifications)');
       }
@@ -2946,20 +2997,21 @@ function refreshNotifications() {
       // Get announcements count
       var announcementCount = announcementParsed.count || 0;
       
-      var badge = $('#navbarAnnounceDropdown .badge');
+      var redDot = $('#navbarAnnounceDropdown .red-dot');
       
       if (announcementCount > 0) {
-        if (badge.length) {
-          // Update existing badge with actual count and show it
-          badge.text(announcementCount).show();
-        } else {
-          // Create new badge with actual announcement count - ensure proper HTML rendering
-          var badgeElement = $('<span class="badge bg-danger">' + announcementCount + '</span>');
-          $('#navbarAnnounceDropdown').append(badgeElement);
+        if (!redDot.length) {
+          // Create red dot if it doesn't exist
+          var redDotElement = $('<span class="red-dot"></span>');
+          $('#navbarAnnounceDropdown').append(redDotElement);
         }
-        console.log('✅ Teacher notification badge updated to:', announcementCount);
+        console.log('✅ Student notification red dot added');
       } else {
-        // Completely clear all notification indicators when no notifications
+        // Remove red dot if no notifications
+        if (redDot.length) {
+          redDot.remove();
+        }
+        // Also clear all other notification indicators
         clearAllNotificationIndicators();
         console.log('✅ All notification indicators cleared (no notifications)');
       }
@@ -2992,19 +3044,20 @@ function refreshNotifications() {
     $.get('<?php echo SITE_URL; ?>/navbar_announcements.php', function(data) {
       // Check if data is already an object (jQuery auto-parses JSON)
       var parsed = (typeof data === 'string') ? JSON.parse(data) : data;
-      var badge = $('#navbarAnnounceDropdown .badge');
+      var redDot = $('#navbarAnnounceDropdown .red-dot');
       if (parsed.count > 0) {
-        if (badge.length) {
-          // Update existing badge with actual count and show it
-          badge.text(parsed.count).show();
-        } else {
-          // Create new badge with actual announcement count - ensure proper HTML rendering
-          var badgeElement = $('<span class="badge bg-danger">' + parsed.count + '</span>');
-          $('#navbarAnnounceDropdown').append(badgeElement);
+        if (!redDot.length) {
+          // Create red dot if it doesn't exist
+          var redDotElement = $('<span class="red-dot"></span>');
+          $('#navbarAnnounceDropdown').append(redDotElement);
         }
-        console.log('✅ Admin notification badge updated to:', parsed.count);
+        console.log('✅ Admin notification red dot added');
       } else {
-        // Completely clear all notification indicators when no notifications
+        // Remove red dot if no notifications
+        if (redDot.length) {
+          redDot.remove();
+        }
+        // Also clear all other notification indicators
         clearAllNotificationIndicators();
         console.log('✅ All notification indicators cleared (no notifications)');
       }
@@ -3292,17 +3345,30 @@ function updateNavbarEnrollmentBadge() {
               existingBadge.remove();
             }
             
-            // Add new badge with count
+            // Add or remove red dot based on count
             if (count > 0) {
-              const badgeContainer = document.createElement('div');
-              badgeContainer.className = 'position-relative';
-              badgeContainer.innerHTML = '<span class="badge bg-danger">' + count + '</span>';
-              teacherEnrollmentLink.appendChild(badgeContainer);
-              console.log('✅ Teacher enrollment requests badge updated:', count);
+              // Check if red dot already exists
+              let redDot = teacherEnrollmentLink.querySelector('.red-dot');
+              if (!redDot) {
+                const redDotContainer = document.createElement('div');
+                redDotContainer.className = 'position-relative';
+                redDotContainer.innerHTML = '<span class="red-dot"></span>';
+                teacherEnrollmentLink.appendChild(redDotContainer);
+                console.log('✅ Teacher enrollment requests red dot added');
+              }
+            } else {
+              // Remove red dot if no notifications
+              const redDot = teacherEnrollmentLink.querySelector('.red-dot');
+              if (redDot) {
+                const container = redDot.closest('.position-relative');
+                if (container) {
+                  container.remove();
+                }
+              }
             }
           }
           
-          // Update notification bell badge
+          // Update notification bell red dot
           const notificationBell = document.getElementById('navbarAnnounceDropdown');
           if (notificationBell) {
             // Remove existing badge
@@ -3311,14 +3377,22 @@ function updateNavbarEnrollmentBadge() {
               existingBadge.remove();
             }
             
-            // Add new badge with actual count
+            // Add or remove red dot based on count
             if (count > 0) {
-              // Ensure we're using the actual count, not a hardcoded value
-              var badgeElement = $('<span class="badge bg-danger">' + count + '</span>');
-              $(notificationBell).append(badgeElement);
-              console.log('✅ Teacher notification bell badge updated with count:', count);
+              // Check if red dot already exists
+              let redDot = notificationBell.querySelector('.red-dot');
+              if (!redDot) {
+                var redDotElement = $('<span class="red-dot"></span>');
+                $(notificationBell).append(redDotElement);
+                console.log('✅ Teacher notification red dot added');
+              }
             } else {
-              // Completely clear all notification indicators when no notifications
+              // Remove red dot if no notifications
+              const redDot = notificationBell.querySelector('.red-dot');
+              if (redDot) {
+                redDot.remove();
+              }
+              // Also clear all other notification indicators
               clearAllNotificationIndicators();
               console.log('✅ All notification indicators cleared (no notifications)');
             }
@@ -3441,33 +3515,28 @@ function preserveBellIcon() {
   }
 }
 
-// Enhanced real-time badge update function that preserves bell icon
+// Enhanced real-time badge update function that shows only red dot
 function updateBadgeCountRealtime(count) {
-  console.log('🔄 Updating badge count in real-time:', count);
+  console.log('🔄 Updating notification indicator in real-time:', count);
   
   const notificationBell = document.getElementById('navbarAnnounceDropdown');
   if (notificationBell) {
-    let badge = notificationBell.querySelector('.badge');
+    let redDot = notificationBell.querySelector('.red-dot');
     
     if (count > 0) {
-      if (badge) {
-        // Update existing badge count
-        badge.textContent = count;
-        badge.style.display = 'block';
-      } else {
-        // Create new badge with count
-        badge = document.createElement('span');
-        badge.className = 'badge bg-danger';
-        badge.textContent = count;
-        notificationBell.appendChild(badge);
+      if (!redDot) {
+        // Create red dot if it doesn't exist
+        redDot = document.createElement('span');
+        redDot.className = 'red-dot';
+        notificationBell.appendChild(redDot);
       }
-      console.log('✅ Badge count updated to:', count);
+      console.log('✅ Red dot added to bell icon');
     } else {
-      // Hide badge but keep bell icon visible
-      if (badge) {
-        badge.style.display = 'none';
+      // Remove red dot if no notifications
+      if (redDot) {
+        redDot.remove();
       }
-      console.log('✅ Badge hidden, bell icon preserved');
+      console.log('✅ Red dot removed from bell icon');
     }
   }
   
@@ -3476,20 +3545,14 @@ function updateBadgeCountRealtime(count) {
   if (enrollmentLink) {
     let enrollmentBadge = enrollmentLink.querySelector('.position-relative');
     
-    if (count > 0) {
-      if (enrollmentBadge) {
-        // Update existing badge
-        const badgeSpan = enrollmentBadge.querySelector('.badge');
-        if (badgeSpan) {
-          badgeSpan.textContent = count;
+      if (count > 0) {
+        if (!enrollmentBadge) {
+          // Create new red dot
+          enrollmentBadge = document.createElement('div');
+          enrollmentBadge.className = 'position-relative';
+          enrollmentBadge.innerHTML = '<span class="red-dot"></span>';
+          enrollmentLink.appendChild(enrollmentBadge);
         }
-      } else {
-        // Create new badge
-        enrollmentBadge = document.createElement('div');
-        enrollmentBadge.className = 'position-relative';
-        enrollmentBadge.innerHTML = '<span class="badge bg-danger">' + count + '</span>';
-        enrollmentLink.appendChild(enrollmentBadge);
-      }
     } else {
       // Remove enrollment badge completely
       if (enrollmentBadge) {

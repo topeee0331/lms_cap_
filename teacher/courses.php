@@ -377,9 +377,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
         </div>
     <?php endif; ?>
 
-    <!-- Courses Grid -->
-    <div class="row">
-        <?php if (empty($courses)): ?>
+    <!-- Courses Organized by Year Level -->
+    <?php if (empty($courses)): ?>
+        <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body text-center py-5">
@@ -392,116 +392,189 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     </div>
                 </div>
             </div>
-        <?php else: ?>
-            <?php foreach ($courses as $course): ?>
-                <?php
-                    $theme = $course_themes[$course['id'] % count($course_themes)];
-                ?>
-                <div class="col-lg-6 col-xl-4 mb-4">
-                    <div class="card course-card h-100">
-                        <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
-                            <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
-                            <h2 class="course-code-text">
-                                <?php echo htmlspecialchars($course['course_code']); ?>
-                            </h2>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title"><?php echo htmlspecialchars($course['course_name']); ?></h5>
-                            <p class="card-text text-muted">
-                                <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
-                            </p>
-                            
-                            <!-- Academic Year and Semester Info -->
-                            <div class="mb-2">
-                                <?php if (isset($course['academic_year'])): ?>
-                                    <span class="badge" style="background: var(--highlight-yellow); color: var(--main-green); font-weight: 700;"><?php echo htmlspecialchars($course['academic_year']); ?></span>
-                                <?php endif; ?>
-                                <?php if (isset($course['semester_name'])): ?>
-                                    <span class="badge bg-secondary"><?php echo htmlspecialchars($course['semester_name']); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <!-- Sections as Subjects -->
-                            <div class="mb-2">
-                                <strong>Sections:</strong>
-                                <?php
-                                // Minimalist section badge grid with 'View' text button and smaller font
-                                $course_sections = get_course_sections($db, $course['id']);
-                                if ($course_sections):
-                                    $max_sections = 9;
-                                    $display_sections = array_slice($course_sections, 0, $max_sections);
-                                ?>
-                                    <div class="row g-2 mb-2">
-                                        <?php foreach ($display_sections as $i => $sec):
-                                            $students = get_section_students($db, $sec['id']);
-                                            $student_count = count($students);
-                                        ?>
-                                            <div class="col-12 col-sm-6 col-md-4">
-                                                <span class="d-flex align-items-center justify-content-between w-100 mb-1 px-2 py-1" style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 1.2em; font-size: 0.92rem; min-height: 2em;">
-                                                    <span style="font-weight: 500; color: var(--main-green); letter-spacing: 0.5px;"><?= htmlspecialchars($sec['name']) ?></span>
-                                                    <span class="badge bg-light text-dark ms-2" style="font-size:0.82em; border-radius:1em; min-width:1.6em; border:1px solid #e5e7eb; color:var(--main-green);"> <?= $student_count ?> </span>
-                                                    <button type="button" class="btn btn-link p-0 ms-2" style="color:var(--main-green); border:none; background:none; font-size:0.95em; line-height:1; text-decoration:underline; font-weight:500;" title="View students" onclick="viewStudents(<?= $course['id'] ?>, <?= $sec['id'] ?>, '<?= htmlspecialchars($sec['name']) ?>', '<?= htmlspecialchars($course['course_name']) ?>')">
-                                                        View
-                                                    </button>
-                                                </span>
+        </div>
+    <?php else: ?>
+        <?php
+        // Group courses by year level
+        $courses_by_year = [];
+        foreach ($courses as $course) {
+            $year_level = $course['year_level'] ?? 'Unknown';
+            if (!isset($courses_by_year[$year_level])) {
+                $courses_by_year[$year_level] = [];
+            }
+            $courses_by_year[$year_level][] = $course;
+        }
+        
+        // Sort year levels
+        ksort($courses_by_year);
+        ?>
+        
+        <?php foreach ($courses_by_year as $year_level => $year_courses): ?>
+            <div class="mb-5">
+                <!-- Year Level Header -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, var(--main-green), #2d5a27);">
+                            <div class="card-body py-4">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <i class="bi bi-mortarboard-fill text-white" style="font-size: 2.5rem;"></i>
+                                        </div>
+                                        <div>
+                                            <h2 class="text-white mb-1 fw-bold"><?php echo htmlspecialchars($year_level); ?> Year Level</h2>
+                                            <p class="text-white-50 mb-0">
+                                                <?php echo count($year_courses); ?> Course<?php echo count($year_courses) !== 1 ? 's' : ''; ?> 
+                                                • 
+                                                <?php 
+                                                $year_total_students = array_sum(array_column($year_courses, 'student_count'));
+                                                echo $year_total_students; 
+                                                ?> Total Students
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="text-white-50 small">
+                                            <?php 
+                                            $year_total_modules = array_sum(array_column($year_courses, 'module_count'));
+                                            $year_total_videos = array_sum(array_column($year_courses, 'video_count'));
+                                            $year_total_assessments = array_sum(array_column($year_courses, 'assessment_count'));
+                                            ?>
+                                            <div class="d-flex gap-4">
+                                                <div>
+                                                    <i class="bi bi-collection me-1"></i>
+                                                    <?php echo $year_total_modules; ?> Modules
+                                                </div>
+                                                <div>
+                                                    <i class="bi bi-play-circle me-1"></i>
+                                                    <?php echo $year_total_videos; ?> Videos
+                                                </div>
+                                                <div>
+                                                    <i class="bi bi-clipboard-check me-1"></i>
+                                                    <?php echo $year_total_assessments; ?> Assessments
+                                                </div>
                                             </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <?php if (count($course_sections) > $max_sections): ?>
-                                        <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="alert('Show all feature coming soon!')">Show all</a></small></div>
-                                    <?php endif; ?>
-                                <?php
-                                else:
-                                    echo '<span class="text-muted">None</span>';
-                                endif;
-                                ?>
-                            </div>
-                            <!-- Course Statistics -->
-                            <div class="row text-center mb-3">
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-primary"><?php echo $course['student_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Students</small>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-success"><?php echo $course['module_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Modules</small>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <div class="border-end">
-                                        <h6 class="mb-0 text-info"><?php echo $course['video_count'] ?? 0; ?></h6>
-                                        <small class="text-muted">Videos</small>
-                                    </div>
-                                </div>
-                                <div class="col-3">
-                                    <h6 class="mb-0 text-warning"><?php echo $course['assessment_count'] ?? 0; ?></h6>
-                                    <small class="text-muted">Assessments</small>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <?php if (isset($course['created_at'])): ?>
-                                    <small class="text-muted">Created <?php echo date('M j, Y', strtotime($course['created_at'])); ?></small>
-                                <?php endif; ?>
-                                <small class="text-muted">
-                                    Created by: <?php echo htmlspecialchars($course['creator_name'] . ' (' . $course['creator_username'] . ')'); ?>
-                                </small>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="d-grid gap-2">
-                                <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
-                                    <i class="bi bi-gear me-1"></i>Manage Course
-                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
+                
+                <!-- Courses Grid for this Year Level -->
+                <div class="row">
+                    <?php foreach ($year_courses as $course): ?>
+                        <?php
+                            $theme = $course_themes[$course['id'] % count($course_themes)];
+                        ?>
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card course-card h-100">
+                                <div class="card-img-top course-image d-flex align-items-center justify-content-center <?php echo $theme['bg']; ?>" style="height: 200px; position: relative; overflow: hidden;">
+                                    <i class="<?php echo $theme['icon']; ?>" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0.4; pointer-events: none; font-size: 10rem; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6);"></i>
+                                    <h2 class="course-code-text">
+                                        <?php echo htmlspecialchars($course['course_code']); ?>
+                                    </h2>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title"><?php echo htmlspecialchars($course['course_name']); ?></h5>
+                                    <p class="card-text text-muted">
+                                        <?php echo htmlspecialchars(substr($course['description'], 0, 100)) . (strlen($course['description']) > 100 ? '...' : ''); ?>
+                                    </p>
+                                    
+                                    <!-- Academic Year and Semester Info -->
+                                    <div class="mb-2">
+                                        <?php if (isset($course['academic_year'])): ?>
+                                            <span class="badge" style="background: var(--highlight-yellow); color: var(--main-green); font-weight: 700;"><?php echo htmlspecialchars($course['academic_year']); ?></span>
+                                        <?php endif; ?>
+                                        <?php if (isset($course['semester_name'])): ?>
+                                            <span class="badge bg-secondary"><?php echo htmlspecialchars($course['semester_name']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <!-- Sections as Subjects -->
+                                    <div class="mb-2">
+                                        <strong>Sections:</strong>
+                                        <?php
+                                        // Minimalist section badge grid with 'View' text button and smaller font
+                                        $course_sections = get_course_sections($db, $course['id']);
+                                        if ($course_sections):
+                                            $max_sections = 9;
+                                            $display_sections = array_slice($course_sections, 0, $max_sections);
+                                        ?>
+                                            <div class="row g-2 mb-2">
+                                                <?php foreach ($display_sections as $i => $sec):
+                                                    $students = get_section_students($db, $sec['id']);
+                                                    $student_count = count($students);
+                                                ?>
+                                                    <div class="col-12 col-sm-6 col-md-4">
+                                                        <span class="d-flex align-items-center justify-content-between w-100 mb-1 px-2 py-1" style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 1.2em; font-size: 0.92rem; min-height: 2em;">
+                                                            <span style="font-weight: 500; color: var(--main-green); letter-spacing: 0.5px;"><?= htmlspecialchars($sec['name']) ?></span>
+                                                            <span class="badge bg-light text-dark ms-2" style="font-size:0.82em; border-radius:1em; min-width:1.6em; border:1px solid #e5e7eb; color:var(--main-green);"> <?= $student_count ?> </span>
+                                                            <button type="button" class="btn btn-link p-0 ms-2" style="color:var(--main-green); border:none; background:none; font-size:0.95em; line-height:1; text-decoration:underline; font-weight:500;" title="View students" onclick="viewStudents(<?= $course['id'] ?>, <?= $sec['id'] ?>, '<?= htmlspecialchars($sec['name']) ?>', '<?= htmlspecialchars($course['course_name']) ?>')">
+                                                                View
+                                                            </button>
+                                                        </span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <?php if (count($course_sections) > $max_sections): ?>
+                                                <div><small class="text-muted">Showing first 9 sections. <a href="#" onclick="alert('Show all feature coming soon!')">Show all</a></small></div>
+                                            <?php endif; ?>
+                                        <?php
+                                        else:
+                                            echo '<span class="text-muted">None</span>';
+                                        endif;
+                                        ?>
+                                    </div>
+                                    <!-- Course Statistics -->
+                                    <div class="row text-center mb-3">
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="mb-0 text-primary"><?php echo $course['student_count'] ?? 0; ?></h6>
+                                                <small class="text-muted">Students</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="mb-0 text-success"><?php echo $course['module_count'] ?? 0; ?></h6>
+                                                <small class="text-muted">Modules</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="mb-0 text-info"><?php echo $course['video_count'] ?? 0; ?></h6>
+                                                <small class="text-muted">Videos</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <h6 class="mb-0 text-warning"><?php echo $course['assessment_count'] ?? 0; ?></h6>
+                                            <small class="text-muted">Assessments</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <?php if (isset($course['created_at'])): ?>
+                                            <small class="text-muted">Created <?php echo date('M j, Y', strtotime($course['created_at'])); ?></small>
+                                        <?php endif; ?>
+                                        <small class="text-muted">
+                                            Created by: <?php echo htmlspecialchars($course['creator_name'] . ' (' . $course['creator_username'] . ')'); ?>
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-grid gap-2">
+                                        <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
+                                            <i class="bi bi-gear me-1"></i>Manage Course
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 
 <!-- Students Attempts Modal -->
@@ -805,4 +878,4 @@ function viewStudents(courseId, sectionId, sectionName, courseName) {
 }
 </script>
 
-<?php require_once '../includes/footer.php'; ?> 
+<?php require_once '../includes/footer.php'; ?>     

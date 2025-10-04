@@ -292,6 +292,37 @@ requireRole('admin');
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
+/* Bulk Delete Styling */
+#bulkDeleteBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#bulkDeleteBtn:not(:disabled):hover {
+    background: #bb2d3b;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.form-check-input:checked {
+    background-color: var(--main-green);
+    border-color: var(--main-green);
+}
+
+.form-check-input:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
+}
+
+/* Announcement card hover effect with checkbox */
+.announcement-card:hover .form-check-input {
+    opacity: 1;
+}
+
+.announcement-card .form-check-input {
+    transition: var(--transition);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
@@ -301,6 +332,17 @@ requireRole('admin');
     .search-filter-card .card-header,
     .announcements-container .card-header {
         padding: 1rem;
+    }
+    
+    .announcements-container .card-header .d-flex {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start !important;
+    }
+    
+    .announcements-container .card-header .d-flex .d-flex {
+        width: 100%;
+        justify-content: space-between;
     }
 }
 </style>
@@ -387,6 +429,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$announcement_id]);
                 $message = 'Announcement deleted successfully.';
                 $message_type = 'success';
+                break;
+                
+            case 'bulk_delete':
+                $announcement_ids = $_POST['announcement_ids'] ?? [];
+                if (!empty($announcement_ids) && is_array($announcement_ids)) {
+                    $placeholders = str_repeat('?,', count($announcement_ids) - 1) . '?';
+                    $stmt = $db->prepare("DELETE FROM announcements WHERE id IN ($placeholders)");
+                    $stmt->execute($announcement_ids);
+                    $deleted_count = count($announcement_ids);
+                    $message = "$deleted_count announcement(s) deleted successfully.";
+                    $message_type = 'success';
+                } else {
+                    $message = 'No announcements selected for deletion.';
+                    $message_type = 'warning';
+                }
                 break;
         }
     }
@@ -525,10 +582,25 @@ $courses = $stmt->fetchAll();
             <div class="col-12">
                 <div class="card announcements-container">
                     <div class="card-header">
-                        <h5>
-                            <i class="bi bi-megaphone me-2"></i>Announcements
-                            <span class="badge bg-primary ms-2"><?php echo count($announcements); ?></span>
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-megaphone me-2"></i>Announcements
+                                <span class="badge bg-primary ms-2"><?php echo count($announcements); ?></span>
+                            </h5>
+                            <?php if (!empty($announcements)): ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAllAnnouncements">
+                                        <label class="form-check-label" for="selectAllAnnouncements">
+                                            Select All
+                                        </label>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn" disabled>
+                                        <i class="bi bi-trash me-1"></i>Delete Selected
+                                    </button>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <?php if (empty($announcements)): ?>
@@ -546,7 +618,14 @@ $courses = $stmt->fetchAll();
                                     <div class="card announcement-card">
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="card-title mb-0 fw-semibold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                <div class="d-flex align-items-start gap-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input announcement-checkbox" type="checkbox" 
+                                                               value="<?php echo $announcement['id']; ?>" 
+                                                               id="announcement_<?php echo $announcement['id']; ?>">
+                                                    </div>
+                                                    <h6 class="card-title mb-0 fw-semibold"><?php echo htmlspecialchars($announcement['title']); ?></h6>
+                                                </div>
                                                 <div class="btn-group btn-group-sm">
                                                     <button class="btn btn-outline-primary" 
                                                             onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
@@ -686,6 +765,13 @@ $courses = $stmt->fetchAll();
     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
 </form>
 
+<!-- Bulk Delete Announcements Form -->
+<form id="bulkDeleteAnnouncementsForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="bulk_delete">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+    <div id="bulkDeleteInputs"></div>
+</form>
+
 <script>
 function editAnnouncement(announcement) {
     document.getElementById('edit_announcement_id').value = announcement.id;
@@ -702,6 +788,87 @@ function deleteAnnouncement(announcementId, announcementTitle) {
         document.getElementById('deleteAnnouncementForm').submit();
     }
 }
+
+// Bulk delete functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllAnnouncements');
+    const announcementCheckboxes = document.querySelectorAll('.announcement-checkbox');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    
+    // Select all functionality
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            announcementCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkDeleteButton();
+        });
+    }
+    
+    // Individual checkbox change
+    announcementCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBulkDeleteButton();
+            updateSelectAllCheckbox();
+        });
+    });
+    
+    // Bulk delete button click
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', function() {
+            const selectedIds = Array.from(announcementCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            
+            if (selectedIds.length === 0) {
+                alert('Please select at least one announcement to delete.');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} announcement(s)? This action cannot be undone.`)) {
+                // Create hidden inputs for selected IDs
+                const bulkDeleteInputs = document.getElementById('bulkDeleteInputs');
+                bulkDeleteInputs.innerHTML = '';
+                
+                selectedIds.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'announcement_ids[]';
+                    input.value = id;
+                    bulkDeleteInputs.appendChild(input);
+                });
+                
+                // Submit the form
+                document.getElementById('bulkDeleteAnnouncementsForm').submit();
+            }
+        });
+    }
+    
+    function updateBulkDeleteButton() {
+        const selectedCount = Array.from(announcementCheckboxes).filter(cb => cb.checked).length;
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = selectedCount === 0;
+            bulkDeleteBtn.innerHTML = `<i class="bi bi-trash me-1"></i>Delete Selected (${selectedCount})`;
+        }
+    }
+    
+    function updateSelectAllCheckbox() {
+        if (selectAllCheckbox) {
+            const totalCheckboxes = announcementCheckboxes.length;
+            const checkedCheckboxes = Array.from(announcementCheckboxes).filter(cb => cb.checked).length;
+            
+            if (checkedCheckboxes === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (checkedCheckboxes === totalCheckboxes) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?> 

@@ -21,12 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Invalid CSRF token.';
     } elseif (empty($first_name) || empty($last_name) || empty($username) || empty($email) || empty($password) || empty($confirm_password) || !$year || (!$is_irregular && !$section_id)) {
         $error = 'All fields are required, including year. Section is required for regular students.';
+    } elseif (strlen($first_name) < 2 || !preg_match('/^[a-zA-Z\s]+$/', $first_name)) {
+        $error = 'First name must be at least 2 characters and contain only letters.';
+    } elseif (strlen($last_name) < 2 || !preg_match('/^[a-zA-Z\s]+$/', $last_name)) {
+        $error = 'Last name must be at least 2 characters and contain only letters.';
+    } elseif (strlen($username) < 3 || !preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+        $error = 'Username must be at least 3 characters and contain only letters, numbers, and underscores.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Invalid email address.';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
-    } elseif (strlen($password) < 6) {
-        $error = 'Password must be at least 6 characters.';
+    } elseif (strlen($password) < 8) {
+        $error = 'Password must be at least 8 characters.';
+    } elseif (!preg_match('/[A-Z]/', $password)) {
+        $error = 'Password must contain at least one uppercase letter.';
+    } elseif (!preg_match('/[0-9]/', $password)) {
+        $error = 'Password must contain at least one number.';
+    } elseif (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        $error = 'Password must contain at least one special character.';
     } else {
         // Check for duplicate email/username
         $stmt = $db->prepare('SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1');
@@ -406,6 +418,109 @@ body {
     from { opacity: 0; transform: translateY(30px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Form validation feedback styles */
+.form-feedback {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    min-height: 1.25rem;
+    display: block;
+}
+
+.form-feedback.invalid-feedback {
+    color: #dc3545;
+    display: block;
+}
+
+.form-feedback.valid-feedback {
+    color: #198754;
+    display: block;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+    box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.25);
+}
+
+.form-select.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.form-select.is-valid {
+    border-color: #198754;
+    box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.25);
+}
+
+/* Password checklist styles */
+.password-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.8rem;
+}
+
+.password-checklist li {
+    padding: 0.25rem 0;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+.password-checklist li.unmet {
+    color: #dc3545;
+}
+
+.password-checklist li.met {
+    color: #198754;
+}
+
+.password-checklist li.met::before {
+    content: "✓ ";
+    font-weight: bold;
+}
+
+.password-checklist li.unmet::before {
+    content: "✗ ";
+    font-weight: bold;
+}
+
+/* Irregular student tooltip */
+.irregular-tooltip {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: var(--main-green);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 16px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 0.25rem;
+    cursor: help;
+}
+
+/* Loading spinner for async validation */
+.loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--main-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 @media (max-width: 991px) {
     .login-split-container {
         flex-direction: column;
@@ -560,14 +675,357 @@ body {
     require_once 'includes/footer.php';
 ?>
 <script>
+// Global validation state
+let validationState = {
+    firstName: false,
+    lastName: false,
+    username: false,
+    email: false,
+    year: false,
+    section: false,
+    password: false,
+    confirmPassword: false,
+    usernameAvailable: null,
+    emailAvailable: null
+};
+
+// Debounce function for async validation
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Show validation feedback
+function showFeedback(fieldId, isValid, message) {
+    const field = document.getElementById(fieldId);
+    // Map field IDs to correct feedback element IDs
+    const feedbackIdMap = {
+        'first_name': 'firstNameFeedback',
+        'last_name': 'lastNameFeedback',
+        'username': 'usernameFeedback',
+        'email': 'emailFeedback',
+        'year': 'yearFeedback',
+        'section_id': 'sectionFeedback',
+        'password': 'passwordFeedback',
+        'confirm_password': 'confirmPasswordFeedback'
+    };
+    const feedbackId = feedbackIdMap[fieldId] || fieldId + 'Feedback';
+    const feedback = document.getElementById(feedbackId);
+    
+    if (isValid) {
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+        feedback.classList.remove('invalid-feedback');
+        feedback.classList.add('valid-feedback');
+        feedback.textContent = message || 'Looks good!';
+    } else {
+        field.classList.remove('is-valid');
+        field.classList.add('is-invalid');
+        feedback.classList.remove('valid-feedback');
+        feedback.classList.add('invalid-feedback');
+        feedback.textContent = message || 'Please check this field.';
+    }
+}
+
+// Clear validation feedback
+function clearFeedback(fieldId) {
+    const field = document.getElementById(fieldId);
+    // Map field IDs to correct feedback element IDs
+    const feedbackIdMap = {
+        'first_name': 'firstNameFeedback',
+        'last_name': 'lastNameFeedback',
+        'username': 'usernameFeedback',
+        'email': 'emailFeedback',
+        'year': 'yearFeedback',
+        'section_id': 'sectionFeedback',
+        'password': 'passwordFeedback',
+        'confirm_password': 'confirmPasswordFeedback'
+    };
+    const feedbackId = feedbackIdMap[fieldId] || fieldId + 'Feedback';
+    const feedback = document.getElementById(feedbackId);
+    
+    field.classList.remove('is-valid', 'is-invalid');
+    feedback.classList.remove('valid-feedback', 'invalid-feedback');
+    feedback.textContent = '';
+}
+
+// Validate first name
+function validateFirstName() {
+    const firstName = document.getElementById('first_name').value.trim();
+    const isValid = firstName.length >= 2 && /^[a-zA-Z\s]+$/.test(firstName);
+    
+    validationState.firstName = isValid;
+    
+    if (firstName.length === 0) {
+        clearFeedback('first_name');
+    } else if (!isValid) {
+        showFeedback('first_name', false, 'First name must be at least 2 characters and contain only letters.');
+    } else {
+        showFeedback('first_name', true);
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate last name
+function validateLastName() {
+    const lastName = document.getElementById('last_name').value.trim();
+    const isValid = lastName.length >= 2 && /^[a-zA-Z\s]+$/.test(lastName);
+    
+    validationState.lastName = isValid;
+    
+    if (lastName.length === 0) {
+        clearFeedback('last_name');
+    } else if (!isValid) {
+        showFeedback('last_name', false, 'Last name must be at least 2 characters and contain only letters.');
+    } else {
+        showFeedback('last_name', true);
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate username
+function validateUsername() {
+    const username = document.getElementById('username').value.trim();
+    const isValid = username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username);
+    
+    validationState.username = isValid;
+    
+    if (username.length === 0) {
+        clearFeedback('username');
+    } else if (!isValid) {
+        showFeedback('username', false, 'Username must be at least 3 characters and contain only letters, numbers, and underscores.');
+    } else {
+        showFeedback('username', true);
+        // Check availability asynchronously
+        checkUsernameAvailability(username);
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate email
+function validateEmail() {
+    const email = document.getElementById('email').value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(email);
+    
+    validationState.email = isValid;
+    
+    if (email.length === 0) {
+        clearFeedback('email');
+    } else if (!isValid) {
+        showFeedback('email', false, 'Please enter a valid email address.');
+    } else {
+        showFeedback('email', true);
+        // Check availability asynchronously
+        checkEmailAvailability(email);
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate year level
+function validateYear() {
+    const year = document.getElementById('year').value;
+    const isValid = year !== '';
+    
+    validationState.year = isValid;
+    
+    if (!isValid) {
+        showFeedback('year', false, 'Please select your year level.');
+        // Clear section validation when no year is selected
+        clearFeedback('section_id');
+    } else {
+        showFeedback('year', true);
+        // Filter sections when year is selected
+        filterSectionsByYear();
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate section
+function validateSection() {
+    const section = document.getElementById('section_id').value;
+    const isIrregular = document.getElementById('is_irregular').checked;
+    const year = document.getElementById('year').value;
+    const isValid = isIrregular || section !== '';
+    
+    validationState.section = isValid;
+    
+    // Only show error if year is selected and no section is chosen
+    if (!isIrregular && section === '' && year !== '') {
+        showFeedback('section_id', false, 'Please select a section or check "Irregular Student".');
+    } else {
+        clearFeedback('section_id');
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate password
+function validatePassword() {
+    const password = document.getElementById('password').value;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLength = password.length >= 8;
+    const hasNumber = /[0-9]/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    const isValid = hasUpper && hasLength && hasNumber && hasSymbol;
+    
+    validationState.password = isValid;
+    
+    if (password.length === 0) {
+        clearFeedback('password');
+    } else if (!isValid) {
+        showFeedback('password', false, 'Password must meet all requirements below.');
+    } else {
+        showFeedback('password', true);
+    }
+    
+    // Update password checklist
+    updatePasswordChecklist();
+    
+    // Re-validate confirm password if it has a value
+    const confirmPassword = document.getElementById('confirm_password').value;
+    if (confirmPassword.length > 0) {
+        validateConfirmPassword();
+    }
+    
+    updateSubmitButton();
+}
+
+// Validate confirm password
+function validateConfirmPassword() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const isValid = password === confirmPassword && password.length > 0;
+    
+    validationState.confirmPassword = isValid;
+    
+    if (confirmPassword.length === 0) {
+        clearFeedback('confirm_password');
+    } else if (!isValid) {
+        showFeedback('confirm_password', false, 'Passwords do not match.');
+    } else {
+        showFeedback('confirm_password', true);
+    }
+    
+    updateSubmitButton();
+}
+
+// Check username availability
+const checkUsernameAvailability = debounce(async function(username) {
+    if (username.length < 3) return;
+    
+    const feedback = document.getElementById('usernameFeedback');
+    const originalText = feedback.textContent;
+    
+    // Show loading
+    feedback.innerHTML = 'Checking availability... <span class="loading-spinner"></span>';
+    
+    try {
+        const response = await fetch('ajax_check_username.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `username=${encodeURIComponent(username)}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.available) {
+            validationState.usernameAvailable = true;
+            showFeedback('username', true, 'Username is available!');
+        } else {
+            validationState.usernameAvailable = false;
+            showFeedback('username', false, 'Username is already taken.');
+        }
+    } catch (error) {
+        console.error('Error checking username:', error);
+        validationState.usernameAvailable = null;
+        feedback.textContent = originalText;
+    }
+    
+    updateSubmitButton();
+}, 500);
+
+// Check email availability
+const checkEmailAvailability = debounce(async function(email) {
+    if (!email.includes('@')) return;
+    
+    const feedback = document.getElementById('emailFeedback');
+    const originalText = feedback.textContent;
+    
+    // Show loading
+    feedback.innerHTML = 'Checking availability... <span class="loading-spinner"></span>';
+    
+    try {
+        const response = await fetch('ajax_check_email.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `email=${encodeURIComponent(email)}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.available) {
+            validationState.emailAvailable = true;
+            showFeedback('email', true, 'Email is available!');
+        } else {
+            validationState.emailAvailable = false;
+            showFeedback('email', false, 'Email is already registered.');
+        }
+    } catch (error) {
+        console.error('Error checking email:', error);
+        validationState.emailAvailable = null;
+        feedback.textContent = originalText;
+    }
+    
+    updateSubmitButton();
+}, 500);
+
+// Update password checklist
+function updatePasswordChecklist() {
+    const password = document.getElementById('password').value;
+    const liUpper = document.getElementById('pwd-upper');
+    const liLength = document.getElementById('pwd-length');
+    const liNumber = document.getElementById('pwd-number');
+    const liSymbol = document.getElementById('pwd-symbol');
+    
+    // Check requirements
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLength = password.length >= 8;
+    const hasNumber = /[0-9]/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    
+    // Update checklist items
+    liUpper.className = hasUpper ? 'met' : 'unmet';
+    liLength.className = hasLength ? 'met' : 'unmet';
+    liNumber.className = hasNumber ? 'met' : 'unmet';
+    liSymbol.className = hasSymbol ? 'met' : 'unmet';
+}
+
+// Filter sections by year
 function filterSectionsByYear() {
-    var year = document.getElementById('year').value;
-    var sectionSelect = document.getElementById('section_id');
+    const year = document.getElementById('year').value;
+    const sectionSelect = document.getElementById('section_id');
     
     // Store all original options for filtering
     if (!window.allSectionOptions) {
         window.allSectionOptions = [];
-        for (var i = 0; i < sectionSelect.options.length; i++) {
+        for (let i = 0; i < sectionSelect.options.length; i++) {
             window.allSectionOptions.push({
                 value: sectionSelect.options[i].value,
                 text: sectionSelect.options[i].textContent,
@@ -576,46 +1034,71 @@ function filterSectionsByYear() {
         }
     }
     
+    // Store currently selected section value
+    const currentSectionValue = sectionSelect.value;
+    
     // Clear current options
     sectionSelect.innerHTML = '';
     
     // Add the default option
-    var defaultOption = document.createElement('option');
+    const defaultOption = document.createElement('option');
     defaultOption.value = '';
     defaultOption.textContent = 'Section';
     sectionSelect.appendChild(defaultOption);
     
     // If no year is selected, don't show any sections
     if (!year) {
+        // Clear validation when no year is selected
+        clearFeedback('section_id');
         return;
     }
     
     // Add filtered options
-    var hasVisibleOptions = false;
-    for (var i = 0; i < window.allSectionOptions.length; i++) {
-        var option = window.allSectionOptions[i];
+    let hasVisibleOptions = false;
+    let selectedSectionStillValid = false;
+    
+    for (let i = 0; i < window.allSectionOptions.length; i++) {
+        const option = window.allSectionOptions[i];
         if (option.value && option.dataYear === year) {
-            var newOption = document.createElement('option');
+            const newOption = document.createElement('option');
             newOption.value = option.value;
             newOption.textContent = option.text;
             newOption.setAttribute('data-year', option.dataYear);
             sectionSelect.appendChild(newOption);
             hasVisibleOptions = true;
+            
+            // Check if the previously selected section is still valid for this year
+            if (option.value === currentSectionValue) {
+                selectedSectionStillValid = true;
+            }
         }
     }
     
     // If no sections available for selected year, show message
     if (!hasVisibleOptions && year) {
-        var noSectionOption = document.createElement('option');
+        const noSectionOption = document.createElement('option');
         noSectionOption.value = '';
         noSectionOption.textContent = 'No sections available for Year ' + year;
         noSectionOption.disabled = true;
         sectionSelect.appendChild(noSectionOption);
     }
+    
+    // Restore selection if it's still valid, otherwise clear it
+    if (selectedSectionStillValid && currentSectionValue) {
+        sectionSelect.value = currentSectionValue;
+    } else {
+        sectionSelect.value = '';
+    }
+    
+    // Only validate section if we're not in the middle of filtering
+    // The change event will handle validation
 }
+
+// Toggle password visibility
 function togglePassword(fieldId) {
-    var input = document.getElementById(fieldId);
-    var icon = fieldId === 'password' ? document.getElementById('togglePasswordIcon') : document.getElementById('toggleConfirmPasswordIcon');
+    const input = document.getElementById(fieldId);
+    const icon = fieldId === 'password' ? document.getElementById('togglePasswordIcon') : document.getElementById('toggleConfirmPasswordIcon');
+    
     if (input.type === 'password') {
         input.type = 'text';
         icon.classList.remove('bi-eye-slash');
@@ -626,45 +1109,20 @@ function togglePassword(fieldId) {
         icon.classList.add('bi-eye-slash');
     }
 }
-function updatePasswordChecklist() {
-    var pwd = document.getElementById('password').value;
-    var liUpper = document.getElementById('pwd-upper');
-    var liLength = document.getElementById('pwd-length');
-    var liNumber = document.getElementById('pwd-number');
-    var liSymbol = document.getElementById('pwd-symbol');
-    // Check requirements
-    var hasUpper = /[A-Z]/.test(pwd);
-    var hasLength = pwd.length >= 8;
-    var hasNumber = /[0-9]/.test(pwd);
-    var hasSymbol = /[^A-Za-z0-9]/.test(pwd);
-    // Show/hide each li
-    liUpper.style.display = hasUpper ? 'none' : '';
-    liLength.style.display = hasLength ? 'none' : '';
-    liNumber.style.display = hasNumber ? 'none' : '';
-    liSymbol.style.display = hasSymbol ? 'none' : '';
-}
-document.getElementById('password').addEventListener('input', updatePasswordChecklist);
 
-// Form validation to enable/disable sign up button
-function validateForm() {
-    const firstName = document.getElementById('first_name').value.trim();
-    const lastName = document.getElementById('last_name').value.trim();
-    const username = document.getElementById('username').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const year = document.getElementById('year').value;
-    const section = document.getElementById('section_id').value;
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirm_password').value;
-    const isIrregular = document.getElementById('is_irregular').checked;
+// Update submit button state
+function updateSubmitButton() {
+    const isFormValid = validationState.firstName && 
+                       validationState.lastName && 
+                       validationState.username && 
+                       validationState.email && 
+                       validationState.year && 
+                       validationState.section && 
+                       validationState.password && 
+                       validationState.confirmPassword &&
+                       validationState.usernameAvailable === true &&
+                       validationState.emailAvailable === true;
     
-    // Check if all required fields are filled
-    const isFormValid = firstName && lastName && username && email && year && 
-                       password && confirmPassword && 
-                       (isIrregular || section) && // Section required if not irregular
-                       password === confirmPassword &&
-                       password.length >= 8;
-    
-    // Enable/disable sign up button
     const signupBtn = document.getElementById('signupBtn');
     signupBtn.disabled = !isFormValid;
     
@@ -678,37 +1136,78 @@ function validateForm() {
     }
 }
 
-// Add event listeners to all form fields
-document.addEventListener('DOMContentLoaded', function() {
-    const formFields = [
-        'first_name', 'last_name', 'username', 'email', 
-        'year', 'section_id', 'password', 'confirm_password'
-    ];
+// Form submission validation
+function validateFormSubmission() {
+    // Run all validations one more time
+    validateFirstName();
+    validateLastName();
+    validateUsername();
+    validateEmail();
+    validateYear();
+    validateSection();
+    validatePassword();
+    validateConfirmPassword();
     
-    formFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', validateForm);
-            field.addEventListener('change', validateForm);
+    // Check if form is valid
+    const isFormValid = validationState.firstName && 
+                       validationState.lastName && 
+                       validationState.username && 
+                       validationState.email && 
+                       validationState.year && 
+                       validationState.section && 
+                       validationState.password && 
+                       validationState.confirmPassword &&
+                       validationState.usernameAvailable === true &&
+                       validationState.emailAvailable === true;
+    
+    if (!isFormValid) {
+        // Scroll to first invalid field
+        const firstInvalidField = document.querySelector('.is-invalid');
+        if (firstInvalidField) {
+            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstInvalidField.focus();
+        }
+        return false;
+    }
+    
+    return true;
+}
+
+// Initialize form
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners
+    document.getElementById('first_name').addEventListener('input', validateFirstName);
+    document.getElementById('first_name').addEventListener('blur', validateFirstName);
+    
+    document.getElementById('last_name').addEventListener('input', validateLastName);
+    document.getElementById('last_name').addEventListener('blur', validateLastName);
+    
+    document.getElementById('username').addEventListener('input', validateUsername);
+    document.getElementById('username').addEventListener('blur', validateUsername);
+    
+    document.getElementById('email').addEventListener('input', validateEmail);
+    document.getElementById('email').addEventListener('blur', validateEmail);
+    
+    document.getElementById('year').addEventListener('change', validateYear);
+    
+    document.getElementById('section_id').addEventListener('change', validateSection);
+    
+    document.getElementById('password').addEventListener('input', validatePassword);
+    document.getElementById('password').addEventListener('blur', validatePassword);
+    
+    document.getElementById('confirm_password').addEventListener('input', validateConfirmPassword);
+    document.getElementById('confirm_password').addEventListener('blur', validateConfirmPassword);
+    
+    document.getElementById('is_irregular').addEventListener('change', validateSection);
+    
+    // Form submission
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        if (!validateFormSubmission()) {
+            e.preventDefault();
         }
     });
     
-    // Add event listener for irregular checkbox
-    const irregularCheckbox = document.getElementById('is_irregular');
-    if (irregularCheckbox) {
-        irregularCheckbox.addEventListener('change', validateForm);
-    }
-    
-    // Add event listener for year level to filter sections
-    const yearSelect = document.getElementById('year');
-    if (yearSelect) {
-        yearSelect.addEventListener('change', function() {
-            filterSectionsByYear();
-            validateForm();
-        });
-    }
-    
     // Initial validation
-    validateForm();
+    updateSubmitButton();
 });
 </script>

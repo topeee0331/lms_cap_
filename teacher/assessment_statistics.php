@@ -161,11 +161,23 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --main-green: #2c5530;
-            --light-green: #4a7c59;
-            --accent-green: #6b8e6b;
-            --bg-light: #f8f9fa;
+            --main-green: #2E5E4E;
+            --accent-green: #7DCB80;
+            --highlight-yellow: #FFE066;
+            --off-white: #F7FAF7;
+            --white: #FFFFFF;
             --text-dark: #2c3e50;
+            --text-muted: #6c757d;
+            --border-light: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+            --border-radius: 8px;
+            --border-radius-lg: 12px;
+            --border-radius-xl: 20px;
+            --transition: all 0.3s ease;
+            --light-green: #4a7c59;
+            --bg-light: #f8f9fa;
             --border-color: #dee2e6;
             --success-color: #28a745;
             --warning-color: #ffc107;
@@ -174,8 +186,14 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
         }
 
         body {
-            background-color: var(--bg-light);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--off-white);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Page Container */
+        .page-container {
+            background: var(--off-white);
+            min-height: 100vh;
         }
 
         .main-header {
@@ -183,19 +201,40 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
             color: white;
             padding: 2rem 0;
             margin-bottom: 2rem;
+            border-radius: var(--border-radius-xl);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .main-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+
+        .main-header .container {
+            position: relative;
+            z-index: 1;
         }
 
         .stats-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            border: none;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            margin-bottom: 1rem;
         }
 
         .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
         }
 
         .stats-icon {
@@ -215,18 +254,18 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
         .stats-icon.info { background: var(--info-color); color: white; }
 
         .question-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            border: 1px solid #e9ecef;
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            margin-bottom: 1rem;
             position: relative;
             overflow: hidden;
         }
 
         .question-card:hover {
-            box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-md);
             transform: translateY(-2px);
         }
 
@@ -286,19 +325,19 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
             background: var(--main-green);
             border: none;
             color: white;
+            border-radius: var(--border-radius);
             padding: 0.75rem 1.5rem;
-            border-radius: 8px;
+            font-weight: 600;
+            transition: var(--transition);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
         }
 
         .back-btn:hover {
-            background: var(--light-green);
-            color: white;
-            transform: translateX(-3px);
+            background: var(--accent-green);
+            color: var(--main-green);
+            transform: translateY(-1px);
         }
 
         .no-data-state {
@@ -686,15 +725,80 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
             font-weight: 500;
         }
 
-        /* Modal Styling */
+        /* Enhanced Modal Styling - Admin Bell Modal Design */
+        .modal-content {
+            border-radius: var(--border-radius-lg);
+            border: none;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
         .modal-header {
             background: var(--main-green);
             color: white;
-            border-bottom: none;
+            border: none;
+            padding: 1.5rem;
+            border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+
+        .modal-header .modal-title {
+            font-weight: 700;
+            font-size: 1.3rem;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .modal-header .btn-close {
             filter: invert(1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-body {
+            padding: 2rem;
+            background: #fafbfc;
+            flex: 1;
+            overflow-y: auto;
+            max-height: calc(90vh - 140px);
+        }
+
+        .modal-footer {
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            min-height: 80px;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+        }
+
+        .modal-footer .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
         }
 
         .student-attempt-item {
@@ -765,52 +869,54 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
 <body>
     <?php include '../includes/header.php'; ?>
 
-    <div class="main-header">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center mb-3">
-                        <a href="assessments.php" class="back-btn me-3">
-                            <i class="bi bi-arrow-left"></i>
-                            Back to Assessments
-                        </a>
-                    </div>
-                    <h1 class="mb-2">
-                        <i class="bi bi-graph-up me-3"></i>
-                        Assessment Statistics
-                    </h1>
-                    <h3 class="mb-0 text-light">
-                        <?php echo htmlspecialchars($assessment['assessment_title']); ?>
-                    </h3>
-                    <p class="mb-0 text-light opacity-75">
-                        <i class="bi bi-book me-2"></i>
-                        <?php echo htmlspecialchars($assessment['course_name']); ?> 
-                        <span class="mx-2">•</span>
-                        <i class="bi bi-calendar me-2"></i>
-                        Created <?php echo date('M j, Y', strtotime($assessment['created_at'])); ?>
-                    </p>
-                </div>
-                <div class="col-md-4 text-md-end">
-                    <div class="assessment-meta">
-                        <div class="badge bg-light text-dark fs-6 mb-2">
-                            <i class="bi bi-speedometer2 me-1"></i>
-                            <?php echo ucfirst($assessment['difficulty']); ?> Difficulty
+    <div class="page-container">
+        <div class="container-fluid py-4">
+            <div class="main-header">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center mb-3">
+                                <a href="assessments.php" class="back-btn me-3">
+                                    <i class="bi bi-arrow-left me-2"></i>
+                                    Back to Assessments
+                                </a>
+                            </div>
+                            <h1 class="mb-2" style="font-size: 2.5rem; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <i class="bi bi-graph-up me-3"></i>
+                                Assessment Statistics
+                            </h1>
+                            <h3 class="mb-0 text-light">
+                                <?php echo htmlspecialchars($assessment['assessment_title']); ?>
+                            </h3>
+                            <p class="mb-0 text-light opacity-75">
+                                <i class="bi bi-book me-2"></i>
+                                <?php echo htmlspecialchars($assessment['course_name']); ?> 
+                                <span class="mx-2">•</span>
+                                <i class="bi bi-calendar me-2"></i>
+                                Created <?php echo date('M j, Y', strtotime($assessment['created_at'])); ?>
+                            </p>
                         </div>
-                        <div class="badge bg-light text-dark fs-6 mb-2">
-                            <i class="bi bi-clock me-1"></i>
-                            <?php echo $assessment['time_limit'] ? $assessment['time_limit'] . ' min' : 'No limit'; ?>
-                        </div>
-                        <div class="badge bg-light text-dark fs-6">
-                            <i class="bi bi-trophy me-1"></i>
-                            <?php echo $assessment['passing_rate']; ?>% Passing Rate
+                        <div class="col-md-4 text-md-end">
+                            <div class="assessment-meta">
+                                <div class="badge bg-light text-dark fs-6 mb-2">
+                                    <i class="bi bi-speedometer2 me-1"></i>
+                                    <?php echo ucfirst($assessment['difficulty']); ?> Difficulty
+                                </div>
+                                <div class="badge bg-light text-dark fs-6 mb-2">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <?php echo $assessment['time_limit'] ? $assessment['time_limit'] . ' min' : 'No limit'; ?>
+                                </div>
+                                <div class="badge bg-light text-dark fs-6">
+                                    <i class="bi bi-trophy me-1"></i>
+                                    <?php echo $assessment['passing_rate']; ?>% Passing Rate
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <div class="container">
+            <div class="container">
         <?php if (empty($attempts)): ?>
             <div class="no-data-state">
                 <i class="bi bi-graph-down"></i>
@@ -1050,6 +1156,8 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
                 </div>
             </div>
         <?php endif; ?>
+            </div>
+        </div>
     </div>
 
     <!-- Attempts Modal -->

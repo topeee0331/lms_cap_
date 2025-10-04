@@ -195,6 +195,69 @@ requireRole('admin');
     overflow: hidden;
 }
 
+/* Search and Filter Section */
+.search-filter-card {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+}
+
+.search-filter-card .form-control,
+.search-filter-card .form-select {
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.search-filter-card .form-control:focus,
+.search-filter-card .form-select:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 0.2rem rgba(125, 203, 128, 0.25);
+}
+
+.search-filter-card .form-label {
+    color: var(--text-dark);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Loading States */
+.form-loading .form-control,
+.form-loading .form-select {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.searching {
+    background-color: rgba(125, 203, 128, 0.1) !important;
+    border-color: var(--accent-green) !important;
+}
+
+.filtering {
+    background-color: rgba(46, 94, 78, 0.1) !important;
+    border-color: var(--main-green) !important;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Animation for number changes */
+.updated {
+    animation: numberChange 0.3s ease-in-out;
+}
+
+@keyframes numberChange {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); color: var(--accent-green); }
+    100% { transform: scale(1); }
+}
+
 .table-container .card-header {
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
     border-bottom: 2px solid var(--accent-green);
@@ -594,10 +657,84 @@ foreach ($teachers as $teacher) {
                     </div>
                 </div>
             </div>
-            <div class="d-flex justify-content-end mb-3">
-                <button class="btn add-teacher-btn" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
-                    <i class="bi bi-plus-circle me-2"></i>Add Teacher
-                </button>
+
+            <!-- Search and Filter Section -->
+            <div class="card search-filter-card mb-4">
+                <div class="card-body">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="search" class="form-label fw-semibold">
+                                <i class="bi bi-search me-2"></i>Search Teachers
+                            </label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       placeholder="Search by name, email, username, or ID..." 
+                                       autocomplete="off">
+                                <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                                    <small class="text-muted" id="searchCounter" style="display: none;">
+                                        <span id="charCount">0</span> chars
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status" class="form-label fw-semibold">
+                                <i class="bi bi-shield me-2"></i>Status
+                            </label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="sort" class="form-label fw-semibold">
+                                <i class="bi bi-sort me-2"></i>Sort By
+                            </label>
+                            <select class="form-select" id="sort" name="sort">
+                                <option value="name">Name</option>
+                                <option value="email">Email</option>
+                                <option value="date">Date Added</option>
+                                <option value="status">Status</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="order" class="form-label fw-semibold">
+                                <i class="bi bi-arrow-up-down me-2"></i>Order
+                            </label>
+                            <select class="form-select" id="order" name="order">
+                                <option value="asc">Ascending</option>
+                                <option value="desc">Descending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-primary" id="filterBtn">
+                                    <i class="bi bi-funnel me-2"></i>Search
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="clearBtn">
+                                    <i class="bi bi-x-circle me-2"></i>Clear
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <button class="btn add-teacher-btn" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add Teacher
+                    </button>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="loading-indicator me-3" id="loadingIndicator" style="display: none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span class="ms-2 text-muted">Loading teachers...</span>
+                    </div>
+                </div>
             </div>
             <div class="card table-container">
                 <div class="card-header">
@@ -605,7 +742,7 @@ foreach ($teachers as $teacher) {
                         <h5>
                             <i class="bi bi-person-badge me-2"></i>Teachers List
                         </h5>
-                        <span class="badge bg-primary fs-6"><?= $total_teachers ?> teachers</span>
+                        <span class="badge bg-primary fs-6" id="teacherCountBadge"><?= $total_teachers ?> teachers</span>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -613,53 +750,94 @@ foreach ($teachers as $teacher) {
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Teacher ID</th>
-                                    <th>Username</th>
-                                    <th>Full Name</th>
-                                    <th>Email</th>
-                                    <th>Date Added</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th class="border-0">
+                                        <i class="bi bi-person me-2"></i>Teacher Info
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-card-text me-2"></i>Teacher ID
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-shield me-2"></i>Status
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-envelope me-2"></i>Contact
+                                    </th>
+                                    <th class="border-0">
+                                        <i class="bi bi-calendar me-2"></i>Joined
+                                    </th>
+                                    <th class="border-0 text-center">
+                                        <i class="bi bi-gear me-2"></i>Actions
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="teachersTableContainer">
                                 <?php foreach ($teachers as $teacher): ?>
                                 <tr>
                                     <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <img src="<?= getProfilePictureUrl($teacher['profile_picture'] ?? null, 'medium') ?>" 
+                                                     class="rounded-circle me-3" 
+                                                     width="40" height="40" 
+                                                     alt="Profile">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0 fw-semibold"><?= htmlspecialchars($teacher['first_name'] . ' ' . $teacher['last_name']) ?></h6>
+                                                <small class="text-muted">@<?= htmlspecialchars($teacher['username']) ?></small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
                                         <?php if (!empty($teacher['identifier'])): ?>
-                                            <span class="badge bg-info"><?= htmlspecialchars($teacher['identifier']) ?></span>
+                                            <span class="badge bg-success"><?= htmlspecialchars($teacher['identifier']) ?></span>
                                         <?php else: ?>
-                                            <span class="text-muted">Not assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= htmlspecialchars($teacher['username']) ?></td>
-                                    <td><?= htmlspecialchars($teacher['last_name'] . ', ' . $teacher['first_name']) ?></td>
-                                    <td><?= htmlspecialchars($teacher['email']) ?></td>
-                                    <td><?= date('M j, Y g:i A', strtotime($teacher['created_at'])) ?></td>
-                                    <td>
-                                        <?php if (isset($teacher['status']) && $teacher['status'] === 'inactive'): ?>
-                                            <span class="badge bg-secondary">Inactive</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-success">Active</span>
+                                            <span class="text-muted small">Not assigned</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="#" class="btn btn-outline-secondary btn-sm me-1" data-bs-toggle="modal" data-bs-target="#editTeacherModal<?= $teacher['id'] ?>"><i class="bi bi-pencil"></i> Edit</a>
-                                        <?php if (isset($teacher['status']) && $teacher['status'] === 'inactive'): ?>
-                                            <form method="post" action="teachers.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to unarchive this teacher?');">
-                                                <input type="hidden" name="action" value="unarchive">
-                                                <input type="hidden" name="user_id" value="<?= $teacher['id'] ?>">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
-                                                <button type="submit" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-clockwise"></i> Unarchive</button>
-                                            </form>
-                                        <?php else: ?>
-                                            <form method="post" action="teachers.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to archive this teacher?');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="user_id" value="<?= $teacher['id'] ?>">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-archive"></i> Archive</button>
-                                            </form>
-                                        <?php endif; ?>
+                                        <span class="badge bg-<?= (isset($teacher['status']) && $teacher['status'] === 'inactive') ? 'secondary' : 'success' ?>">
+                                            <i class="bi bi-<?= (isset($teacher['status']) && $teacher['status'] === 'inactive') ? 'archive' : 'check-circle' ?> me-1"></i>
+                                            <?= (isset($teacher['status']) && $teacher['status'] === 'inactive') ? 'Archived' : 'Active' ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-envelope text-muted me-2"></i>
+                                            <span class="small"><?= htmlspecialchars($teacher['email']) ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-calendar3 text-muted me-2"></i>
+                                            <span class="small"><?= date('M j, Y', strtotime($teacher['created_at'])) ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-sm btn-info text-white" 
+                                                    onclick="viewTeacher(<?= $teacher['id'] ?>)"
+                                                    title="View Teacher Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-primary" 
+                                                    onclick="editTeacher(<?= $teacher['id'] ?>)"
+                                                    title="Edit Teacher">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <?php if (isset($teacher['status']) && $teacher['status'] === 'inactive'): ?>
+                                                <button class="btn btn-sm btn-success" 
+                                                        onclick="unarchiveTeacher(<?= $teacher['id'] ?>)"
+                                                        title="Unarchive Teacher">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                </button>
+                                            <?php else: ?>
+                                                <button class="btn btn-sm btn-danger" 
+                                                        onclick="archiveTeacher(<?= $teacher['id'] ?>)"
+                                                        title="Archive Teacher">
+                                                    <i class="bi bi-archive"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                                 <!-- Edit Teacher Modal (simplified) -->
@@ -769,4 +947,512 @@ foreach ($teachers as $teacher) {
         </div>
     </div>
 </div>
+
+<script>
+// Real-time filtering functionality
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing teacher search functionality...');
+    const searchInput = document.getElementById('search');
+    const statusSelect = document.getElementById('status');
+    const sortSelect = document.getElementById('sort');
+    const orderSelect = document.getElementById('order');
+    const filterBtn = document.getElementById('filterBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const teachersTableContainer = document.getElementById('teachersTableContainer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const teacherCountBadge = document.getElementById('teacherCountBadge');
+    
+    // Debug: Check if elements are found
+    console.log('Search input found:', !!searchInput);
+    console.log('Status select found:', !!statusSelect);
+    console.log('Sort select found:', !!sortSelect);
+    console.log('Order select found:', !!orderSelect);
+    
+    // Debug: Check input properties
+    if (searchInput) {
+        console.log('Search input disabled:', searchInput.disabled);
+        console.log('Search input readonly:', searchInput.readOnly);
+        console.log('Search input value:', searchInput.value);
+        
+        // Test if input is focusable
+        searchInput.addEventListener('focus', function() {
+            console.log('Search input focused!');
+        });
+        
+        searchInput.addEventListener('click', function() {
+            console.log('Search input clicked!');
+        });
+    }
+    
+    let searchTimeout;
+    
+    // Function to perform AJAX search
+    function performSearch() {
+        const search = searchInput ? searchInput.value.trim() : '';
+        const status = statusSelect ? statusSelect.value : '';
+        const sort = sortSelect ? sortSelect.value : 'name';
+        const order = orderSelect ? orderSelect.value : 'asc';
+        
+        // Show loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'flex';
+        }
+        
+        // Update URL without page reload
+        const url = new URL(window.location);
+        url.searchParams.set('search', search);
+        url.searchParams.set('status', status);
+        url.searchParams.set('sort', sort);
+        url.searchParams.set('order', order);
+        window.history.pushState({}, '', url);
+        
+        // Make AJAX request
+        fetch(`ajax_get_teachers.php?${url.searchParams.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update table content
+                    if (teachersTableContainer) {
+                        teachersTableContainer.innerHTML = data.teachers_html;
+                    }
+                    
+                    // Update statistics
+                    updateStats(data.stats);
+                    
+                    // Update teacher count badge
+                    if (teacherCountBadge) {
+                        teacherCountBadge.textContent = `${data.total_teachers} teachers`;
+                    }
+                } else {
+                    console.error('Error fetching teachers:', data.error);
+                    showError('Failed to load teachers. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('AJAX error:', error);
+                showError('Network error. Please check your connection.');
+            })
+            .finally(() => {
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+    }
+    
+    // Function to update statistics with animation
+    function updateStats(stats) {
+        const statCards = document.querySelectorAll('.stats-card h3');
+        if (statCards.length >= 3) {
+            animateNumberChange(statCards[0], stats.total_teachers);
+            animateNumberChange(statCards[1], stats.active_teachers);
+            animateNumberChange(statCards[2], stats.inactive_teachers);
+        }
+    }
+    
+    // Function to animate number changes
+    function animateNumberChange(element, newValue) {
+        if (element) {
+            element.classList.add('updated');
+            element.textContent = newValue;
+            setTimeout(() => element.classList.remove('updated'), 300);
+        }
+    }
+    
+    // Function to show error message
+    function showError(message) {
+        if (teachersTableContainer) {
+            teachersTableContainer.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+                    <h5 class="text-danger">Error</h5>
+                    <p class="text-muted">${message}</p>
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Retry
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    // Real-time search with faster debouncing and character counter
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            
+            // Update character counter
+            const charCount = this.value.length;
+            const charCountElement = document.getElementById('charCount');
+            const searchCounter = document.getElementById('searchCounter');
+            
+            if (charCount > 0) {
+                charCountElement.textContent = charCount;
+                searchCounter.style.display = 'block';
+            } else {
+                searchCounter.style.display = 'none';
+            }
+            
+            // Show immediate visual feedback
+            searchInput.classList.add('searching');
+            
+            // Faster debouncing for better responsiveness
+            searchTimeout = setTimeout(() => {
+                searchInput.classList.remove('searching');
+                performSearch();
+            }, 200); // Reduced to 200ms for faster response
+        });
+    } else {
+        console.error('Search input element not found!');
+    }
+    
+    // Immediate filtering for dropdowns with visual feedback
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function() {
+            this.classList.add('filtering');
+            performSearch();
+            setTimeout(() => this.classList.remove('filtering'), 1000);
+        });
+    }
+    
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            this.classList.add('filtering');
+            performSearch();
+            setTimeout(() => this.classList.remove('filtering'), 1000);
+        });
+    }
+    
+    if (orderSelect) {
+        orderSelect.addEventListener('change', function() {
+            this.classList.add('filtering');
+            performSearch();
+            setTimeout(() => this.classList.remove('filtering'), 1000);
+        });
+    }
+    
+    // Filter button (for manual trigger)
+    if (filterBtn) {
+        filterBtn.addEventListener('click', performSearch);
+    }
+    
+    // Clear button
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (searchInput) searchInput.value = '';
+            if (statusSelect) statusSelect.value = '';
+            if (sortSelect) sortSelect.value = 'name';
+            if (orderSelect) orderSelect.value = 'asc';
+            performSearch();
+        });
+    }
+    
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (searchInput) searchInput.value = urlParams.get('search') || '';
+        if (statusSelect) statusSelect.value = urlParams.get('status') || '';
+        if (sortSelect) sortSelect.value = urlParams.get('sort') || 'name';
+        if (orderSelect) orderSelect.value = urlParams.get('order') || 'asc';
+        performSearch();
+    });
+    
+    // Clean up any leftover dynamic modals on page load
+    cleanupDynamicModals();
+});
+
+// Global functions for teacher actions
+function viewTeacher(teacherId) {
+    console.log('Viewing teacher:', teacherId);
+    
+    // Check if modal already exists
+    let modal = document.getElementById(`viewTeacherModal${teacherId}`);
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        return;
+    }
+    
+    // Create modal dynamically
+    createViewModal(teacherId);
+}
+
+function editTeacher(teacherId) {
+    console.log('Editing teacher:', teacherId);
+    
+    // Check if modal already exists
+    let modal = document.getElementById(`editTeacherModal${teacherId}`);
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        return;
+    }
+    
+    // Create modal dynamically
+    createEditModal(teacherId);
+}
+
+function archiveTeacher(teacherId) {
+    if (confirm('Are you sure you want to archive this teacher?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'teachers.php';
+        form.style.display = 'none';
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'delete';
+        
+        const userIdInput = document.createElement('input');
+        userIdInput.type = 'hidden';
+        userIdInput.name = 'user_id';
+        userIdInput.value = teacherId;
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = getCSRFToken();
+        
+        form.appendChild(actionInput);
+        form.appendChild(userIdInput);
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function unarchiveTeacher(teacherId) {
+    if (confirm('Are you sure you want to unarchive this teacher?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'teachers.php';
+        form.style.display = 'none';
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'unarchive';
+        
+        const userIdInput = document.createElement('input');
+        userIdInput.type = 'hidden';
+        userIdInput.name = 'user_id';
+        userIdInput.value = teacherId;
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = getCSRFToken();
+        
+        form.appendChild(actionInput);
+        form.appendChild(userIdInput);
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Function to create view modal dynamically
+function createViewModal(teacherId) {
+    console.log('Creating view modal for teacher:', teacherId);
+    
+    fetch('ajax_get_teacher_details.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `teacher_id=${teacherId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Teacher details response:', data);
+        
+        if (data.success) {
+            const teacher = data.teacher;
+            const modalHtml = `
+                <div class="modal fade" id="viewTeacherModal${teacherId}" tabindex="-1" aria-labelledby="viewTeacherLabel${teacherId}" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="viewTeacherLabel${teacherId}">Teacher Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center">
+                                        <img src="${teacher.profile_picture_url}" 
+                                             class="rounded-circle mb-3" 
+                                             width="120" height="120" 
+                                             alt="Profile Picture">
+                                        <h5 class="mb-1">${teacher.first_name} ${teacher.last_name}</h5>
+                                        <p class="text-muted mb-0">@${teacher.username}</p>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="row mb-3">
+                                            <div class="col-sm-4"><strong>Teacher ID:</strong></div>
+                                            <div class="col-sm-8">
+                                                ${teacher.identifier ? `<span class="badge bg-success">${teacher.identifier}</span>` : '<span class="text-muted">Not assigned</span>'}
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-4"><strong>Email:</strong></div>
+                                            <div class="col-sm-8">${teacher.email}</div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-4"><strong>Status:</strong></div>
+                                            <div class="col-sm-8">
+                                                <span class="badge bg-${teacher.status === 'inactive' ? 'secondary' : 'success'}">
+                                                    <i class="bi bi-${teacher.status === 'inactive' ? 'archive' : 'check-circle'} me-1"></i>
+                                                    ${teacher.status === 'inactive' ? 'Archived' : 'Active'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-4"><strong>Joined:</strong></div>
+                                            <div class="col-sm-8">${new Date(teacher.created_at).toLocaleDateString()}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-primary" onclick="editTeacher(${teacherId})">
+                                    <i class="bi bi-pencil me-2"></i>Edit Teacher
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById(`viewTeacherModal${teacherId}`));
+            modal.show();
+            
+            // Add event listener to remove modal when hidden
+            document.getElementById(`viewTeacherModal${teacherId}`).addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        } else {
+            alert('Unable to load teacher details. Please refresh the page.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching teacher details:', error);
+        alert('Unable to load teacher details. Please refresh the page.');
+    });
+}
+
+// Function to create edit modal dynamically
+function createEditModal(teacherId) {
+    console.log('Creating edit modal for teacher:', teacherId);
+    
+    fetch('ajax_get_teacher_details.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `teacher_id=${teacherId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Teacher details response:', data);
+        
+        if (data.success) {
+            const teacher = data.teacher;
+            const modalHtml = `
+                <div class="modal fade" id="editTeacherModal${teacherId}" tabindex="-1" aria-labelledby="editTeacherLabel${teacherId}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" action="teachers.php">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editTeacherLabel${teacherId}">Edit Teacher</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="update">
+                                    <input type="hidden" name="user_id" value="${teacherId}">
+                                    <input type="hidden" name="csrf_token" value="${getCSRFToken()}">
+                                    <div class="mb-3">
+                                        <label for="teacher_id${teacherId}" class="form-label">Teacher ID</label>
+                                        <input type="text" class="form-control" id="teacher_id${teacherId}" value="${teacher.identifier || 'Not assigned'}" readonly>
+                                        <div class="form-text">Teacher ID cannot be modified</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="first_name${teacherId}" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="first_name${teacherId}" name="first_name" required value="${teacher.first_name}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="last_name${teacherId}" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="last_name${teacherId}" name="last_name" required value="${teacher.last_name}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email${teacherId}" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email${teacherId}" name="email" required value="${teacher.email}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password${teacherId}" class="form-label">Password (leave blank to keep current)</label>
+                                        <input type="password" class="form-control" id="password${teacherId}" name="password">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="status${teacherId}" class="form-label">Status</label>
+                                        <select class="form-select" id="status${teacherId}" name="status">
+                                            <option value="active" ${teacher.status === 'active' ? 'selected' : ''}>Active</option>
+                                            <option value="inactive" ${teacher.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById(`editTeacherModal${teacherId}`));
+            modal.show();
+            
+            // Add event listener to remove modal when hidden
+            document.getElementById(`editTeacherModal${teacherId}`).addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        } else {
+            alert('Unable to load teacher details. Please refresh the page.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching teacher details:', error);
+        alert('Unable to load teacher details. Please refresh the page.');
+    });
+}
+
+// Function to get CSRF token
+function getCSRFToken() {
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+        const csrfInput = form.querySelector('input[name="csrf_token"]');
+        return csrfInput ? csrfInput.value : '';
+    }
+    return '';
+}
+
+// Function to clean up dynamic modals
+function cleanupDynamicModals() {
+    const dynamicModals = document.querySelectorAll('[id^="viewTeacherModal"], [id^="editTeacherModal"]');
+    dynamicModals.forEach(modal => modal.remove());
+}
+</script>
+
 <?php require_once '../includes/footer.php'; ?> 

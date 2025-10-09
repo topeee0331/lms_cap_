@@ -503,11 +503,9 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                             <div class="progress-icon">
                                 <i class="bi bi-graph-up"></i>
                             </div>
-                            <h3 class="progress-value"><?php echo $overall_progress ?? 0; ?>%</h3>
+                            <h3 class="progress-value" id="overall-progress-value"><?php echo $overall_progress ?? 0; ?>%</h3>
                             <p class="progress-label">Overall Progress</p>
-                            <div class="progress">
-                                <div class="progress-bar bg-primary" style="width: <?php echo $overall_progress ?? 0; ?>%"></div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -517,11 +515,9 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                             <div class="progress-icon">
                                 <i class="bi bi-collection"></i>
                             </div>
-                            <h3 class="progress-value"><?php echo $completed_modules ?? 0; ?>/<?php echo $total_modules ?? 0; ?></h3>
+                            <h3 class="progress-value"><span id="modules-completed"><?php echo $completed_modules ?? 0; ?></span>/<span id="modules-total"><?php echo $total_modules ?? 0; ?></span></h3>
                             <p class="progress-label">Modules Completed</p>
-                            <div class="progress">
-                                <div class="progress-bar bg-success" style="width: <?php echo ($total_modules ?? 0) > 0 ? round((($completed_modules ?? 0) / ($total_modules ?? 1)) * 100) : 0; ?>%"></div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -531,11 +527,9 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                             <div class="progress-icon">
                                 <i class="bi bi-play-circle"></i>
                             </div>
-                            <h3 class="progress-value"><?php echo $watched_videos ?? 0; ?>/<?php echo $total_videos ?? 0; ?></h3>
+                            <h3 class="progress-value"><span id="videos-watched"><?php echo $watched_videos ?? 0; ?></span>/<span id="videos-total"><?php echo $total_videos ?? 0; ?></span></h3>
                             <p class="progress-label">Videos Watched</p>
-                            <div class="progress">
-                                <div class="progress-bar bg-info" style="width: <?php echo ($total_videos ?? 0) > 0 ? round((($watched_videos ?? 0) / ($total_videos ?? 1)) * 100) : 0; ?>%"></div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -545,11 +539,9 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                             <div class="progress-icon">
                                 <i class="bi bi-clipboard-check"></i>
                             </div>
-                            <h3 class="progress-value"><?php echo $assessment_stats['passed_assessments'] ?? 0; ?>/<?php echo $assessment_stats['total_assessments'] ?? 0; ?></h3>
+                            <h3 class="progress-value"><span id="assessments-passed"><?php echo $assessment_stats['passed_assessments'] ?? 0; ?></span>/<span id="assessments-total"><?php echo $assessment_stats['total_assessments'] ?? 0; ?></span></h3>
                             <p class="progress-label">Assessments Passed</p>
-                            <div class="progress">
-                                <div class="progress-bar bg-warning" style="width: <?php echo ($assessment_stats['total_assessments'] ?? 0) > 0 ? round((($assessment_stats['passed_assessments'] ?? 0) / ($assessment_stats['total_assessments'] ?? 1)) * 100) : 0; ?>%"></div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -774,104 +766,7 @@ $debug_mode = isset($_GET['debug']) && $_GET['debug'] == '1';
                 </div>
             </div>
 
-            <!-- Module Progress -->
-            <?php if (!empty($module_progress) && is_array($module_progress)): ?>
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="bi bi-collection me-2"></i>Real-time Module Progress
-                                <span class="badge bg-success ms-2">Live Tracking</span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                                <div class="row">
-                                    <?php foreach ($module_progress as $module_id => $module): ?>
-                                    <div class="col-md-6 mb-4">
-                                        <div class="module-progress-card">
-                                            <div class="module-header">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0"><?php echo htmlspecialchars($module['title'] ?? 'Module ' . $module_id); ?></h6>
-                                                    <div class="module-status">
-                                                        <?php if (isset($module['is_completed']) && $module['is_completed'] == 1): ?>
-                                                            <span class="badge bg-success">
-                                                                <i class="bi bi-check-circle me-1"></i>Completed
-                                                            </span>
-                                                        <?php else: ?>
-                                                            <span class="badge bg-warning">
-                                                                <i class="bi bi-clock me-1"></i>In Progress
-                                                            </span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                                <div class="module-meta">
-                                                    <small class="text-muted">
-                                                        <?php if (isset($module['completed_at'])): ?>
-                                                            Completed: <?php echo date('M j, Y', strtotime($module['completed_at'])); ?>
-                                                        <?php else: ?>
-                                                            Started: <?php echo isset($module['started_at']) ? date('M j, Y', strtotime($module['started_at'])) : 'Recently'; ?>
-                                                        <?php endif; ?>
-                                                    </small>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="module-progress-bar">
-                                                <div class="progress" style="height: 12px;">
-                                                    <div class="progress-bar bg-primary" style="width: <?php echo $module['progress'] ?? 0; ?>%"></div>
-                                                </div>
-                                                <div class="progress-text">
-                                                    <span class="progress-percentage"><?php echo $module['progress'] ?? 0; ?>% Complete</span>
-                                                    <span class="progress-time">
-                                                        <?php if (isset($module['time_spent'])): ?>
-                                                            Time Spent: <?php echo gmdate('H:i:s', $module['time_spent']); ?>
-                                                        <?php endif; ?>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="module-details">
-                                                <div class="row text-center">
-                                                    <div class="col-4">
-                                                        <div class="detail-stat">
-                                                            <div class="stat-value"><?php echo isset($module['videos_watched']) ? $module['videos_watched'] : 0; ?></div>
-                                                            <div class="stat-label">Videos</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="detail-stat">
-                                                            <div class="stat-value"><?php echo isset($module['assessments_completed']) ? $module['assessments_completed'] : 0; ?></div>
-                                                            <div class="stat-label">Assessments</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="detail-stat">
-                                                            <div class="stat-value"><?php echo isset($module['points_earned']) ? $module['points_earned'] : 0; ?></div>
-                                                            <div class="stat-label">Points</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <?php if (isset($module['last_activity'])): ?>
-                                            <div class="module-activity">
-                                                <small class="text-muted">
-                                                    <i class="bi bi-activity me-1"></i>
-                                                    Last Activity: <?php echo date('M j, Y g:i A', strtotime($module['last_activity'])); ?>
-                                                </small>
-                                            </div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
+            
             <?php endif; ?>
             
             <?php if ($debug_mode): ?>
@@ -1568,44 +1463,111 @@ function selectCourse(courseId) {
 // Real-time data refresh
 let refreshInterval;
 
-function refreshData() {
+async function refreshData() {
     // Show loading state
     const refreshBtn = document.querySelector('button[onclick="refreshData()"]');
     if (refreshBtn) {
         refreshBtn.disabled = true;
         refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refreshing...';
     }
-    
-    // Reload the page to get fresh data
-    window.location.reload();
+    try {
+        await fetchAndUpdateProgress();
+    } catch (e) {}
+    if (refreshBtn) {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refresh';
+    }
+}
+
+async function fetchAndUpdateProgress() {
+    const studentId = <?php echo $student_id; ?>;
+    const courseId = <?php echo $course_id ?: 0; ?>;
+    if (!courseId) return;
+    const url = `/lms_cap/ajax_get_student_progress.php?student_id=${studentId}&course_id=${courseId}`;
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!resp.ok) return;
+    const json = await resp.json();
+    if (!json.success) return;
+    updateProgressUI(json);
+}
+
+function updateProgressUI(json) {
+    const progress = json.progress || {};
+    const modules = json.modules || [];
+    // Overall card
+    const overallVal = document.getElementById('overall-progress-value');
+    const overallBar = document.getElementById('overall-progress-bar');
+    if (overallVal) overallVal.textContent = (progress.course_progress ?? 0) + '%';
+    if (overallBar) overallBar.style.width = (progress.course_progress ?? 0) + '%';
+    // Modules card
+    const mCompleted = document.getElementById('modules-completed');
+    const mTotal = document.getElementById('modules-total');
+    const mBar = document.getElementById('modules-progress-bar');
+    if (mCompleted) mCompleted.textContent = progress.completed_modules ?? 0;
+    if (mTotal) mTotal.textContent = progress.total_modules ?? 0;
+    if (mBar) {
+        const pct = (progress.total_modules ?? 0) > 0 ? Math.round(((progress.completed_modules ?? 0) / (progress.total_modules || 1)) * 100) : 0;
+        mBar.style.width = pct + '%';
+    }
+    // Videos card
+    const vWatched = document.getElementById('videos-watched');
+    const vTotal = document.getElementById('videos-total');
+    const vBar = document.getElementById('videos-progress-bar');
+    if (vWatched) vWatched.textContent = progress.total_videos_watched ?? 0;
+    if (vTotal) vTotal.textContent = progress.total_videos ?? 0;
+    if (vBar) {
+        const vpct = (progress.total_videos ?? 0) > 0 ? Math.round(((progress.total_videos_watched ?? 0) / (progress.total_videos || 1)) * 100) : 0;
+        vBar.style.width = vpct + '%';
+    }
+    // Per-module cards
+    if (Array.isArray(modules)) {
+        modules.forEach(function(mod) {
+            const card = document.querySelector(`.module-progress-card[data-module-id="${mod.id}"]`);
+            if (!card) return;
+            const statusEl = card.querySelector('[data-module-status]');
+            const progBar = card.querySelector('[data-module-progress]');
+            const progText = card.querySelector('[data-module-progress-text]');
+            const vidsWatched = card.querySelector('[data-module-videos-watched]');
+            if (statusEl) {
+                if (mod.is_completed) {
+                    statusEl.className = 'badge bg-success';
+                    statusEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>Completed';
+                } else {
+                    statusEl.className = 'badge bg-warning';
+                    statusEl.innerHTML = '<i class="bi bi-clock me-1"></i>In Progress';
+                }
+            }
+            if (progBar) progBar.style.width = (mod.progress_percentage ?? 0) + '%';
+            if (progText) progText.textContent = (mod.progress_percentage ?? 0) + '% Complete';
+            if (vidsWatched && mod.watched_videos !== undefined) vidsWatched.textContent = mod.watched_videos;
+        });
+    }
 }
 
 // Auto-refresh every 30 seconds (only if not in course selection mode)
 <?php if (!$show_course_selection): ?>
 function startAutoRefresh() {
     refreshInterval = setInterval(() => {
-        // Only refresh if page is visible
         if (!document.hidden) {
-            refreshData();
+            fetchAndUpdateProgress();
         }
-    }, 30000);
+    }, 10000);
 }
 
-// Start auto-refresh when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    fetchAndUpdateProgress();
     startAutoRefresh();
 });
 
-// Stop auto-refresh when page is hidden
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
         clearInterval(refreshInterval);
     } else {
         startAutoRefresh();
+        fetchAndUpdateProgress();
     }
 });
 
-// Clean up on page unload
 window.addEventListener('beforeunload', function() {
     clearInterval(refreshInterval);
 });

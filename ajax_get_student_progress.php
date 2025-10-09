@@ -175,10 +175,11 @@ try {
         'last_updated' => date('Y-m-d H:i:s')
     ];
     
-    // Return success response
+    // Return success response with module-level details for real-time UI updates
     echo json_encode([
         'success' => true,
         'progress' => $progress_data,
+        'modules' => $modules,
         'message' => 'Progress data retrieved successfully'
     ]);
     

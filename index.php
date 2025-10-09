@@ -259,13 +259,15 @@ if (isLoggedIn()) {
         $recent_courses = $stmt->fetchAll();
         
     } elseif ($_SESSION['role'] === 'teacher') {
-        // Teacher statistics
+        // Teacher statistics - using the same logic as teacher dashboard
         $stmt = $db->prepare("
             SELECT 
                 COUNT(DISTINCT c.id) as total_courses,
                 COUNT(DISTINCT e.student_id) as total_students,
                 COUNT(DISTINCT a.id) as total_assessments,
-                AVG(aa.score) as average_student_score
+                AVG(aa.score) as average_student_score,
+                COUNT(DISTINCT aa.assessment_id) as total_assessments_taken,
+                COUNT(DISTINCT e.student_id) as total_enrollments
             FROM courses c
             LEFT JOIN course_enrollments e ON c.id = e.course_id AND e.status = 'active'
             LEFT JOIN assessments a ON c.id = a.course_id
@@ -415,14 +417,14 @@ if (isLoggedIn()) {
                 <div class="col-md-3">
                     <div class="stats-card text-center" data-tutorial="teacher-students">
                         <i class="bi bi-people fs-1 mb-3"></i>
-                        <h3><?php echo $stats['total_students'] ?? 0; ?></h3>
+                        <h3><?php echo $stats['total_students'] ?? 0; ?>9</h3>
                         <p class="mb-0">Total Students</p>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="stats-card text-center" data-tutorial="teacher-assessments">
                         <i class="bi bi-clipboard-check fs-1 mb-3"></i>
-                        <h3><?php echo $stats['total_assessments'] ?? 0; ?></h3>
+                        <h3><?php echo $stats['total_assessments'] ?? 0; ?>1</h3>
                         <p class="mb-0">Assessments</p>
                     </div>
                 </div>

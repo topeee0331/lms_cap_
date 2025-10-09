@@ -527,6 +527,7 @@ function deleteModuleFile($filename) {
 .btn-assessments {
     background: #f39c12;
     color: white;
+    font-size: 0.7rem;
 }
 
 .btn-toggle {
@@ -1119,39 +1120,57 @@ $stmt = $db->prepare("SELECT u.id, u.first_name, u.last_name, u.username, u.emai
 $stmt->execute([$course_id]);
 $students = $stmt->fetchAll();
 
-// Get course statistics (fix student count to use assigned sections)
-$stats_sql = "
-    SELECT 
-        (SELECT COUNT(DISTINCT u.id)
-         FROM sections s
-         JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
-         WHERE JSON_SEARCH((SELECT sections FROM courses WHERE id = ?), 'one', s.id) IS NOT NULL) as enrolled_students,
-        (SELECT JSON_LENGTH(modules) FROM courses WHERE id = ?) as total_modules,
-        (SELECT 
-            COALESCE((
-                SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].videos')))
-                FROM courses 
-                WHERE id = ?
-            ), 0)
-        ) as total_videos,
-        (SELECT 
-            COALESCE((
-                SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].assessments')))
-                FROM courses 
-                WHERE id = ?
-            ), 0)
-        ) as total_assessments,
-        (SELECT 
-            COALESCE((
-                SELECT SUM(JSON_LENGTH(JSON_EXTRACT(modules, '$[*].files')))
-                FROM courses 
-                WHERE id = ?
-            ), 0)
-        ) as total_files
-";
-$stmt = $db->prepare($stats_sql);
-$stmt->execute([$course_id, $course_id, $course_id, $course_id, $course_id]);
-$stats = $stmt->fetch();
+// Get enrolled students count
+$stmt = $db->prepare("
+    SELECT COUNT(DISTINCT u.id) as enrolled_students
+    FROM sections s
+    JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+    WHERE JSON_SEARCH((SELECT sections FROM courses WHERE id = ?), 'one', s.id) IS NOT NULL
+");
+$stmt->execute([$course_id]);
+$enrolled_students = $stmt->fetchColumn();
+
+// Calculate statistics from modules JSON data
+$total_modules = 0;
+$total_videos = 0;
+$total_assessments = 0;
+$total_files = 0;
+
+if ($course['modules']) {
+    $modules_data = json_decode($course['modules'], true);
+    if (is_array($modules_data)) {
+        $total_modules = count($modules_data);
+        
+        foreach ($modules_data as $module) {
+            // Count videos
+            if (isset($module['videos']) && is_array($module['videos'])) {
+                $total_videos += count($module['videos']);
+            }
+            
+            // Count assessments
+            if (isset($module['assessments']) && is_array($module['assessments'])) {
+                $total_assessments += count($module['assessments']);
+            }
+            
+            // Count files - handle both 'files' (array) and 'file' (single object) formats
+            if (isset($module['files']) && is_array($module['files'])) {
+                $total_files += count($module['files']);
+            } elseif (isset($module['file']) && !empty($module['file'])) {
+                // If 'file' exists and is not empty, count it as 1 file
+                $total_files += 1;
+            }
+        }
+    }
+}
+
+// Create stats array
+$stats = [
+    'enrolled_students' => $enrolled_students,
+    'total_modules' => $total_modules,
+    'total_videos' => $total_videos,
+    'total_assessments' => $total_assessments,
+    'total_files' => $total_files
+];
 ?>
 
 <div class="container-fluid">

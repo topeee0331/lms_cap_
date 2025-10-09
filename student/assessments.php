@@ -647,7 +647,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 1050;
+            z-index: 1025;
             max-width: 600px;
             width: 90%;
             margin: 0 !important;
@@ -2425,15 +2425,25 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Assessment filtering functionality
         document.addEventListener('DOMContentLoaded', function() {
+            // Ensure navbar dropdown works properly
+            console.log('Initializing assessments page...');
+            
             // Initialize Bootstrap tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+            
+            // Ensure navbar dropdown is working
+            const navbarDropdown = document.querySelector('.navbar .dropdown-toggle');
+            if (navbarDropdown) {
+                console.log('Navbar dropdown found and should be working');
+            } else {
+                console.warn('Navbar dropdown not found');
+            }
             
             // Auto-close attempt limits reminder after 5 seconds
             const attemptLimitsReminder = document.getElementById('attempt-limits-reminder');
@@ -2481,15 +2491,50 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 });
             });
             
-            const statusFilter = document.getElementById('statusFilter');
-            const courseFilter = document.getElementById('courseFilter');
-            const assessmentItems = document.querySelectorAll('.assessment-item');
+            // Get filter elements with retry mechanism
+            let statusFilter = document.getElementById('statusFilter');
+            let courseFilter = document.getElementById('courseFilter');
+            let assessmentItems = document.querySelectorAll('.assessment-item');
             
-            function filterAssessments() {
+            // Retry if elements not found immediately
+            if (!statusFilter || !courseFilter) {
+                setTimeout(() => {
+                    statusFilter = document.getElementById('statusFilter');
+                    courseFilter = document.getElementById('courseFilter');
+                    assessmentItems = document.querySelectorAll('.assessment-item');
+                    
+                    if (statusFilter && courseFilter) {
+                        console.log('Filter elements found on retry');
+                        initializeFilters();
+                    } else {
+                        console.error('Filter elements still not found after retry');
+                    }
+                }, 100);
+            } else {
+                initializeFilters();
+            }
+            
+            function initializeFilters() {
+                console.log('Initializing filters...');
+                
+                function filterAssessments() {
+                console.log('Filtering assessments...');
+                
+                if (!statusFilter || !courseFilter) {
+                    console.error('Filter elements not found');
+                    return;
+                }
+                
                 const selectedStatus = statusFilter.value;
                 const selectedCourse = courseFilter.value;
                 
-                assessmentItems.forEach(item => {
+                console.log('Selected status:', selectedStatus);
+                console.log('Selected course:', selectedCourse);
+                console.log('Total assessment items:', assessmentItems.length);
+                
+                let visibleCount = 0;
+                
+                assessmentItems.forEach((item, index) => {
                     const itemStatus = item.dataset.status;
                     const itemCourse = item.dataset.course;
                     const itemScore = parseFloat(item.dataset.score);
@@ -2513,17 +2558,19 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                     // Show/hide item
                     if (showItem) {
                         item.style.display = 'block';
-                        item.style.animation = 'fadeIn 0.3s ease-in';
+                        item.style.animation = 'fadeIn 0.3s ease-in-out';
+                        visibleCount++;
                     } else {
                         item.style.display = 'none';
                     }
                 });
                 
-                // Show message if no results
-                const visibleItems = document.querySelectorAll('.assessment-item[style*="display: block"]');
+                console.log('Visible items after filtering:', visibleCount);
+                
+                // Show/hide no results message
                 const noResultsMsg = document.querySelector('.no-results-message');
                 
-                if (visibleItems.length === 0) {
+                if (visibleCount === 0) {
                     if (!noResultsMsg) {
                         const message = document.createElement('div');
                         message.className = 'alert alert-info no-results-message text-center';
@@ -2537,9 +2584,103 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 }
             }
             
-            // Add event listeners
-            statusFilter.addEventListener('change', filterAssessments);
-            courseFilter.addEventListener('change', filterAssessments);
+                // Add event listeners with proper error handling
+                if (statusFilter) {
+                    statusFilter.addEventListener('change', function() {
+                        console.log('Status filter changed to:', this.value);
+                        filterAssessments();
+                    });
+                    
+                    // Fallback click event for better compatibility
+                    statusFilter.addEventListener('click', function() {
+                        console.log('Status filter clicked');
+                    });
+                }
+                
+                if (courseFilter) {
+                    courseFilter.addEventListener('change', function() {
+                        console.log('Course filter changed to:', this.value);
+                        filterAssessments();
+                    });
+                    
+                    // Fallback click event for better compatibility
+                    courseFilter.addEventListener('click', function() {
+                        console.log('Course filter clicked');
+                    });
+                }
+                
+                // Initial filter call to ensure everything is working
+                filterAssessments();
+                
+                // Make filterAssessments globally available for debugging
+                window.testFilters = function() {
+                    console.log('Testing filters...');
+                    console.log('Status filter element:', statusFilter);
+                    console.log('Course filter element:', courseFilter);
+                    console.log('Assessment items count:', assessmentItems.length);
+                    filterAssessments();
+                };
+            }
+            
+            // Ensure navbar dropdown functionality
+            function ensureNavbarDropdownWorks() {
+                const dropdownToggle = document.querySelector('.navbar .dropdown-toggle');
+                const dropdownMenu = document.querySelector('.navbar .dropdown-menu');
+                
+                if (dropdownToggle && dropdownMenu) {
+                    // Remove any existing event listeners to prevent conflicts
+                    const newToggle = dropdownToggle.cloneNode(true);
+                    dropdownToggle.parentNode.replaceChild(newToggle, dropdownToggle);
+                    
+                    // Add fresh event listener
+                    newToggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Toggle dropdown manually
+                        const isOpen = dropdownMenu.classList.contains('show');
+                        if (isOpen) {
+                            dropdownMenu.classList.remove('show');
+                            newToggle.setAttribute('aria-expanded', 'false');
+                        } else {
+                            dropdownMenu.classList.add('show');
+                            newToggle.setAttribute('aria-expanded', 'true');
+                        }
+                    });
+                    
+                    // Close dropdown when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!newToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                            dropdownMenu.classList.remove('show');
+                            newToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                    
+                    console.log('✅ Navbar dropdown functionality ensured');
+                } else {
+                    console.warn('⚠️ Navbar dropdown elements not found');
+                }
+            }
+            
+            // Call the function to ensure navbar dropdown works
+            ensureNavbarDropdownWorks();
+            
+            // Test function for debugging dropdown
+            window.testDropdown = function() {
+                console.log('Testing navbar dropdown...');
+                const dropdownToggle = document.querySelector('.navbar .dropdown-toggle');
+                const dropdownMenu = document.querySelector('.navbar .dropdown-menu');
+                
+                console.log('Dropdown toggle:', dropdownToggle);
+                console.log('Dropdown menu:', dropdownMenu);
+                
+                if (dropdownToggle && dropdownMenu) {
+                    console.log('✅ Dropdown elements found');
+                    console.log('Current dropdown state:', dropdownMenu.classList.contains('show') ? 'open' : 'closed');
+                } else {
+                    console.error('❌ Dropdown elements not found');
+                }
+            };
             
             // Add CSS animation
             const style = document.createElement('style');

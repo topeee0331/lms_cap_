@@ -95,18 +95,57 @@ $enrollment_trend = ($current_week['current_enrollments'] ?? 0) - ($previous_wee
 $course_trend = 0; // For now, keep as 0 since course creation is less frequent
 $assessment_trend = 0; // For now, keep as 0 since assessment completion tracking needs more complex logic
 
-// Get recent students (who have activity in this teacher's courses for this academic period)
+// Get detailed student information with enrollment details
 $stmt = $db->prepare("
-    SELECT DISTINCT u.id, u.username, u.email, u.first_name, u.last_name, u.role, u.created_at, u.profile_picture
+    SELECT DISTINCT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.first_name, 
+        u.last_name, 
+        u.role, 
+        u.created_at, 
+        u.profile_picture,
+        COUNT(DISTINCT e.course_id) as enrolled_courses_count,
+        GROUP_CONCAT(DISTINCT c.course_name ORDER BY c.course_name SEPARATOR ', ') as enrolled_courses,
+        MAX(e.enrolled_at) as last_enrollment_date
     FROM users u
     JOIN course_enrollments e ON u.id = e.student_id
     JOIN courses c ON e.course_id = c.id
-    WHERE c.teacher_id = ? AND c.academic_period_id = ?
-    ORDER BY u.created_at DESC 
-    LIMIT 5
+    WHERE c.teacher_id = ? AND c.academic_period_id = ? AND e.status = 'active'
+    GROUP BY u.id, u.username, u.email, u.first_name, u.last_name, u.role, u.created_at, u.profile_picture
+    ORDER BY last_enrollment_date DESC 
+    LIMIT 10
 ");
 $stmt->execute([$_SESSION['user_id'], $selected_period_id]);
 $recent_students = $stmt->fetchAll();
+
+// Get all students for the comprehensive view
+$stmt = $db->prepare("
+    SELECT DISTINCT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.first_name, 
+        u.last_name, 
+        u.role, 
+        u.created_at, 
+        u.profile_picture,
+        COUNT(DISTINCT e.course_id) as enrolled_courses_count,
+        GROUP_CONCAT(DISTINCT CONCAT(c.course_name, ' (', c.course_code, ')') ORDER BY c.course_name SEPARATOR ', ') as enrolled_courses,
+        MAX(e.enrolled_at) as last_enrollment_date,
+        COUNT(DISTINCT aa.assessment_id) as completed_assessments,
+        AVG(aa.score) as average_score
+    FROM users u
+    JOIN course_enrollments e ON u.id = e.student_id
+    JOIN courses c ON e.course_id = c.id
+    LEFT JOIN assessment_attempts aa ON u.id = aa.student_id AND aa.status = 'completed'
+    WHERE c.teacher_id = ? AND c.academic_period_id = ? AND e.status = 'active'
+    GROUP BY u.id, u.username, u.email, u.first_name, u.last_name, u.role, u.created_at, u.profile_picture
+    ORDER BY u.first_name, u.last_name
+");
+$stmt->execute([$_SESSION['user_id'], $selected_period_id]);
+$all_students = $stmt->fetchAll();
 
 // Get recent courses for this teacher
 $stmt = $db->prepare("
@@ -632,15 +671,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             </li>
                         <?php else: ?>
                             <?php foreach ($recent_students as $student): ?>
-                            <li class="list-group-item d-flex align-items-center">
-                                <img src="<?php echo getProfilePictureUrl($student['profile_picture'] ?? null, 'medium'); ?>" class="rounded-circle me-3" alt="Profile" style="width: 48px; height: 48px; object-fit: cover;">
-                                <div class="flex-grow-1">
-                                    <div class="fw-bold"><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></div>
-                                    <small class="text-muted"><?php echo htmlspecialchars($student['email']); ?></small>
+                            <li class="list-group-item">
+                                <div class="d-flex align-items-center mb-2">
+                                    <img src="<?php echo getProfilePictureUrl($student['profile_picture'] ?? null, 'medium'); ?>" class="rounded-circle me-3" alt="Profile" style="width: 48px; height: 48px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold"><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></div>
+                                        <small class="text-muted"><?php echo htmlspecialchars($student['email']); ?></small>
+                                    </div>
+                                    <span class="badge bg-primary">
+                                        <?php echo $student['enrolled_courses_count']; ?> Course<?php echo $student['enrolled_courses_count'] > 1 ? 's' : ''; ?>
+                                    </span>
                                 </div>
-                                <span class="badge bg-success">
-                                    Student
-                                </span>
+                                <div class="ms-5">
+                                    <small class="text-muted">
+                                        <strong>Enrolled in:</strong> <?php echo htmlspecialchars($student['enrolled_courses']); ?>
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <strong>Last enrolled:</strong> <?php echo formatDate($student['last_enrollment_date']); ?>
+                                    </small>
+                                </div>
                             </li>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -679,6 +729,102 @@ document.addEventListener('DOMContentLoaded', function() {
                             <?php endforeach; ?>
                         </div>
                         <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Students Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-people me-2"></i>All Students (<?php echo count($all_students); ?>)
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-info"><?php echo count($all_students); ?> Total Students</span>
+                        <a href="students.php" class="btn btn-sm btn-primary">Manage Students</a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (empty($all_students)): ?>
+                        <div class="text-center py-5">
+                            <i class="bi bi-people fs-1 text-muted d-block mb-3"></i>
+                            <h6 class="text-muted">No students enrolled in your courses</h6>
+                            <p class="text-muted">Students will appear here once they enroll in your courses.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Email</th>
+                                        <th>Courses Enrolled</th>
+                                        <th>Assessments Completed</th>
+                                        <th>Average Score</th>
+                                        <th>Last Enrollment</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($all_students as $student): ?>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <img src="<?php echo getProfilePictureUrl($student['profile_picture'] ?? null, 'small'); ?>" 
+                                                     class="rounded-circle me-3" alt="Profile" 
+                                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                                <div>
+                                                    <div class="fw-bold"><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></div>
+                                                    <small class="text-muted">@<?php echo htmlspecialchars($student['username']); ?></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small><?php echo htmlspecialchars($student['email']); ?></small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary"><?php echo $student['enrolled_courses_count']; ?></span>
+                                            <small class="text-muted d-block mt-1" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                                   title="<?php echo htmlspecialchars($student['enrolled_courses']); ?>">
+                                                <?php echo htmlspecialchars($student['enrolled_courses']); ?>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success"><?php echo $student['completed_assessments'] ?? 0; ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if ($student['average_score']): ?>
+                                                <span class="badge bg-<?php echo $student['average_score'] >= 80 ? 'success' : ($student['average_score'] >= 60 ? 'warning' : 'danger'); ?>">
+                                                    <?php echo number_format($student['average_score'], 1); ?>%
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary">No scores</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted"><?php echo formatDate($student['last_enrollment_date']); ?></small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="student_progress.php?student_id=<?php echo $student['id']; ?>" 
+                                                   class="btn btn-outline-primary" title="View Progress">
+                                                    <i class="bi bi-graph-up"></i>
+                                                </a>
+                                                <a href="mailto:<?php echo htmlspecialchars($student['email']); ?>" 
+                                                   class="btn btn-outline-success" title="Send Email">
+                                                    <i class="bi bi-envelope"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

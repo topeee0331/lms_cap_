@@ -916,7 +916,6 @@ $monthly_progress = $stmt->fetchAll();
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Monthly progress chart
         const ctx = document.getElementById('monthlyChart').getContext('2d');
@@ -1202,6 +1201,70 @@ $monthly_progress = $stmt->fetchAll();
                     updateProgress();
                 }
             });
+        });
+        
+        // Ensure navbar dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing progress page...');
+            
+            function ensureNavbarDropdownWorks() {
+                const dropdownToggle = document.querySelector('.navbar .dropdown-toggle');
+                const dropdownMenu = document.querySelector('.navbar .dropdown-menu');
+                
+                if (dropdownToggle && dropdownMenu) {
+                    // Remove any existing event listeners to prevent conflicts
+                    const newToggle = dropdownToggle.cloneNode(true);
+                    dropdownToggle.parentNode.replaceChild(newToggle, dropdownToggle);
+                    
+                    // Add fresh event listener
+                    newToggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Toggle dropdown manually
+                        const isOpen = dropdownMenu.classList.contains('show');
+                        if (isOpen) {
+                            dropdownMenu.classList.remove('show');
+                            newToggle.setAttribute('aria-expanded', 'false');
+                        } else {
+                            dropdownMenu.classList.add('show');
+                            newToggle.setAttribute('aria-expanded', 'true');
+                        }
+                    });
+                    
+                    // Close dropdown when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!newToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                            dropdownMenu.classList.remove('show');
+                            newToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                    
+                    console.log('✅ Navbar dropdown functionality ensured');
+                } else {
+                    console.warn('⚠️ Navbar dropdown elements not found');
+                }
+            }
+            
+            // Call the function to ensure navbar dropdown works
+            ensureNavbarDropdownWorks();
+            
+            // Test function for debugging dropdown
+            window.testDropdown = function() {
+                console.log('Testing navbar dropdown...');
+                const dropdownToggle = document.querySelector('.navbar .dropdown-toggle');
+                const dropdownMenu = document.querySelector('.navbar .dropdown-menu');
+                
+                console.log('Dropdown toggle:', dropdownToggle);
+                console.log('Dropdown menu:', dropdownMenu);
+                
+                if (dropdownToggle && dropdownMenu) {
+                    console.log('✅ Dropdown elements found');
+                    console.log('Current dropdown state:', dropdownMenu.classList.contains('show') ? 'open' : 'closed');
+                } else {
+                    console.error('❌ Dropdown elements not found');
+                }
+            };
         });
     </script>
 </body>

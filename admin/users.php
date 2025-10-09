@@ -439,6 +439,66 @@ require_once '../includes/header.php';
     100% { transform: translateY(-50%) rotate(360deg); }
 }
 
+/* Courses Scrollable Container */
+.courses-scrollable {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--main-green) #f1f1f1;
+}
+
+.courses-scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.courses-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.courses-scrollable::-webkit-scrollbar-thumb {
+    background: var(--main-green);
+    border-radius: 3px;
+}
+
+.courses-scrollable::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-green);
+}
+
+/* Password Toggle Button */
+.password-toggle-btn {
+    border-left: none;
+    transition: all 0.3s ease;
+}
+
+.password-toggle-btn:hover {
+    background-color: var(--accent-green);
+    border-color: var(--accent-green);
+    color: white;
+}
+
+.password-toggle-btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+}
+
+.input-group .form-control:focus {
+    border-color: var(--main-green);
+    box-shadow: 0 0 0 0.2rem rgba(46, 94, 78, 0.25);
+}
+
+/* Readonly Password Field */
+.form-control[readonly] {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #6c757d;
+}
+
+.form-control[readonly]:focus {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    box-shadow: none;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .welcome-title {
@@ -455,6 +515,10 @@ require_once '../includes/header.php';
     
     .table-container .card-header {
         padding: 1rem;
+    }
+    
+    .courses-scrollable {
+        max-height: 250px;
     }
 }
 </style>
@@ -514,11 +578,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $status = ($role === 'teacher') ? (sanitizeInput($_POST['status'] ?? 'active')) : null;
                         if ($role === 'teacher') {
-                            $stmt = $db->prepare('INSERT INTO users (username, email, password, first_name, last_name, role, identifier, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-                            $stmt->execute([$username, $email, $hashed, $first_name, $last_name, $role, $userId, $status]);
+                            $stmt = $db->prepare('INSERT INTO users (username, email, password, plain_text_password, first_name, last_name, role, identifier, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                            $stmt->execute([$username, $email, $hashed, $password, $first_name, $last_name, $role, $userId, $status]);
                         } else {
-                            $stmt = $db->prepare('INSERT INTO users (username, email, password, first_name, last_name, role, identifier, is_irregular) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-                            $stmt->execute([$username, $email, $hashed, $first_name, $last_name, $role, $userId, $is_irregular]);
+                            $stmt = $db->prepare('INSERT INTO users (username, email, password, plain_text_password, first_name, last_name, role, identifier, is_irregular) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                            $stmt->execute([$username, $email, $hashed, $password, $first_name, $last_name, $role, $userId, $is_irregular]);
                         }
                         $message = 'User created successfully with ID: ' . $userId;
                         $message_type = 'success';
@@ -578,11 +642,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $hashed = password_hash($password, PASSWORD_DEFAULT);
                             $status = ($role === 'teacher') ? (sanitizeInput($_POST['status'] ?? 'active')) : null;
                             if ($role === 'teacher') {
-                                $stmt = $db->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, password = ?, status = ? WHERE id = ?');
-                                $stmt->execute([$first_name, $last_name, $email, $role, $hashed, $status, $user_id]);
+                                $stmt = $db->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, password = ?, plain_text_password = ?, status = ? WHERE id = ?');
+                                $stmt->execute([$first_name, $last_name, $email, $role, $hashed, $password, $status, $user_id]);
                             } else {
-                                $stmt = $db->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, password = ?, is_irregular = ? WHERE id = ?');
-                                $stmt->execute([$first_name, $last_name, $email, $role, $hashed, $is_irregular, $user_id]);
+                                $stmt = $db->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, password = ?, plain_text_password = ?, is_irregular = ? WHERE id = ?');
+                                $stmt->execute([$first_name, $last_name, $email, $role, $hashed, $password, $is_irregular, $user_id]);
                             }
                         } else {
                             $status = ($role === 'teacher') ? (sanitizeInput($_POST['status'] ?? 'active')) : null;
@@ -638,9 +702,9 @@ if (!empty($role_filter)) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
-// Update users query to fetch is_irregular, status, and identifier
+// Update users query to fetch is_irregular, status, identifier, and plain_text_password
 $stmt = $db->prepare("
-    SELECT id, username, email, first_name, last_name, role, profile_picture, created_at, is_irregular, status, identifier 
+    SELECT id, username, email, first_name, last_name, role, profile_picture, created_at, is_irregular, status, identifier, plain_text_password 
     FROM users 
     $where_clause 
     ORDER BY created_at DESC
@@ -763,6 +827,92 @@ function get_user_sections($db, $user_id, $role, $sections) {
         }
     }
     return $names;
+}
+
+// Get courses for a teacher
+function get_teacher_courses($db, $teacher_id) {
+    $sql = "SELECT id, course_name, course_code, description, status, year_level, credits, created_at 
+            FROM courses 
+            WHERE teacher_id = ? 
+            ORDER BY created_at DESC";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$teacher_id]);
+    return $stmt->fetchAll();
+}
+
+// Generate courses display for teacher
+function generateTeacherCoursesDisplay($db, $teacher_id) {
+    $courses = get_teacher_courses($db, $teacher_id);
+    
+    if (empty($courses)) {
+        return '<div class="text-center text-muted py-2">
+                    <i class="bi bi-book fs-5 mb-1"></i>
+                    <p class="mb-0 small">No courses assigned yet</p>
+                </div>';
+    }
+    
+    $courses_html = '<div class="row g-2">';
+    
+    foreach ($courses as $course) {
+        $status_badge = '';
+        switch ($course['status']) {
+            case 'active':
+                $status_badge = '<span class="badge bg-success badge-sm">Active</span>';
+                break;
+            case 'inactive':
+                $status_badge = '<span class="badge bg-secondary badge-sm">Inactive</span>';
+                break;
+            case 'archived':
+                $status_badge = '<span class="badge bg-warning badge-sm">Archived</span>';
+                break;
+            case 'draft':
+                $status_badge = '<span class="badge bg-info badge-sm">Draft</span>';
+                break;
+        }
+        
+        $courses_html .= '
+            <div class="col-md-6">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h6 class="card-title mb-0 fw-semibold text-primary small">' . htmlspecialchars($course['course_name']) . '</h6>
+                            ' . $status_badge . '
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 small text-muted">
+                            <span><strong>Code:</strong> ' . htmlspecialchars($course['course_code']) . '</span>';
+        
+        if (!empty($course['year_level'])) {
+            $courses_html .= '<span><strong>Year:</strong> ' . htmlspecialchars($course['year_level']) . '</span>';
+        }
+        
+        if (!empty($course['credits'])) {
+            $courses_html .= '<span><strong>Credits:</strong> ' . htmlspecialchars($course['credits']) . '</span>';
+        }
+        
+        $courses_html .= '</div>';
+        
+        if (!empty($course['description'])) {
+            $description = strlen($course['description']) > 80 ? substr($course['description'], 0, 80) . '...' : $course['description'];
+            $courses_html .= '<p class="card-text small text-muted mb-1 mt-1">
+                                ' . htmlspecialchars($description) . '
+                              </p>';
+        }
+        
+        $courses_html .= '
+                        <div class="mt-1">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                ' . date('M j, Y', strtotime($course['created_at'])) . '
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>';
+    }
+    
+    $courses_html .= '</div>';
+    
+    return $courses_html;
 }
 ?>
 
@@ -1243,12 +1393,42 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                                         <?php endif; ?>
                                                             
                                                         <div class="mb-3">
-                                                                <label for="password<?= $user['id'] ?>" class="form-label fw-semibold">
-                                                                    <i class="bi bi-key me-2"></i>Password
+                                                                <label class="form-label fw-semibold">
+                                                                    <i class="bi bi-key me-2"></i>Password Management
                                                                 </label>
-                                                                <input type="password" class="form-control" id="password<?= $user['id'] ?>" 
-                                                                       name="password" placeholder="Leave blank to keep current password">
-                                                                <div class="form-text">Minimum 6 characters required if changing password.</div>
+                                                                
+                                                                <!-- Current Password Display -->
+                                                                <div class="mb-2">
+                                                                    <label for="currentPassword<?= $user['id'] ?>" class="form-label small text-muted">
+                                                                        <i class="bi bi-shield-lock me-1"></i>Current Password
+                                                                    </label>
+                                                                    <div class="input-group">
+                                                                        <input type="password" class="form-control" id="currentPassword<?= $user['id'] ?>" 
+                                                                               value="<?= htmlspecialchars($user['plain_text_password'] ?? '••••••••••••') ?>" readonly>
+                                                                        <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="toggleCurrentPassword<?= $user['id'] ?>">
+                                                                            <i class="bi bi-eye" id="currentEyeIcon<?= $user['id'] ?>"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="form-text small text-muted">
+                                                                        <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                                                                        <strong>Security Warning:</strong> Password is stored in plain text for admin viewing
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <!-- New Password Input -->
+                                                                <div>
+                                                                    <label for="password<?= $user['id'] ?>" class="form-label small text-muted">
+                                                                        <i class="bi bi-key me-1"></i>New Password
+                                                                    </label>
+                                                                    <div class="input-group">
+                                                                        <input type="password" class="form-control" id="password<?= $user['id'] ?>" 
+                                                                               name="password" placeholder="Enter new password (leave blank to keep current)">
+                                                                        <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="togglePassword<?= $user['id'] ?>">
+                                                                            <i class="bi bi-eye" id="eyeIcon<?= $user['id'] ?>"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="form-text">Minimum 6 characters required if changing password.</div>
+                                                                </div>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
@@ -1351,6 +1531,19 @@ function get_user_sections($db, $user_id, $role, $sections) {
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-12">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-semibold">
+                                                                            <i class="bi bi-book me-2"></i>Courses Taught
+                                                                        </label>
+                                                                        <div class="bg-light p-3 rounded courses-scrollable">
+                                                                            <?= generateTeacherCoursesDisplay($db, $user['id']) ?>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                             <?php endif; ?>
                                                             
                                                             <?php if ($user['role'] === 'student'): ?>
@@ -1408,6 +1601,9 @@ function get_user_sections($db, $user_id, $role, $sections) {
         </div>
     </div>
 </div>
+
+<!-- Modals Container for AJAX-loaded modals -->
+<div id="modalsContainer"></div>
 
 <!-- Create User Modal -->
     <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserLabel" aria-hidden="true">
@@ -1603,6 +1799,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update users table with animation
                     usersTableContainer.innerHTML = data.users_html;
                     
+                    // Update modals container
+                    const modalsContainer = document.getElementById('modalsContainer');
+                    if (modalsContainer && data.modals_html) {
+                        modalsContainer.innerHTML = data.modals_html;
+                    }
+                    
                     // Update user count badge with animation
                     if (userCountBadge) {
                         userCountBadge.style.transform = 'scale(1.1)';
@@ -1781,6 +1983,57 @@ document.addEventListener('DOMContentLoaded', function() {
         yearSelect.value = urlParams.get('year') || '';
         performSearch();
     });
+    
+    // Password toggle functionality
+    function initializePasswordToggles() {
+        // Handle new password toggles
+        document.querySelectorAll('[id^="togglePassword"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const userId = this.id.replace('togglePassword', '');
+                const passwordInput = document.getElementById('password' + userId);
+                const eyeIcon = document.getElementById('eyeIcon' + userId);
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.classList.remove('bi-eye');
+                    eyeIcon.classList.add('bi-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.classList.remove('bi-eye-slash');
+                    eyeIcon.classList.add('bi-eye');
+                }
+            });
+        });
+        
+        // Handle current password toggles
+        document.querySelectorAll('[id^="toggleCurrentPassword"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const userId = this.id.replace('toggleCurrentPassword', '');
+                const currentPasswordInput = document.getElementById('currentPassword' + userId);
+                const currentEyeIcon = document.getElementById('currentEyeIcon' + userId);
+                
+                if (currentPasswordInput.type === 'password') {
+                    currentPasswordInput.type = 'text';
+                    currentEyeIcon.classList.remove('bi-eye');
+                    currentEyeIcon.classList.add('bi-eye-slash');
+                } else {
+                    currentPasswordInput.type = 'password';
+                    currentEyeIcon.classList.remove('bi-eye-slash');
+                    currentEyeIcon.classList.add('bi-eye');
+                }
+            });
+        });
+    }
+    
+    // Initialize password toggles on page load
+    initializePasswordToggles();
+    
+    // Re-initialize password toggles after AJAX updates
+    const originalPerformSearch = performSearch;
+    performSearch = function() {
+        originalPerformSearch();
+        setTimeout(initializePasswordToggles, 100);
+    };
 });
 </script>
 

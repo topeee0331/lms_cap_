@@ -1040,24 +1040,6 @@ error_log("Total videos found: " . count($videos));
                     </h1>
                     <p class="mb-0 opacity-90">Manage and organize your educational videos across all courses and modules.</p>
                 </div>
-                <div class="col-md-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="video-stats">
-                            <div class="video-stat-item">
-                                <span class="video-stat-number"><?php echo count($videos); ?></span>
-                                <span class="video-stat-label">Total Videos</span>
-                            </div>
-                            <div class="video-stat-item">
-                                <span class="video-stat-number"><?php echo count($courses); ?></span>
-                                <span class="video-stat-label">Courses</span>
-                            </div>
-                            <div class="video-stat-item">
-                                <span class="video-stat-number"><?php echo count($modules); ?></span>
-                                <span class="video-stat-label">Modules</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

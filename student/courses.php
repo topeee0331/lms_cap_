@@ -1474,10 +1474,10 @@ $course_themes = [
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="alert alert-info mb-3">
+                        <input type="text" id="modalCourseFilter" class="form-control mb-3" placeholder="Filter by course name or teacher...">
+                        <div class="text-muted mb-3">
                             <i class="fas fa-info-circle"></i> These courses are designed for your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>) but are assigned to different sections. You can request enrollment in any of these courses. All enrollments require teacher verification.
                         </div>
-                        <input type="text" id="modalCourseFilter" class="form-control mb-3" placeholder="Filter by course name or teacher...">
                         <div class="row" id="modalCourseList">
                             <?php
                             // Use the pre-filtered non-section courses for the modal
@@ -1486,8 +1486,12 @@ $course_themes = [
                             
                             <?php if (empty($modal_courses)): ?>
                                 <div class="col-12">
-                                    <div class="alert alert-info text-center">
-                                        <i class="fas fa-info-circle"></i> No courses from other sections are currently available.
+                                    <div class="card text-center">
+                                        <div class="card-body">
+                                            <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                                            <h5 class="card-title text-muted">No courses from other sections are currently available.</h5>
+                                            <p class="card-text text-muted">These courses are designed for your year level (<?php echo $student_year_level ? $student_year_level . ' Year' : 'Unknown'; ?>) but are assigned to different sections. You can request enrollment in any of these courses. All enrollments require teacher verification.</p>
+                                        </div>
                                     </div>
                                 </div>
                             <?php else: ?>

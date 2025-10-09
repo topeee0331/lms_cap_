@@ -114,7 +114,7 @@ $stmt = $pdo->prepare("
         COUNT(DISTINCT e.course_id) as total_courses,
         (SELECT COUNT(*) FROM course_enrollments e2 
          JOIN courses c ON e2.course_id = c.id
-         WHERE e2.student_id = ? AND e2.status = 'active' AND c.academic_period_id = ? AND c.modules IS NOT NULL) as total_modules,
+         WHERE e2.student_id = ? AND e2.status = 'active' AND c.academic_period_id = ? AND c.modules IS NOT NULL) as courses_with_modules,
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active') as available_in_section,
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'inactive') as inactive_periods,
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active' AND id NOT IN (SELECT course_id FROM course_enrollments WHERE student_id = ? AND status = 'active')) as other_sections
@@ -124,6 +124,20 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$user_id, $selected_year_id, $selected_year_id, $selected_year_id, $selected_year_id, $user_id, $user_id, $selected_year_id]);
 $stats = $stmt->fetch();
+
+// Calculate actual total modules from JSON data
+$total_modules = 0;
+foreach ($enrolled_courses as $course) {
+    if ($course['modules']) {
+        $modules_data = json_decode($course['modules'], true);
+        if (is_array($modules_data)) {
+            $total_modules += count($modules_data);
+        }
+    }
+}
+
+// Update stats with correct module count
+$stats['total_modules'] = $total_modules;
 
 // Calculate completed modules based on assessment attempts
 $stmt = $pdo->prepare("

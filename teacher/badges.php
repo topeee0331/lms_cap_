@@ -16,9 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $name = trim($_POST['badge_name'] ?? '');
     $desc = trim($_POST['badge_description'] ?? '');
     $type = trim($_POST['badge_type'] ?? '');
-    $criteria = trim($_POST['criteria'] ?? '');
+    $criteria_type = trim($_POST['criteria_type'] ?? '');
+    $criteria_value = (int)($_POST['criteria_value'] ?? 0);
     $points_value = (int)($_POST['points_value'] ?? 0);
-    $icon = null;
+    $icon = null; // Will be set to default or uploaded icon
+    
+    // Build criteria JSON from simplified inputs
+    $criteria = json_encode([$criteria_type => $criteria_value]);
     
     if (isset($_FILES['badge_icon']) && $_FILES['badge_icon']['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES['badge_icon']['name'], PATHINFO_EXTENSION));
@@ -32,26 +36,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
     
-    if (empty($name) || empty($desc) || empty($type) || empty($criteria)) {
-        $message = 'All fields are required.';
+    if (empty($name) || empty($desc) || empty($type) || empty($criteria_type) || $criteria_value <= 0) {
+        $message = 'All fields are required and criteria value must be greater than 0.';
         $message_type = 'danger';
     } else {
-        // Validate JSON criteria
-        $decoded_criteria = json_decode($criteria, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $message = 'Invalid JSON format for criteria.';
-            $message_type = 'danger';
+        if ($has_created_by) {
+            if ($icon) {
+                $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_icon, badge_type, criteria, points_value, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value, $_SESSION['user_id']]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_type, criteria, points_value, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$name, $desc, $type, $criteria, $points_value, $_SESSION['user_id']]);
+            }
         } else {
-                                if ($has_created_by) {
-                        $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_icon, badge_type, criteria, points_value, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
-                        $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value, $_SESSION['user_id']]);
-                    } else {
-                        $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_icon, badge_type, criteria, points_value) VALUES (?, ?, ?, ?, ?, ?)');
-                        $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value]);
-                    }
-            $message = 'Badge created successfully!';
-            $message_type = 'success';
+            if ($icon) {
+                $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_icon, badge_type, criteria, points_value) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO badges (badge_name, badge_description, badge_type, criteria, points_value) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$name, $desc, $type, $criteria, $points_value]);
+            }
         }
+        $message = 'Badge created successfully!';
+        $message_type = 'success';
     }
 }
 
@@ -61,9 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $name = trim($_POST['badge_name'] ?? '');
     $desc = trim($_POST['badge_description'] ?? '');
     $type = trim($_POST['badge_type'] ?? '');
-    $criteria = trim($_POST['criteria'] ?? '');
+    $criteria_type = trim($_POST['criteria_type'] ?? '');
+    $criteria_value = (int)($_POST['criteria_value'] ?? 0);
     $points_value = (int)($_POST['points_value'] ?? 0);
-    $icon = null;
+    $icon = null; // Will be set to current icon or new icon
+    
+    // Build criteria JSON from simplified inputs
+    $criteria = json_encode([$criteria_type => $criteria_value]);
     
     // Verify teacher owns this badge
     $stmt = $db->prepare('SELECT id FROM badges WHERE id = ? AND created_by = ?');
@@ -72,6 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message = 'You can only edit badges you created.';
         $message_type = 'danger';
     } else {
+        // Get current icon
+        $stmt = $db->prepare('SELECT badge_icon FROM badges WHERE id = ?');
+        $stmt->execute([$id]);
+        $current_badge = $stmt->fetch();
+        $icon = $current_badge['badge_icon']; // Keep current icon by default
+        
         if (isset($_FILES['badge_icon']) && $_FILES['badge_icon']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['badge_icon']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['png','jpg','jpeg'])) {
@@ -84,26 +101,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
         }
         
-        if (empty($name) || empty($desc) || empty($type) || empty($criteria)) {
-            $message = 'All fields are required.';
+        if (empty($name) || empty($desc) || empty($type) || empty($criteria_type) || $criteria_value <= 0) {
+            $message = 'All fields are required and criteria value must be greater than 0.';
             $message_type = 'danger';
         } else {
-            // Validate JSON criteria
-            $decoded_criteria = json_decode($criteria, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $message = 'Invalid JSON format for criteria.';
-                $message_type = 'danger';
+            if ($icon && $icon !== $current_badge['badge_icon']) {
+                // New icon uploaded
+                $stmt = $db->prepare('UPDATE badges SET badge_name=?, badge_description=?, badge_icon=?, badge_type=?, criteria=?, points_value=? WHERE id=? AND created_by=?');
+                $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value, $id, $_SESSION['user_id']]);
             } else {
-                if ($icon) {
-                    $stmt = $db->prepare('UPDATE badges SET badge_name=?, badge_description=?, badge_icon=?, badge_type=?, criteria=?, points_value=? WHERE id=? AND created_by=?');
-                    $stmt->execute([$name, $desc, $icon, $type, $criteria, $points_value, $id, $_SESSION['user_id']]);
-                } else {
-                    $stmt = $db->prepare('UPDATE badges SET badge_name=?, badge_description=?, badge_type=?, criteria=?, points_value=? WHERE id=? AND created_by=?');
-                    $stmt->execute([$name, $desc, $type, $criteria, $points_value, $id, $_SESSION['user_id']]);
-                }
-                $message = 'Badge updated successfully!';
-                $message_type = 'success';
+                // No new icon, keep existing
+                $stmt = $db->prepare('UPDATE badges SET badge_name=?, badge_description=?, badge_type=?, criteria=?, points_value=? WHERE id=? AND created_by=?');
+                $stmt->execute([$name, $desc, $type, $criteria, $points_value, $id, $_SESSION['user_id']]);
             }
+            $message = 'Badge updated successfully!';
+            $message_type = 'success';
         }
     }
 }
@@ -624,8 +636,14 @@ $badge_stats = $stmt->fetch();
                                 <?php foreach ($badges as $badge): ?>
                                 <tr>
                                     <td>
-                                        <img src="../uploads/badges/<?php echo htmlspecialchars($badge['badge_icon'] ?: 'default.png'); ?>" 
-                                             alt="icon" style="height:40px;" class="rounded">
+                                        <?php if ($badge['badge_icon']): ?>
+                                            <img src="../uploads/badges/<?php echo htmlspecialchars($badge['badge_icon']); ?>" 
+                                                 alt="icon" style="height:40px;" class="rounded">
+                                        <?php else: ?>
+                                            <div class="badge-icon-placeholder" style="width:40px;height:40px;background:#f8f9fa;border:2px solid #dee2e6;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+                                                <i class="bi bi-award" style="font-size:20px;color:#6c757d;"></i>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="fw-bold"><?php echo htmlspecialchars($badge['badge_name']); ?></div>
@@ -722,16 +740,25 @@ $badge_stats = $stmt->fetch();
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Criteria (JSON)</label>
-                        <textarea class="form-control" name="criteria" rows="4" required placeholder='{"assessments_taken": 3}'></textarea>
-                        <div class="form-text">
-                            <strong>Examples:</strong><br>
-                            • <code>{"assessments_taken": 3}</code> - Complete 3 assessments<br>
-                            • <code>{"courses_completed": 1}</code> - Complete 1 course<br>
-                            • <code>{"average_score": 90}</code> - Maintain 90% average score<br>
-                            • <code>{"videos_watched": 20}</code> - Watch 20 videos
+                        <label class="form-label">Criteria Type</label>
+                        <select class="form-select" id="criteriaType" name="criteria_type" required>
+                            <option value="">Select criteria type</option>
+                            <option value="assessments_taken">Complete Assessments</option>
+                            <option value="courses_completed">Complete Courses</option>
+                            <option value="average_score">Achieve Average Score</option>
+                            <option value="videos_watched">Watch Videos</option>
+                            <option value="login_streak">Login Streak</option>
+                            <option value="perfect_scores">Perfect Scores</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Target Value</label>
+                        <input type="number" class="form-control" id="criteriaValue" name="criteria_value" min="1" max="1000" required placeholder="Enter target number">
+                        <div class="form-text" id="criteriaHelp">
+                            Enter the target number for this criteria
                         </div>
                     </div>
+                    <input type="hidden" id="criteriaJson" name="criteria" value="">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -788,9 +815,25 @@ $badge_stats = $stmt->fetch();
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Criteria (JSON)</label>
-                            <textarea class="form-control" name="criteria" rows="4" required><?php echo htmlspecialchars($badge['criteria']); ?></textarea>
+                            <label class="form-label">Criteria Type</label>
+                            <select class="form-select" id="editCriteriaType<?php echo $badge['id']; ?>" name="criteria_type" required>
+                                <option value="">Select criteria type</option>
+                                <option value="assessments_taken">Complete Assessments</option>
+                                <option value="courses_completed">Complete Courses</option>
+                                <option value="average_score">Achieve Average Score</option>
+                                <option value="videos_watched">Watch Videos</option>
+                                <option value="login_streak">Login Streak</option>
+                                <option value="perfect_scores">Perfect Scores</option>
+                            </select>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Target Value</label>
+                            <input type="number" class="form-control" id="editCriteriaValue<?php echo $badge['id']; ?>" name="criteria_value" min="1" max="1000" required placeholder="Enter target number">
+                            <div class="form-text" id="editCriteriaHelp<?php echo $badge['id']; ?>">
+                                Enter the target number for this criteria
+                            </div>
+                        </div>
+                        <input type="hidden" id="editCriteriaJson<?php echo $badge['id']; ?>" name="criteria" value="<?php echo htmlspecialchars($badge['criteria']); ?>">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1207,7 +1250,92 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize enhanced badges table scrolling
     enhanceBadgesTableScrolling();
+    
+    // Initialize criteria form handling
+    initializeCriteriaForms();
 });
+
+// Initialize criteria form handling
+function initializeCriteriaForms() {
+    // Handle create form
+    const createCriteriaType = document.getElementById('criteriaType');
+    const createCriteriaValue = document.getElementById('criteriaValue');
+    const createCriteriaHelp = document.getElementById('criteriaHelp');
+    const createCriteriaJson = document.getElementById('criteriaJson');
+    
+    if (createCriteriaType && createCriteriaValue && createCriteriaHelp && createCriteriaJson) {
+        // Update help text and build JSON on change
+        createCriteriaType.addEventListener('change', function() {
+            updateCriteriaHelp(createCriteriaHelp, this.value);
+            buildCriteriaJson(createCriteriaType, createCriteriaValue, createCriteriaJson);
+        });
+        
+        createCriteriaValue.addEventListener('input', function() {
+            buildCriteriaJson(createCriteriaType, createCriteriaValue, createCriteriaJson);
+        });
+    }
+    
+    // Handle edit forms for each badge
+    <?php foreach ($badges as $badge): ?>
+        <?php if ($badge['is_teacher_badge']): ?>
+            const editCriteriaType<?php echo $badge['id']; ?> = document.getElementById('editCriteriaType<?php echo $badge['id']; ?>');
+            const editCriteriaValue<?php echo $badge['id']; ?> = document.getElementById('editCriteriaValue<?php echo $badge['id']; ?>');
+            const editCriteriaHelp<?php echo $badge['id']; ?> = document.getElementById('editCriteriaHelp<?php echo $badge['id']; ?>');
+            const editCriteriaJson<?php echo $badge['id']; ?> = document.getElementById('editCriteriaJson<?php echo $badge['id']; ?>');
+            
+            if (editCriteriaType<?php echo $badge['id']; ?> && editCriteriaValue<?php echo $badge['id']; ?> && editCriteriaHelp<?php echo $badge['id']; ?> && editCriteriaJson<?php echo $badge['id']; ?>) {
+                // Parse existing criteria and populate form
+                const existingCriteria = <?php echo $badge['criteria']; ?>;
+                if (existingCriteria && typeof existingCriteria === 'object') {
+                    const criteriaType = Object.keys(existingCriteria)[0];
+                    const criteriaValue = existingCriteria[criteriaType];
+                    
+                    editCriteriaType<?php echo $badge['id']; ?>.value = criteriaType;
+                    editCriteriaValue<?php echo $badge['id']; ?>.value = criteriaValue;
+                    updateCriteriaHelp(editCriteriaHelp<?php echo $badge['id']; ?>, criteriaType);
+                }
+                
+                // Update help text and build JSON on change
+                editCriteriaType<?php echo $badge['id']; ?>.addEventListener('change', function() {
+                    updateCriteriaHelp(editCriteriaHelp<?php echo $badge['id']; ?>, this.value);
+                    buildCriteriaJson(editCriteriaType<?php echo $badge['id']; ?>, editCriteriaValue<?php echo $badge['id']; ?>, editCriteriaJson<?php echo $badge['id']; ?>);
+                });
+                
+                editCriteriaValue<?php echo $badge['id']; ?>.addEventListener('input', function() {
+                    buildCriteriaJson(editCriteriaType<?php echo $badge['id']; ?>, editCriteriaValue<?php echo $badge['id']; ?>, editCriteriaJson<?php echo $badge['id']; ?>);
+                });
+            }
+        <?php endif; ?>
+    <?php endforeach; ?>
+}
+
+// Update criteria help text based on selected type
+function updateCriteriaHelp(helpElement, criteriaType) {
+    const helpTexts = {
+        'assessments_taken': 'Enter the number of assessments students must complete',
+        'courses_completed': 'Enter the number of courses students must complete',
+        'average_score': 'Enter the minimum average score percentage (1-100)',
+        'videos_watched': 'Enter the number of videos students must watch',
+        'login_streak': 'Enter the number of consecutive days students must log in',
+        'perfect_scores': 'Enter the number of perfect scores students must achieve'
+    };
+    
+    helpElement.textContent = helpTexts[criteriaType] || 'Enter the target number for this criteria';
+}
+
+// Build criteria JSON from form inputs
+function buildCriteriaJson(typeSelect, valueInput, jsonInput) {
+    const criteriaType = typeSelect.value;
+    const criteriaValue = parseInt(valueInput.value) || 0;
+    
+    if (criteriaType && criteriaValue > 0) {
+        const criteria = {};
+        criteria[criteriaType] = criteriaValue;
+        jsonInput.value = JSON.stringify(criteria);
+    } else {
+        jsonInput.value = '';
+    }
+}
 </script>
 
 <?php require_once '../includes/footer.php'; ?>

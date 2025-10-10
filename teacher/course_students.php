@@ -22,14 +22,14 @@ if (!$course) {
     exit;
 }
 
-// Get all students enrolled in this course
+// Get all students from sections assigned to this course
 $students_stmt = $db->prepare("
-    SELECT u.id, u.first_name, u.last_name, u.username, u.email, u.is_irregular, u.created_at,
-           s.section_name, s.year_level
+    SELECT DISTINCT u.id, u.first_name, u.last_name, u.username, u.email, u.is_irregular, u.created_at,
+           s.section_name, s.year_level, s.id as section_id
     FROM users u
-    JOIN course_enrollments ce ON u.id = ce.student_id
-    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
-    WHERE ce.course_id = ? AND ce.status = 'active' AND u.role = 'student'
+    JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
+    JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
+    WHERE c.id = ? AND u.role = 'student'
     ORDER BY s.year_level, s.section_name, u.last_name, u.first_name
 ");
 $students_stmt->execute([$course_id]);
@@ -48,17 +48,31 @@ $sections = $sections_stmt->fetchAll();
 ?>
 
 <style>
-/* Modern Course Students Styles - Matching Course Edit Design */
+/* Modern Course Students Styles - Full Height Scrollable */
+
+/* Full Height Layout */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
 
 /* Course Students Header */
 .course-students-header {
     background: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
     color: white;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
+    padding: 1.5rem 0;
     border-radius: 0 0 20px 20px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     position: relative;
+    flex-shrink: 0;
+    margin-top: 0;
 }
 
 .course-students-header h1 {
@@ -127,6 +141,17 @@ $sections = $sections_stmt->fetchAll();
     margin-top: 0.25rem;
 }
 
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    margin-top: 0;
+}
+
 /* Students Table Card */
 .students-table-card {
     background: white;
@@ -134,7 +159,11 @@ $sections = $sections_stmt->fetchAll();
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     border: none;
     overflow: hidden;
-    margin-bottom: 2rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0.5rem 1rem 1rem 1rem;
+    
 }
 
 .students-table-card .card-header {
@@ -147,6 +176,49 @@ $sections = $sections_stmt->fetchAll();
 
 .students-table-card .table {
     margin-bottom: 0;
+}
+
+.students-table-card .card-body {
+    padding: 0;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scrollable Table Container */
+.table-responsive {
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 250px);
+    scrollbar-width: thin;
+    scrollbar-color: #1e3a2e #f1f1f1;
+}
+
+/* Custom Scrollbar for Webkit browsers */
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #1e3a2e;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #2d5a3d;
+}
+
+/* Sticky Header */
+.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .students-table-card .table thead th {
@@ -231,7 +303,7 @@ $sections = $sections_stmt->fetchAll();
 /* Responsive Design */
 @media (max-width: 768px) {
     .course-students-header {
-        padding: 1.5rem 0;
+        padding: 1rem 0;
     }
     
     .course-stats {
@@ -253,11 +325,19 @@ $sections = $sections_stmt->fetchAll();
         height: 40px !important;
         font-size: 1rem !important;
     }
+    
+    .students-table-card {
+        margin: 0.5rem;
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 200px);
+    }
 }
 
 @media (max-width: 576px) {
     .course-students-header {
-        padding: 1rem 0;
+        padding: 0.75rem 0;
     }
     
     .course-stats {
@@ -271,6 +351,25 @@ $sections = $sections_stmt->fetchAll();
         width: 35px !important;
         height: 35px !important;
         font-size: 0.9rem !important;
+    }
+    
+    .students-table-card {
+        margin: 0.25rem;
+        border-radius: 10px;
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 150px);
+    }
+    
+    .students-table-card .table thead th {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .students-table-card .table tbody td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.9rem;
     }
 }
 </style>
@@ -319,20 +418,19 @@ $sections = $sections_stmt->fetchAll();
     </div>
 </div>
 
-<div class="container" style="margin-bottom: 340px;">
+<!-- Main Content Area -->
+<div class="main-content">
     <!-- Students Table Card -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card students-table-card border-0 shadow-sm">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="bi bi-table me-2"></i>Enrolled Students
-                    </h6>
-                </div>
-                <div class="card-body p-0">
-                    <?php if (count($students) > 0): ?>
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+    <div class="card students-table-card border-0 shadow-sm">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="bi bi-table me-2"></i>Enrolled Students
+            </h6>
+        </div>
+        <div class="card-body">
+            <?php if (count($students) > 0): ?>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
                                         <th><i class="bi bi-person me-2"></i>Student Name</th>
@@ -384,18 +482,16 @@ $sections = $sections_stmt->fetchAll();
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <div class="empty-state">
-                            <i class="bi bi-people"></i>
-                            <h5>No Students Found</h5>
-                            <p>No students are currently enrolled in this course.</p>
-                        </div>
-                    <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            <?php else: ?>
+                <div class="empty-state">
+                    <i class="bi bi-people"></i>
+                    <h5>No Students Found</h5>
+                    <p>No students are currently enrolled in this course.</p>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

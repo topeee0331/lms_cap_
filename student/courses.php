@@ -87,7 +87,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_course'])) {
                     $_SESSION['error'] = "You already have a pending enrollment request for this course.";
                     break;
                 case 'approved':
-                    $_SESSION['error'] = "Your enrollment request for this course has already been approved. You should be enrolled in the course.";
+                    // Check if enrollment record exists, if not create it
+                    $stmt = $pdo->prepare("SELECT * FROM course_enrollments WHERE student_id = ? AND course_id = ? AND status = 'active'");
+                    $stmt->execute([$user_id, $course_id]);
+                    
+                    if ($stmt->rowCount() == 0) {
+                        // Create the missing enrollment record
+                        try {
+                            $stmt = $pdo->prepare("INSERT INTO course_enrollments (student_id, course_id, enrolled_at, status) VALUES (?, ?, NOW(), 'active')");
+                            $stmt->execute([$user_id, $course_id]);
+                            $_SESSION['success'] = "You have been enrolled in this course! You can now access all course materials.";
+                        } catch (PDOException $e) {
+                            error_log("Error creating enrollment record: " . $e->getMessage());
+                            $_SESSION['error'] = "There was an issue with your enrollment. Please contact support.";
+                        }
+                    } else {
+                        $_SESSION['success'] = "You are already enrolled in this course! You can access all course materials.";
+                    }
                     break;
                 case 'rejected':
                     // Update rejected request to pending
@@ -1933,8 +1949,6 @@ function initAutoDismissAlerts() {
         }, delay);
     });
 }
-
-}); // End of DOMContentLoaded function
 
 </script>
 </body>

@@ -26,18 +26,51 @@ try {
         exit();
     }
     
+    // Fix approved enrollment requests that don't have corresponding enrollment records
+    $stmt = $pdo->prepare("
+        SELECT er.course_id, er.student_id 
+        FROM enrollment_requests er 
+        WHERE er.student_id = ? AND er.status = 'approved' 
+        AND NOT EXISTS (
+            SELECT 1 FROM course_enrollments ce 
+            WHERE ce.student_id = er.student_id 
+            AND ce.course_id = er.course_id 
+            AND ce.status = 'active'
+        )
+    ");
+    $stmt->execute([$user_id]);
+    $missing_enrollments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Create missing enrollment records
+    foreach ($missing_enrollments as $missing) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO course_enrollments (student_id, course_id, enrolled_at, status) VALUES (?, ?, NOW(), 'active')");
+            $stmt->execute([$missing['student_id'], $missing['course_id']]);
+            error_log("Created missing enrollment record for student {$missing['student_id']} in course {$missing['course_id']}");
+        } catch (PDOException $e) {
+            error_log("Error creating missing enrollment record: " . $e->getMessage());
+        }
+    }
+
     // Get enrollment status for the student
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT c.id as course_id, c.course_name, c.course_code, c.description,
                ap.academic_year, ap.semester_name,
-               CASE WHEN JSON_SEARCH(s.students, 'one', ?) IS NOT NULL THEN 1 ELSE 0 END as is_section_assigned
+               CASE WHEN JSON_SEARCH(s.students, 'one', ?) IS NOT NULL THEN 1 ELSE 0 END as is_section_assigned,
+               CASE WHEN e2.student_id IS NOT NULL THEN 1 ELSE 0 END as is_enrolled,
+               CASE WHEN er.student_id IS NOT NULL AND er.status = 'pending' THEN 1 ELSE 0 END as has_pending_request,
+               CASE WHEN er.student_id IS NOT NULL AND er.status = 'rejected' THEN 1 ELSE 0 END as has_rejected_request,
+               ap.is_active as academic_year_active,
+               ap.is_active as semester_active
         FROM courses c
         JOIN academic_periods ap ON c.academic_period_id = ap.id
         LEFT JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL
+        LEFT JOIN course_enrollments e2 ON c.id = e2.course_id AND e2.student_id = ? AND e2.status = 'active'
+        LEFT JOIN enrollment_requests er ON c.id = er.course_id AND er.student_id = ?
         WHERE c.status = 'active'
         ORDER BY c.course_name
     ");
-    $stmt->execute([$user_id]);
+    $stmt->execute([$user_id, $user_id, $user_id]);
     $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $statuses = [];

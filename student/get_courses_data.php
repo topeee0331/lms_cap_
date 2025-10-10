@@ -42,6 +42,32 @@ try {
         exit();
     }
     
+    // Fix approved enrollment requests that don't have corresponding enrollment records
+    $stmt = $pdo->prepare("
+        SELECT er.course_id, er.student_id 
+        FROM enrollment_requests er 
+        WHERE er.student_id = ? AND er.status = 'approved' 
+        AND NOT EXISTS (
+            SELECT 1 FROM course_enrollments ce 
+            WHERE ce.student_id = er.student_id 
+            AND ce.course_id = er.course_id 
+            AND ce.status = 'active'
+        )
+    ");
+    $stmt->execute([$user_id]);
+    $missing_enrollments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Create missing enrollment records
+    foreach ($missing_enrollments as $missing) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO course_enrollments (student_id, course_id, enrolled_at, status) VALUES (?, ?, NOW(), 'active')");
+            $stmt->execute([$missing['student_id'], $missing['course_id']]);
+            error_log("Created missing enrollment record for student {$missing['student_id']} in course {$missing['course_id']}");
+        } catch (PDOException $e) {
+            error_log("Error creating missing enrollment record: " . $e->getMessage());
+        }
+    }
+    
     // Get enrolled courses
     $stmt = $pdo->prepare("
         SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as teacher_name, e.enrolled_at,

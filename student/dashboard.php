@@ -11,6 +11,19 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
+// Check for requirement-based badges
+require_once '../includes/requirement_badge_system.php';
+$requirementSystem = new RequirementBadgeSystem();
+$new_badges = $requirementSystem->checkRequirementBadges($user_id);
+
+// Store new badges in session for display
+if (!empty($new_badges)) {
+    if (!isset($_SESSION['new_badges'])) {
+        $_SESSION['new_badges'] = [];
+    }
+    $_SESSION['new_badges'] = array_merge($_SESSION['new_badges'], $new_badges);
+}
+
 // 1. Fetch all academic periods for the dropdown
 $ay_stmt = $pdo->prepare('SELECT id, academic_year, semester_name, is_active FROM academic_periods ORDER BY academic_year DESC, semester_name');
 $ay_stmt->execute();

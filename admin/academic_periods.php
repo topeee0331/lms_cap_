@@ -389,23 +389,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_period'])) {
     }
 }
 
-// Handle delete academic period
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_period_id'])) {
-    $del_id = intval($_POST['delete_period_id']);
+// Handle archive academic period
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_period_id'])) {
+    $archive_id = intval($_POST['archive_period_id']);
     
-    // Check if this period is being used by courses
-    $stmt = $db->prepare("SELECT COUNT(*) FROM courses WHERE academic_period_id = ?");
-    $stmt->execute([$del_id]);
-    $course_count = $stmt->fetchColumn();
-    
-    if ($course_count > 0) {
-        echo '<div class="alert alert-danger">Cannot delete academic period. It is being used by ' . $course_count . ' course(s).</div>';
-    } else {
-        $stmt = $db->prepare("DELETE FROM academic_periods WHERE id = ?");
-    $stmt->execute([$del_id]);
-        echo "<script>window.location.href='academic_periods.php';</script>";
+    $stmt = $db->prepare("UPDATE academic_periods SET is_archived = 1 WHERE id = ?");
+    $stmt->execute([$archive_id]);
+    echo "<script>window.location.href='academic_periods.php';</script>";
     exit;
-    }
+}
+
+// Handle recover academic period
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recover_period_id'])) {
+    $recover_id = intval($_POST['recover_period_id']);
+    
+    $stmt = $db->prepare("UPDATE academic_periods SET is_archived = 0 WHERE id = ?");
+    $stmt->execute([$recover_id]);
+    echo "<script>window.location.href='academic_periods.php';</script>";
+    exit;
 }
 
 // Handle edit academic period (load data)
@@ -443,9 +444,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_period']) && i
     }
 }
 
-// Fetch all academic periods
+// Get archive filter
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
+
+// Fetch academic periods with archive filtering
 $periods = [];
-$period_sql = "SELECT * FROM academic_periods ORDER BY academic_year DESC, semester_name";
+$where_conditions = [];
+
+// Add archive filter - show only archived periods when requested, otherwise show only active periods
+if ($show_archived === '1') {
+    $where_conditions[] = "is_archived = 1";
+} else {
+    $where_conditions[] = "(is_archived = 0 OR is_archived IS NULL)";
+}
+
+$where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+$period_sql = "SELECT * FROM academic_periods $where_clause ORDER BY academic_year DESC, semester_name";
 $res = $db->query($period_sql);
 if ($res && $res->rowCount() > 0) {
     $periods = $res->fetchAll();
@@ -558,13 +572,33 @@ $stats = $stats_stmt->fetch();
         </div>
 
         <!-- Academic Periods Table -->
+        <?php if ($show_archived === '1'): ?>
+            <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                <i class="bi bi-archive-fill me-2"></i>
+                <div>
+                    <strong>Viewing Archived Academic Periods</strong> - These periods have been archived and can be recovered. 
+                    Click the green recover button (🔄) to restore them to active status.
+                </div>
+            </div>
+        <?php endif; ?>
         <div class="card table-container">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5>
-                        <i class="bi bi-calendar-event me-2"></i>Academic Periods
+                        <i class="bi bi-calendar-event me-2"></i><?= $show_archived === '1' ? 'Archived Academic Periods' : 'Academic Periods' ?>
                     </h5>
-                    <span class="badge bg-primary fs-6"><?= count($periods) ?> periods</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if ($show_archived === '1'): ?>
+                            <a href="academic_periods.php" class="btn btn-outline-success btn-sm" title="Back to Active Periods">
+                                <i class="bi bi-arrow-left me-1"></i>Back to Active
+                            </a>
+                        <?php else: ?>
+                            <a href="academic_periods.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Periods">
+                                <i class="bi bi-archive me-1"></i>View Archived
+                            </a>
+                        <?php endif; ?>
+                        <span class="badge bg-primary fs-6"><?= count($periods) ?> periods</span>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -598,7 +632,7 @@ $stats = $stats_stmt->fetch();
                                 $course_count_stmt->execute([$period['id']]);
                                 $course_count = $course_count_stmt->fetchColumn();
                                 ?>
-                                    <tr>
+                                    <tr class="<?= (isset($period['is_archived']) && $period['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                             <td>
                                         <div>
                                             <div class="fw-bold"><?= htmlspecialchars($period['academic_year']) ?></div>
@@ -625,6 +659,11 @@ $stats = $stats_stmt->fetch();
                                                 <i class="bi bi-x-circle me-1"></i>Inactive
                                                     </span>
                                             <?php endif; ?>
+                                            <?php if (isset($period['is_archived']) && $period['is_archived']): ?>
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-archive me-1"></i>Archived
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                             <td>
                                         <span class="badge bg-info"><?= $course_count ?> courses</span>
@@ -636,15 +675,26 @@ $stats = $stats_stmt->fetch();
                                                     data-bs-target="#editPeriodModal<?= $period['id'] ?>">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
-                                            <?php if ($course_count == 0): ?>
+                                            <?php if (isset($period['is_archived']) && $period['is_archived']): ?>
+                                                <!-- Recover button for archived periods -->
                                                 <form method="post" action="academic_periods.php" 
                                                       style="display:inline;" 
-                                                      onsubmit="return confirm('Are you sure you want to delete this academic period?');">
-                                                    <input type="hidden" name="delete_period_id" value="<?= $period['id'] ?>">
-                                                    <button type="submit" class="btn btn-outline-danger">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                            </form>
+                                                      onsubmit="return confirm('Are you sure you want to recover this academic period?');">
+                                                    <input type="hidden" name="recover_period_id" value="<?= $period['id'] ?>">
+                                                    <button type="submit" class="btn btn-success">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <!-- Archive button for active periods -->
+                                                <form method="post" action="academic_periods.php" 
+                                                      style="display:inline;" 
+                                                      onsubmit="return confirm('Are you sure you want to archive this academic period? They will be hidden but can be recovered later.');">
+                                                    <input type="hidden" name="archive_period_id" value="<?= $period['id'] ?>">
+                                                    <button type="submit" class="btn btn-warning">
+                                                        <i class="bi bi-archive"></i>
+                                                    </button>
+                                                </form>
                                             <?php endif; ?>
                                                                         </div>
                                             </td>

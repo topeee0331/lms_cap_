@@ -19,20 +19,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $criteria_type = trim($_POST['criteria_type'] ?? '');
     $criteria_value = (int)($_POST['criteria_value'] ?? 0);
     $points_value = (int)($_POST['points_value'] ?? 0);
-    $icon = null; // Will be set to default or uploaded icon
+    $icon = null; // Will be set to default Bootstrap icon
     
     // Build criteria JSON from simplified inputs
     $criteria = json_encode([$criteria_type => $criteria_value]);
     
-    if (isset($_FILES['badge_icon']) && $_FILES['badge_icon']['error'] === UPLOAD_ERR_OK) {
-        $ext = strtolower(pathinfo($_FILES['badge_icon']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg'])) {
-            $icon = time().'_'.bin2hex(random_bytes(4)).'.'.$ext;
-            $upload_dir = dirname(__DIR__) . '/uploads/badges/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-            move_uploaded_file($_FILES['badge_icon']['tmp_name'], $upload_dir . $icon);
+    // Bootstrap icon mapping for badges
+    $type_defaults = [
+        'course_completion' => 'bi-mortarboard',
+        'high_score' => 'bi-trophy',
+        'participation' => 'bi-people',
+        'streak' => 'bi-lightning',
+        'special' => 'bi-star'
+    ];
+    
+    $name_mappings = [
+        'first course complete' => 'bi-play-circle',
+        'first steps' => 'bi-play-circle',
+        'high achiever' => 'bi-award',
+        'perfect score' => 'bi-check-circle-fill',
+        'consistent performer' => 'bi-graph-up',
+        'assessment warrior' => 'bi-shield-check',
+        'video learner' => 'bi-play-btn',
+        'knowledge seeker' => 'bi-search',
+        'focused learner' => 'bi-eye',
+        'daily learner' => 'bi-calendar-check',
+        'dedicated student' => 'bi-book',
+        'weekend warrior' => 'bi-calendar-week',
+        'early bird' => 'bi-sunrise',
+        'speed demon' => 'bi-lightning-charge',
+        'perfect attendance' => 'bi-calendar-check-fill',
+        'module master' => 'bi-collection',
+        'assessment ace' => 'bi-patch-check',
+        'freshman explorer' => 'bi-compass',
+        'sophomore scholar' => 'bi-book-half',
+        'junior expert' => 'bi-gear',
+        'senior specialist' => 'bi-tools',
+        'easy rider' => 'bi-bicycle',
+        'medium master' => 'bi-speedometer2',
+        'hard core' => 'bi-fire',
+        'night owl' => 'bi-moon',
+        'morning person' => 'bi-sun',
+        'century club' => 'bi-100',
+        'point collector' => 'bi-coin',
+        'legend' => 'bi-star-fill',
+        'active participant' => 'bi-chat-dots',
+        'course master' => 'bi-mortarboard-fill',
+        'academic excellence' => 'bi-award-fill',
+        'nice' => 'bi-emoji-smile'
+    ];
+    
+    // Check if a specific Bootstrap icon was selected
+    if (isset($_POST['badge_icon_select']) && !empty($_POST['badge_icon_select'])) {
+        $icon = $_POST['badge_icon_select'];
+    } else {
+        // Assign default Bootstrap icon based on badge name or type
+        $badge_name_lower = strtolower(trim($name));
+        if (isset($name_mappings[$badge_name_lower])) {
+            $icon = $name_mappings[$badge_name_lower];
+        } elseif (isset($type_defaults[$type])) {
+            $icon = $type_defaults[$type];
+        } else {
+            $icon = 'bi-award'; // Default Bootstrap icon
         }
     }
     
@@ -71,10 +119,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $criteria_type = trim($_POST['criteria_type'] ?? '');
     $criteria_value = (int)($_POST['criteria_value'] ?? 0);
     $points_value = (int)($_POST['points_value'] ?? 0);
-    $icon = null; // Will be set to current icon or new icon
+    $icon = null; // Will be set to current icon or new Bootstrap icon
     
     // Build criteria JSON from simplified inputs
     $criteria = json_encode([$criteria_type => $criteria_value]);
+    
+    // Bootstrap icon mapping for badges
+    $type_defaults = [
+        'course_completion' => 'bi-mortarboard',
+        'high_score' => 'bi-trophy',
+        'participation' => 'bi-people',
+        'streak' => 'bi-lightning',
+        'special' => 'bi-star'
+    ];
+    
+    $name_mappings = [
+        'first course complete' => 'bi-play-circle',
+        'first steps' => 'bi-play-circle',
+        'high achiever' => 'bi-award',
+        'perfect score' => 'bi-check-circle-fill',
+        'consistent performer' => 'bi-graph-up',
+        'assessment warrior' => 'bi-shield-check',
+        'video learner' => 'bi-play-btn',
+        'knowledge seeker' => 'bi-search',
+        'focused learner' => 'bi-eye',
+        'daily learner' => 'bi-calendar-check',
+        'dedicated student' => 'bi-book',
+        'weekend warrior' => 'bi-calendar-week',
+        'early bird' => 'bi-sunrise',
+        'speed demon' => 'bi-lightning-charge',
+        'perfect attendance' => 'bi-calendar-check-fill',
+        'module master' => 'bi-collection',
+        'assessment ace' => 'bi-patch-check',
+        'freshman explorer' => 'bi-compass',
+        'sophomore scholar' => 'bi-book-half',
+        'junior expert' => 'bi-gear',
+        'senior specialist' => 'bi-tools',
+        'easy rider' => 'bi-bicycle',
+        'medium master' => 'bi-speedometer2',
+        'hard core' => 'bi-fire',
+        'night owl' => 'bi-moon',
+        'morning person' => 'bi-sun',
+        'century club' => 'bi-100',
+        'point collector' => 'bi-coin',
+        'legend' => 'bi-star-fill',
+        'active participant' => 'bi-chat-dots',
+        'course master' => 'bi-mortarboard-fill',
+        'academic excellence' => 'bi-award-fill',
+        'nice' => 'bi-emoji-smile'
+    ];
     
     // Verify teacher owns this badge
     $stmt = $db->prepare('SELECT id FROM badges WHERE id = ? AND created_by = ?');
@@ -89,15 +182,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $current_badge = $stmt->fetch();
         $icon = $current_badge['badge_icon']; // Keep current icon by default
         
-        if (isset($_FILES['badge_icon']) && $_FILES['badge_icon']['error'] === UPLOAD_ERR_OK) {
-            $ext = strtolower(pathinfo($_FILES['badge_icon']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, ['png','jpg','jpeg'])) {
-                $icon = time().'_'.bin2hex(random_bytes(4)).'.'.$ext;
-                $upload_dir = dirname(__DIR__) . '/uploads/badges/';
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0755, true);
-                }
-                move_uploaded_file($_FILES['badge_icon']['tmp_name'], $upload_dir . $icon);
+        // Check if a specific Bootstrap icon was selected
+        if (isset($_POST['badge_icon_select']) && !empty($_POST['badge_icon_select'])) {
+            $icon = $_POST['badge_icon_select'];
+        } elseif (empty($icon) || $icon === 'default_badge.png' || strpos($icon, '.png') !== false) {
+            // Assign default Bootstrap icon if no icon or using old image system
+            $badge_name_lower = strtolower(trim($name));
+            if (isset($name_mappings[$badge_name_lower])) {
+                $icon = $name_mappings[$badge_name_lower];
+            } elseif (isset($type_defaults[$type])) {
+                $icon = $type_defaults[$type];
+            } else {
+                $icon = 'bi-award'; // Default Bootstrap icon
             }
         }
         
@@ -138,26 +234,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Handle badge archive
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'archive') {
+    $id = (int)$_POST['badge_id'];
+    
+    // Verify teacher owns this badge
+    $stmt = $db->prepare('SELECT id FROM badges WHERE id = ? AND created_by = ?');
+    $stmt->execute([$id, $_SESSION['user_id']]);
+    if (!$stmt->fetch()) {
+        $message = 'You can only archive badges you created.';
+        $message_type = 'danger';
+    } else {
+        $stmt = $db->prepare('UPDATE badges SET is_archived = 1 WHERE id = ? AND created_by = ?');
+        $stmt->execute([$id, $_SESSION['user_id']]);
+        $message = 'Badge archived successfully.';
+        $message_type = 'success';
+    }
+}
+
+// Handle badge recover
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'recover') {
+    $id = (int)$_POST['badge_id'];
+    
+    // Verify teacher owns this badge
+    $stmt = $db->prepare('SELECT id FROM badges WHERE id = ? AND created_by = ?');
+    $stmt->execute([$id, $_SESSION['user_id']]);
+    if (!$stmt->fetch()) {
+        $message = 'You can only recover badges you created.';
+        $message_type = 'danger';
+    } else {
+        $stmt = $db->prepare('UPDATE badges SET is_archived = 0 WHERE id = ? AND created_by = ?');
+        $stmt->execute([$id, $_SESSION['user_id']]);
+        $message = 'Badge recovered successfully.';
+        $message_type = 'success';
+    }
+}
+
+// Get archive filter
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
+
 if ($has_created_by) {
-    // Fetch teacher's badges and system badges
-    $stmt = $db->prepare('
+    // Fetch teacher's badges and system badges with archive filtering
+    $where_conditions = [];
+    $params = [$_SESSION['user_id'], $_SESSION['user_id']];
+    
+    // Add archive filter - show only archived badges when requested, otherwise show only active badges
+    if ($show_archived === '1') {
+        $where_conditions[] = "b.is_archived = 1";
+    } else {
+        $where_conditions[] = "(b.is_archived = 0 OR b.is_archived IS NULL)";
+    }
+    
+    $where_clause = !empty($where_conditions) ? 'AND ' . implode(' AND ', $where_conditions) : '';
+    
+    $stmt = $db->prepare("
         SELECT b.*, u.first_name, u.last_name,
                CASE WHEN b.created_by = ? THEN 1 ELSE 0 END as is_teacher_badge
         FROM badges b
         LEFT JOIN users u ON b.created_by = u.id
-        WHERE b.created_by = ? OR b.created_by IS NULL
+        WHERE (b.created_by = ? OR b.created_by IS NULL) $where_clause
         ORDER BY b.created_at DESC
-    ');
-    $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+    ");
+    $stmt->execute($params);
     $badges = $stmt->fetchAll();
 } else {
-    // Fallback for older badges table structure
-    $stmt = $db->prepare('
+    // Fallback for older badges table structure with archive filtering
+    $where_conditions = [];
+    $params = [];
+    
+    // Add archive filter - show only archived badges when requested, otherwise show only active badges
+    if ($show_archived === '1') {
+        $where_conditions[] = "b.is_archived = 1";
+    } else {
+        $where_conditions[] = "(b.is_archived = 0 OR b.is_archived IS NULL)";
+    }
+    
+    $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+    
+    $stmt = $db->prepare("
         SELECT b.*, NULL as first_name, NULL as last_name, 0 as is_teacher_badge
         FROM badges b
+        $where_clause
         ORDER BY b.created_at DESC
-    ');
-    $stmt->execute();
+    ");
+    $stmt->execute($params);
     $badges = $stmt->fetchAll();
 }
 
@@ -614,9 +774,31 @@ $badge_stats = $stmt->fetch();
     <!-- Badges List -->
     <div class="row">
         <div class="col-12">
+            <?php if ($show_archived === '1'): ?>
+                <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                    <i class="bi bi-archive-fill me-2"></i>
+                    <div>
+                        <strong>Viewing Archived Badges</strong> - These badges have been archived and can be recovered. 
+                        Click the green recover button (🔄) to restore them to active status.
+                    </div>
+                </div>
+            <?php endif; ?>
             <div class="card badges-card">
                 <div class="card-header">
-                    <h5 class="mb-0">All Badges</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><?= $show_archived === '1' ? 'Archived Badges' : 'All Badges' ?></h5>
+                        <div class="d-flex gap-2">
+                            <?php if ($show_archived === '1'): ?>
+                                <a href="badges.php" class="btn btn-outline-success btn-sm" title="Back to Active Badges">
+                                    <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                </a>
+                            <?php else: ?>
+                                <a href="badges.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Badges">
+                                    <i class="bi bi-archive me-1"></i>View Archived
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive badges-table-container">
@@ -634,16 +816,18 @@ $badge_stats = $stmt->fetch();
                             </thead>
                             <tbody>
                                 <?php foreach ($badges as $badge): ?>
-                                <tr>
+                                <tr class="<?= (isset($badge['is_archived']) && $badge['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                     <td>
-                                        <?php if ($badge['badge_icon']): ?>
-                                            <img src="../uploads/badges/<?php echo htmlspecialchars($badge['badge_icon']); ?>" 
-                                                 alt="icon" style="height:40px;" class="rounded">
-                                        <?php else: ?>
-                                            <div class="badge-icon-placeholder" style="width:40px;height:40px;background:#f8f9fa;border:2px solid #dee2e6;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;">
-                                                <i class="bi bi-award" style="font-size:20px;color:#6c757d;"></i>
+                                        <?php 
+                                        $icon_class = $badge['badge_icon'] ?: 'bi-award';
+                                        // Check if it's an old image file and convert to Bootstrap icon
+                                        if (strpos($icon_class, '.png') !== false || strpos($icon_class, '.jpg') !== false) {
+                                            $icon_class = 'bi-award'; // Default fallback
+                                        }
+                                        ?>
+                                        <div class="badge-icon-display" style="width:40px;height:40px;background:linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                                            <i class="<?php echo htmlspecialchars($icon_class); ?>" style="font-size:20px;color:white;"></i>
                                             </div>
-                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="fw-bold"><?php echo htmlspecialchars($badge['badge_name']); ?></div>
@@ -655,13 +839,20 @@ $badge_stats = $stmt->fetch();
                                     </td>
                                     <td><?php echo htmlspecialchars($badge['badge_description']); ?></td>
                                     <td>
-                                        <span class="badge bg-<?php 
-                                            echo $badge['badge_type'] === 'course_completion' ? 'primary' : 
-                                                ($badge['badge_type'] === 'high_score' ? 'warning' : 
-                                                ($badge['badge_type'] === 'participation' ? 'info' : 'secondary')); 
-                                        ?>">
-                                            <?php echo htmlspecialchars(ucfirst(str_replace('_',' ',$badge['badge_type']))); ?>
-                                        </span>
+                                        <div class="d-flex flex-column gap-1">
+                                            <span class="badge bg-<?php 
+                                                echo $badge['badge_type'] === 'course_completion' ? 'primary' : 
+                                                    ($badge['badge_type'] === 'high_score' ? 'warning' : 
+                                                    ($badge['badge_type'] === 'participation' ? 'info' : 'secondary')); 
+                                            ?>">
+                                                <?php echo htmlspecialchars(ucfirst(str_replace('_',' ',$badge['badge_type']))); ?>
+                                            </span>
+                                            <?php if (isset($badge['is_archived']) && $badge['is_archived']): ?>
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-archive me-1"></i>Archived
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td>
                                         <span class="badge bg-success"><?= $badge['points_value'] ?> pts</span>
@@ -676,10 +867,21 @@ $badge_stats = $stmt->fetch();
                                     <td>
                                         <?php if ($badge['is_teacher_badge']): ?>
                                             <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editBadgeModal<?php echo $badge['id']; ?>" title="Edit Badge">
+                                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editBadgeModal<?php echo $badge['id']; ?>" title="Edit Badge">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBadgeModal<?php echo $badge['id']; ?>" title="Delete Badge">
+                                                <?php if (isset($badge['is_archived']) && $badge['is_archived']): ?>
+                                                    <!-- Recover button for archived badges -->
+                                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recoverBadgeModal<?php echo $badge['id']; ?>" title="Recover Badge">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <!-- Archive button for active badges -->
+                                                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#archiveBadgeModal<?php echo $badge['id']; ?>" title="Archive Badge">
+                                                        <i class="bi bi-archive"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteBadgeModal<?php echo $badge['id']; ?>" title="Delete Badge">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
@@ -735,8 +937,54 @@ $badge_stats = $stmt->fetch();
                             <input type="number" class="form-control" name="points_value" value="10" min="0" max="1000">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Icon (optional)</label>
-                            <input type="file" class="form-control" name="badge_icon" accept="image/png,image/jpeg">
+                            <label class="form-label">Icon</label>
+                            <select class="form-select" name="badge_icon_select">
+                                <option value="">Auto-select based on name/type</option>
+                                <optgroup label="Achievement Icons">
+                                    <option value="bi-award">Award</option>
+                                    <option value="bi-trophy">Trophy</option>
+                                    <option value="bi-star">Star</option>
+                                    <option value="bi-star-fill">Star (Filled)</option>
+                                    <option value="bi-check-circle-fill">Perfect Score</option>
+                                    <option value="bi-patch-check">Assessment</option>
+                                </optgroup>
+                                <optgroup label="Learning Icons">
+                                    <option value="bi-mortarboard">Graduation Cap</option>
+                                    <option value="bi-book">Book</option>
+                                    <option value="bi-book-half">Half Book</option>
+                                    <option value="bi-search">Search/Knowledge</option>
+                                    <option value="bi-eye">Focus</option>
+                                    <option value="bi-collection">Collection</option>
+                                </optgroup>
+                                <optgroup label="Activity Icons">
+                                    <option value="bi-play-circle">Start/First Steps</option>
+                                    <option value="bi-play-btn">Video Learning</option>
+                                    <option value="bi-calendar-check">Daily Activity</option>
+                                    <option value="bi-calendar-week">Weekly Activity</option>
+                                    <option value="bi-lightning">Streak</option>
+                                    <option value="bi-lightning-charge">Speed</option>
+                                </optgroup>
+                                <optgroup label="Time Icons">
+                                    <option value="bi-sunrise">Early Bird</option>
+                                    <option value="bi-sun">Morning Person</option>
+                                    <option value="bi-moon">Night Owl</option>
+                                    <option value="bi-calendar-check-fill">Perfect Attendance</option>
+                                </optgroup>
+                                <optgroup label="Special Icons">
+                                    <option value="bi-shield-check">Warrior/Defender</option>
+                                    <option value="bi-fire">Hard Core</option>
+                                    <option value="bi-100">Century Club</option>
+                                    <option value="bi-coin">Points</option>
+                                    <option value="bi-compass">Explorer</option>
+                                    <option value="bi-gear">Expert</option>
+                                    <option value="bi-tools">Specialist</option>
+                                    <option value="bi-bicycle">Easy Rider</option>
+                                    <option value="bi-speedometer2">Medium Master</option>
+                                    <option value="bi-graph-up">Consistent</option>
+                                    <option value="bi-chat-dots">Participation</option>
+                                    <option value="bi-emoji-smile">Nice</option>
+                                </optgroup>
+                            </select>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -809,9 +1057,54 @@ $badge_stats = $stmt->fetch();
                                 <input type="number" class="form-control" name="points_value" value="<?= $badge['points_value'] ?>" min="0" max="1000">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Icon (optional)</label>
-                                <input type="file" class="form-control" name="badge_icon" accept="image/png,image/jpeg">
-                                <div class="form-text">Leave blank to keep current icon.</div>
+                                <label class="form-label">Icon</label>
+                                <select class="form-select" name="badge_icon_select">
+                                    <option value="">Keep current icon</option>
+                                    <optgroup label="Achievement Icons">
+                                        <option value="bi-award" <?= $badge['badge_icon']==='bi-award'?'selected':'' ?>>Award</option>
+                                        <option value="bi-trophy" <?= $badge['badge_icon']==='bi-trophy'?'selected':'' ?>>Trophy</option>
+                                        <option value="bi-star" <?= $badge['badge_icon']==='bi-star'?'selected':'' ?>>Star</option>
+                                        <option value="bi-star-fill" <?= $badge['badge_icon']==='bi-star-fill'?'selected':'' ?>>Star (Filled)</option>
+                                        <option value="bi-check-circle-fill" <?= $badge['badge_icon']==='bi-check-circle-fill'?'selected':'' ?>>Perfect Score</option>
+                                        <option value="bi-patch-check" <?= $badge['badge_icon']==='bi-patch-check'?'selected':'' ?>>Assessment</option>
+                                    </optgroup>
+                                    <optgroup label="Learning Icons">
+                                        <option value="bi-mortarboard" <?= $badge['badge_icon']==='bi-mortarboard'?'selected':'' ?>>Graduation Cap</option>
+                                        <option value="bi-book" <?= $badge['badge_icon']==='bi-book'?'selected':'' ?>>Book</option>
+                                        <option value="bi-book-half" <?= $badge['badge_icon']==='bi-book-half'?'selected':'' ?>>Half Book</option>
+                                        <option value="bi-search" <?= $badge['badge_icon']==='bi-search'?'selected':'' ?>>Search/Knowledge</option>
+                                        <option value="bi-eye" <?= $badge['badge_icon']==='bi-eye'?'selected':'' ?>>Focus</option>
+                                        <option value="bi-collection" <?= $badge['badge_icon']==='bi-collection'?'selected':'' ?>>Collection</option>
+                                    </optgroup>
+                                    <optgroup label="Activity Icons">
+                                        <option value="bi-play-circle" <?= $badge['badge_icon']==='bi-play-circle'?'selected':'' ?>>Start/First Steps</option>
+                                        <option value="bi-play-btn" <?= $badge['badge_icon']==='bi-play-btn'?'selected':'' ?>>Video Learning</option>
+                                        <option value="bi-calendar-check" <?= $badge['badge_icon']==='bi-calendar-check'?'selected':'' ?>>Daily Activity</option>
+                                        <option value="bi-calendar-week" <?= $badge['badge_icon']==='bi-calendar-week'?'selected':'' ?>>Weekly Activity</option>
+                                        <option value="bi-lightning" <?= $badge['badge_icon']==='bi-lightning'?'selected':'' ?>>Streak</option>
+                                        <option value="bi-lightning-charge" <?= $badge['badge_icon']==='bi-lightning-charge'?'selected':'' ?>>Speed</option>
+                                    </optgroup>
+                                    <optgroup label="Time Icons">
+                                        <option value="bi-sunrise" <?= $badge['badge_icon']==='bi-sunrise'?'selected':'' ?>>Early Bird</option>
+                                        <option value="bi-sun" <?= $badge['badge_icon']==='bi-sun'?'selected':'' ?>>Morning Person</option>
+                                        <option value="bi-moon" <?= $badge['badge_icon']==='bi-moon'?'selected':'' ?>>Night Owl</option>
+                                        <option value="bi-calendar-check-fill" <?= $badge['badge_icon']==='bi-calendar-check-fill'?'selected':'' ?>>Perfect Attendance</option>
+                                    </optgroup>
+                                    <optgroup label="Special Icons">
+                                        <option value="bi-shield-check" <?= $badge['badge_icon']==='bi-shield-check'?'selected':'' ?>>Warrior/Defender</option>
+                                        <option value="bi-fire" <?= $badge['badge_icon']==='bi-fire'?'selected':'' ?>>Hard Core</option>
+                                        <option value="bi-100" <?= $badge['badge_icon']==='bi-100'?'selected':'' ?>>Century Club</option>
+                                        <option value="bi-coin" <?= $badge['badge_icon']==='bi-coin'?'selected':'' ?>>Points</option>
+                                        <option value="bi-compass" <?= $badge['badge_icon']==='bi-compass'?'selected':'' ?>>Explorer</option>
+                                        <option value="bi-gear" <?= $badge['badge_icon']==='bi-gear'?'selected':'' ?>>Expert</option>
+                                        <option value="bi-tools" <?= $badge['badge_icon']==='bi-tools'?'selected':'' ?>>Specialist</option>
+                                        <option value="bi-bicycle" <?= $badge['badge_icon']==='bi-bicycle'?'selected':'' ?>>Easy Rider</option>
+                                        <option value="bi-speedometer2" <?= $badge['badge_icon']==='bi-speedometer2'?'selected':'' ?>>Medium Master</option>
+                                        <option value="bi-graph-up" <?= $badge['badge_icon']==='bi-graph-up'?'selected':'' ?>>Consistent</option>
+                                        <option value="bi-chat-dots" <?= $badge['badge_icon']==='bi-chat-dots'?'selected':'' ?>>Participation</option>
+                                        <option value="bi-emoji-smile" <?= $badge['badge_icon']==='bi-emoji-smile'?'selected':'' ?>>Nice</option>
+                                    </optgroup>
+                                </select>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -862,6 +1155,54 @@ $badge_stats = $stmt->fetch();
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-danger">Delete Badge</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archive Badge Modal -->
+    <div class="modal fade" id="archiveBadgeModal<?php echo $badge['id']; ?>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post">
+                    <input type="hidden" name="action" value="archive">
+                    <input type="hidden" name="badge_id" value="<?php echo $badge['id']; ?>">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Archive Badge</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to archive the badge "<strong><?php echo htmlspecialchars($badge['badge_name']); ?></strong>"?</p>
+                        <p class="text-warning"><small>This badge will be hidden but can be recovered later.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">Archive Badge</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recover Badge Modal -->
+    <div class="modal fade" id="recoverBadgeModal<?php echo $badge['id']; ?>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post">
+                    <input type="hidden" name="action" value="recover">
+                    <input type="hidden" name="badge_id" value="<?php echo $badge['id']; ?>">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Recover Badge</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to recover the badge "<strong><?php echo htmlspecialchars($badge['badge_name']); ?></strong>"?</p>
+                        <p class="text-success"><small>This badge will be restored to active status.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Recover Badge</button>
                     </div>
                 </form>
             </div>

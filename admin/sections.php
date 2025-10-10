@@ -881,29 +881,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    if (isset($_POST['delete_section'])) {
-        $section_id = intval($_POST['delete_section_id']);
+    if (isset($_POST['archive_section'])) {
+        $section_id = intval($_POST['archive_section_id']);
         
-        // First, delete all related records to avoid foreign key constraint violations
-        $db->beginTransaction();
-        try {
-            // Clear existing assignments
-            $stmt = $db->prepare("UPDATE sections SET students = '[]', teachers = '[]' WHERE id = ?");
-            $stmt->execute([$section_id]);
-            
-            // Now delete the section itself
-            $stmt = $db->prepare("DELETE FROM sections WHERE id = ?");
-            $stmt->execute([$section_id]);
-            
-            $db->commit();
-            echo "<script>window.location.href='sections.php';</script>";
-            exit;
-        } catch (Exception $e) {
-            $db->rollBack();
-            // You might want to show an error message here
-            echo "<script>alert('Error deleting section: " . addslashes($e->getMessage()) . "'); window.location.href='sections.php';</script>";
-            exit;
-        }
+        $stmt = $db->prepare("UPDATE sections SET is_archived = 1 WHERE id = ?");
+        $stmt->execute([$section_id]);
+        echo "<script>window.location.href='sections.php';</script>";
+        exit;
+    }
+    
+    if (isset($_POST['recover_section'])) {
+        $section_id = intval($_POST['recover_section_id']);
+        
+        $stmt = $db->prepare("UPDATE sections SET is_archived = 0 WHERE id = ?");
+        $stmt->execute([$section_id]);
+        echo "<script>window.location.href='sections.php';</script>";
+        exit;
     }
     
     if (isset($_POST['assign_users'])) {
@@ -1119,11 +1112,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch all sections with academic period info and detailed statistics
+// Get archive filter
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
+
+// Fetch sections with academic period info and archive filtering
 $sections = [];
+$where_conditions = [];
+
+// Add archive filter - show only archived sections when requested, otherwise show only active sections
+if ($show_archived === '1') {
+    $where_conditions[] = "s.is_archived = 1";
+} else {
+    $where_conditions[] = "(s.is_archived = 0 OR s.is_archived IS NULL)";
+}
+
+$where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 $section_sql = "SELECT s.*, ap.academic_year, ap.semester_name, ap.is_active as period_active
                 FROM sections s 
                 LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id 
+                $where_clause
                 ORDER BY s.academic_period_id DESC, s.year_level, s.section_name";
 $section_result = $db->query($section_sql);
 if ($section_result && $section_result->rowCount() > 0) {
@@ -1995,13 +2002,31 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
         <!-- Sections List -->
         <div class="row">
             <div class="col-12">
+                <?php if ($show_archived === '1'): ?>
+                    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                        <i class="bi bi-archive-fill me-2"></i>
+                        <div>
+                            <strong>Viewing Archived Sections</strong> - These sections have been archived and can be recovered. 
+                            Click the green recover button (🔄) to restore them to active status.
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="card table-container">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5>
-                                <i class="bi bi-list-ul me-2"></i>All Sections
+                                <i class="bi bi-list-ul me-2"></i><?= $show_archived === '1' ? 'Archived Sections' : 'All Sections' ?>
                             </h5>
                             <div class="d-flex gap-2">
+                                <?php if ($show_archived === '1'): ?>
+                                    <a href="sections.php" class="btn btn-outline-success btn-sm" title="Back to Active Sections">
+                                        <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                    </a>
+                                <?php else: ?>
+                                    <a href="sections.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Sections">
+                                        <i class="bi bi-archive me-1"></i>View Archived
+                                    </a>
+                                <?php endif; ?>
                                 <span class="badge bg-primary fs-6"><?= count($filtered_sections) ?> sections</span>
                                 <?php if ($period_filter): ?>
                                     <span class="badge bg-info fs-6">Filtered by Period</span>
@@ -2064,7 +2089,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                         $period_info = $section['academic_year'] . ' - ' . $section['semester_name'];
                                         $is_current_period = $section['period_active'] == 1;
                                         ?>
-                                        <tr data-section-id="<?= $section['id'] ?>" class="section-row">
+                                        <tr data-section-id="<?= $section['id'] ?>" class="section-row <?= (isset($section['is_archived']) && $section['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="flex-shrink-0">
@@ -2107,7 +2132,7 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                 </div>
                                             </td>
                                             <td>
-                                                <div class="d-flex justify-content-center">
+                                                <div class="d-flex justify-content-center flex-column align-items-center gap-1">
                                                 <?php if ($section['is_active']): ?>
                                                         <span class="badge bg-success text-white px-3 py-2 rounded-pill shadow-sm">
                                                             <i class="bi bi-check-circle-fill me-1"></i>Active
@@ -2115,6 +2140,11 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                 <?php else: ?>
                                                         <span class="badge bg-danger text-white px-3 py-2 rounded-pill shadow-sm">
                                                             <i class="bi bi-x-circle-fill me-1"></i>Inactive
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if (isset($section['is_archived']) && $section['is_archived']): ?>
+                                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
+                                                        <i class="bi bi-archive me-1"></i>Archived
                                                     </span>
                                                 <?php endif; ?>
                                                 </div>
@@ -2181,14 +2211,27 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                             title="Edit Section">
                                                         <i class="bi bi-pencil me-1"></i>Edit
                                                     </button>
-                                                    <form method="post" action="sections.php" 
-                                                          style="display:inline;" 
-                                                          onsubmit="return confirm('Are you sure you want to delete this section?');">
-                                                    <input type="hidden" name="delete_section_id" value="<?= $section['id'] ?>">
-                                                        <button type="submit" name="delete_section" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2" title="Delete Section">
-                                                            <i class="bi bi-trash me-1"></i>Delete
-                                                        </button>
-                                                </form>
+                                                    <?php if (isset($section['is_archived']) && $section['is_archived']): ?>
+                                                        <!-- Recover button for archived sections -->
+                                                        <form method="post" action="sections.php" 
+                                                              style="display:inline;" 
+                                                              onsubmit="return confirm('Are you sure you want to recover this section?');">
+                                                            <input type="hidden" name="recover_section_id" value="<?= $section['id'] ?>">
+                                                            <button type="submit" name="recover_section" class="btn btn-sm btn-success rounded-pill px-3 py-2" title="Recover Section">
+                                                                <i class="bi bi-arrow-clockwise me-1"></i>Recover
+                                                            </button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <!-- Archive button for active sections -->
+                                                        <form method="post" action="sections.php" 
+                                                              style="display:inline;" 
+                                                              onsubmit="return confirm('Are you sure you want to archive this section? They will be hidden but can be recovered later.');">
+                                                            <input type="hidden" name="archive_section_id" value="<?= $section['id'] ?>">
+                                                            <button type="submit" name="archive_section" class="btn btn-sm btn-warning rounded-pill px-3 py-2" title="Archive Section">
+                                                                <i class="bi bi-archive me-1"></i>Archive
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 </div>
                                             </td>
                                         </tr>

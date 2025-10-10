@@ -1,6 +1,6 @@
 <?php
 // Handle AJAX requests first, before any HTML output
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_SERVER['HTTP_X_REQUESTED_WITH']) || !in_array($_POST['action'] ?? '', ['create_assessment', 'update_assessment', 'delete_assessment', 'toggle_status']))) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_SERVER['HTTP_X_REQUESTED_WITH']) || !in_array($_POST['action'] ?? '', ['create_assessment', 'update_assessment', 'archive_assessment', 'unarchive_assessment', 'recover_all_assessments', 'toggle_status']))) {
     // Set content type for JSON responses
     header('Content-Type: application/json');
     
@@ -742,7 +742,9 @@ $stmt->execute([$course['id']]);
 $all_assessments = $stmt->fetchAll();
 
 // Filter assessments that belong to this specific module
+$show_archived = isset($_GET['show_archived']) && $_GET['show_archived'] == '1';
 $assessments = []; // Reset to ensure sequential array keys
+$archived_assessments = []; // For archived assessments
 foreach ($all_assessments as $assessment) {
     // Check if this assessment exists in the current module's JSON
     if (isset($module['assessments']) && is_array($module['assessments'])) {
@@ -750,7 +752,16 @@ foreach ($all_assessments as $assessment) {
             if ($json_assessment['id'] === $assessment['id']) {
                 // Map database 'status' field to 'is_active' for backward compatibility
                 $assessment['is_active'] = ($assessment['status'] === 'active');
-                $assessments[] = $assessment; // Use [] to ensure sequential array keys
+                
+                // Check if assessment is archived
+                if (isset($json_assessment['is_archived']) && $json_assessment['is_archived']) {
+                    $assessment['is_archived'] = true;
+                    $assessment['archived_at'] = $json_assessment['archived_at'] ?? null;
+                    $assessment['recovered_at'] = $json_assessment['recovered_at'] ?? null;
+                    $archived_assessments[] = $assessment;
+                } else {
+                    $assessments[] = $assessment; // Use [] to ensure sequential array keys
+                }
                 break;
             }
         }
@@ -765,7 +776,7 @@ usort($assessments, function($a, $b) {
 });
 
 // Handle assessment actions (non-AJAX form submissions)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['create_assessment', 'update_assessment', 'delete_assessment', 'toggle_status'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['create_assessment', 'update_assessment', 'archive_assessment', 'unarchive_assessment', 'recover_all_assessments', 'toggle_status'])) {
     error_log("POST request received - processing form submission");
     error_log("POST data: " . print_r($_POST, true));
     error_log("GET data: " . print_r($_GET, true));
@@ -1045,22 +1056,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 }
                 break;
                 
-            case 'delete_assessment':
+            case 'archive_assessment':
                 $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
                 
-                // Delete assessment from database table
-                $stmt = $db->prepare('DELETE FROM assessments WHERE id = ? AND course_id = ?');
-                $stmt->execute([$assessment_id, $course['id']]);
-                
-                // Also delete related questions
-                $stmt = $db->prepare('DELETE FROM questions WHERE assessment_id = ?');
-                $stmt->execute([$assessment_id]);
-                
-                // Find and remove the assessment from the module
+                // Find and archive the assessment in the module
                 if (isset($module['assessments']) && is_array($module['assessments'])) {
-                    $module['assessments'] = array_filter($module['assessments'], function($assessment) use ($assessment_id) {
-                        return $assessment['id'] !== $assessment_id;
-                    });
+                    foreach ($module['assessments'] as &$assessment) {
+                        if ($assessment['id'] === $assessment_id) {
+                            $assessment['is_archived'] = true;
+                            $assessment['archived_at'] = date('Y-m-d H:i:s');
+                            break;
+                        }
+                    }
                     
                     // Update the module in the modules array
                     foreach ($modules_data as &$mod) {
@@ -1074,19 +1081,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
                     $stmt->execute([json_encode($modules_data), $course['id']]);
                     
-                    // Refresh the assessments array to remove the deleted assessment immediately
-                    $assessments = array_filter($assessments, function($assessment) use ($assessment_id) {
-                        return $assessment['id'] !== $assessment_id;
-                    });
+                    $message = 'Assessment archived successfully.';
+                    $message_type = 'success';
+                }
+                break;
+                
+            case 'unarchive_assessment':
+                $assessment_id = sanitizeInput($_POST['assessment_id'] ?? '');
+                
+                // Find and unarchive the assessment in the module
+                if (isset($module['assessments']) && is_array($module['assessments'])) {
+                    foreach ($module['assessments'] as &$assessment) {
+                        if ($assessment['id'] === $assessment_id) {
+                            $assessment['is_archived'] = false;
+                            unset($assessment['archived_at']);
+                            $assessment['recovered_at'] = date('Y-m-d H:i:s');
+                            break;
+                        }
+                    }
                     
-                    // Re-sort assessments by assessment_order after deletion
-                    usort($assessments, function($a, $b) {
-                        $order_a = (int)($a['assessment_order'] ?? 0);
-                        $order_b = (int)($b['assessment_order'] ?? 0);
-                        return $order_a - $order_b;
-                    });
+                    // Update the module in the modules array
+                    foreach ($modules_data as &$mod) {
+                        if ($mod['id'] === $module_id) {
+                            $mod = $module;
+                            break;
+                        }
+                    }
                     
-                    $message = 'Assessment deleted successfully.';
+                    // Update course with updated modules JSON
+                    $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                    $stmt->execute([json_encode($modules_data), $course['id']]);
+                    
+                    $message = 'Assessment recovered successfully.';
+                    $message_type = 'success';
+                }
+                break;
+                
+            case 'recover_all_assessments':
+                // Find and recover all archived assessments in the module
+                if (isset($module['assessments']) && is_array($module['assessments'])) {
+                    $recovered_count = 0;
+                    foreach ($module['assessments'] as &$assessment) {
+                        if (isset($assessment['is_archived']) && $assessment['is_archived']) {
+                            $assessment['is_archived'] = false;
+                            unset($assessment['archived_at']);
+                            $assessment['recovered_at'] = date('Y-m-d H:i:s');
+                            $recovered_count++;
+                        }
+                    }
+                    
+                    // Update the module in the modules array
+                    foreach ($modules_data as &$mod) {
+                        if ($mod['id'] === $module_id) {
+                            $mod = $module;
+                            break;
+                        }
+                    }
+                    
+                    // Update course with updated modules JSON
+                    $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                    $stmt->execute([json_encode($modules_data), $course['id']]);
+                    
+                    $message = "Successfully recovered {$recovered_count} archived assessments.";
                     $message_type = 'success';
                 }
                 break;
@@ -1481,27 +1537,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 text-white">
                             <i class="bi bi-list-check me-2"></i>Assessments (<?php echo count($assessments); ?>)
+                            <?php if ($show_archived): ?>
+                                <span class="badge bg-warning ms-2">Archived View</span>
+                            <?php endif; ?>
                         </h5>
-                        <div class="text-end">
-                            <?php
-                            $active_count = 0;
-                            foreach ($assessments as $assessment) {
-                                if ($assessment['is_active']) {
-                                    $active_count++;
+                        <div class="d-flex align-items-center gap-3">
+                            <?php if (!empty($archived_assessments)): ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-secondary"><?= count($archived_assessments) ?> Archived</span>
+                                    <?php if ($show_archived): ?>
+                                        <button class="btn btn-sm btn-success" onclick="recoverAllAssessments()" title="Recover All Archived Assessments">
+                                            <i class="bi bi-arrow-clockwise"></i> Recover All
+                                        </button>
+                                    <?php endif; ?>
+                                    <a href="?module_id=<?= $module_id ?>&show_archived=<?= $show_archived ? '0' : '1' ?>" 
+                                       class="btn btn-sm <?= $show_archived ? 'btn-outline-light' : 'btn-light' ?>">
+                                        <i class="bi bi-<?= $show_archived ? 'eye-slash' : 'eye' ?>"></i>
+                                        <?= $show_archived ? 'Hide' : 'Show' ?> Archived
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                            <div class="text-end">
+                                <?php
+                                $active_count = 0;
+                                foreach ($assessments as $assessment) {
+                                    if ($assessment['is_active']) {
+                                        $active_count++;
+                                    }
                                 }
-                            }
-                            ?>
-                            <span class="badge bg-success fs-6">
-                                <i class="bi bi-check-circle me-1"></i><?php echo $active_count; ?> active
-                            </span>
-                            <span class="badge bg-secondary fs-6 ms-2">
-                                <i class="bi bi-pause-circle me-1"></i><?php echo count($assessments) - $active_count; ?> inactive
-                            </span>
+                                ?>
+                                <span class="badge bg-success fs-6">
+                                    <i class="bi bi-check-circle me-1"></i><?php echo $active_count; ?> active
+                                </span>
+                                <span class="badge bg-secondary fs-6 ms-2">
+                                    <i class="bi bi-pause-circle me-1"></i><?php echo count($assessments) - $active_count; ?> inactive
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="card-body" style="background: white; border-radius: 0 0 15px 15px;">
-                    <?php if (empty($assessments)): ?>
+                    <?php 
+                    $display_assessments = $show_archived ? array_merge($assessments, $archived_assessments) : $assessments;
+                    
+                    // Show recovery notification if there are recently recovered assessments
+                    $recently_recovered = [];
+                    if ($course['modules']) {
+                        $modules_data = json_decode($course['modules'], true);
+                        if (is_array($modules_data)) {
+                            foreach ($modules_data as $mod) {
+                                if ($mod['id'] === $module_id && isset($mod['assessments'])) {
+                                    foreach ($mod['assessments'] as $assessment) {
+                                        if (isset($assessment['recovered_at']) && !isset($assessment['is_archived'])) {
+                                            $recently_recovered[] = $assessment;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!empty($recently_recovered) && !$show_archived): ?>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Recovery Notice:</strong> 
+                            <?= count($recently_recovered) ?> assessment(s) have been recently recovered from archive.
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (empty($display_assessments)): ?>
                         <div class="text-center py-5">
                             <div class="mb-4">
                                 <i class="bi bi-clipboard-check display-1 text-muted"></i>
@@ -1515,7 +1619,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                     <?php else: ?>
                         <div class="assessments-scrollable-container">
                         <div class="row">
-                                    <?php foreach ($assessments as $assessment): 
+                                    <?php foreach ($display_assessments as $assessment): 
                                         // Count actual questions for this assessment
                                         $stmt = $db->prepare("SELECT COUNT(*) FROM questions WHERE assessment_id = ?");
                                         $stmt->execute([$assessment['id']]);
@@ -1523,11 +1627,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                     ?>
                                 <div class="col-md-6 col-lg-4 mb-4">
                                     <div class="card h-100 border-0 shadow-sm hover-shadow" data-assessment-id="<?php echo $assessment['id']; ?>">
-                                        <div class="card-header bg-<?php echo $assessment['status'] === 'active' ? 'success' : 'secondary'; ?> text-white">
+                                        <div class="card-header bg-<?php echo $assessment['status'] === 'active' ? 'success' : 'secondary'; ?> text-white <?= isset($assessment['is_archived']) && $assessment['is_archived'] ? 'archived-assessment' : '' ?>">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div class="d-flex align-items-center">
                                                     <span class="badge bg-light text-dark me-2"><?php echo $assessment['assessment_order'] ?? 1; ?></span>
                                                     <h6 class="mb-0 text-white fw-bold"><?php echo htmlspecialchars($assessment['assessment_title']); ?></h6>
+                                                    <?php if (isset($assessment['is_archived']) && $assessment['is_archived']): ?>
+                                                        <span class="badge bg-warning ms-2">
+                                                            <i class="bi bi-archive me-1"></i>Archived
+                                                        </span>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div class="form-check form-switch">
                                                     <input class="form-check-input" type="checkbox" 
@@ -1538,6 +1647,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                             </div>
                                         </div>
                                         <div class="card-body d-flex flex-column">
+                                            <?php if (isset($assessment['is_archived']) && $assessment['is_archived']): ?>
+                                                <div class="alert alert-warning alert-sm mb-3">
+                                                    <i class="bi bi-archive me-1"></i>
+                                                    <strong>Archived</strong>
+                                                    <?php if (isset($assessment['archived_at'])): ?>
+                                                        on <?= date('M j, Y g:i A', strtotime($assessment['archived_at'])) ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (isset($assessment['recovered_at'])): ?>
+                                                <div class="alert alert-success alert-sm mb-3">
+                                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                                    <strong>Recovered</strong> on <?= date('M j, Y g:i A', strtotime($assessment['recovered_at'])) ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php if (!empty($assessment['description'])): ?>
                                                 <p class="card-text small text-muted mb-3"><?php echo htmlspecialchars(substr($assessment['description'], 0, 120)) . (strlen($assessment['description']) > 120 ? '...' : ''); ?></p>
                                                     <?php endif; ?>
@@ -1602,9 +1726,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                                                     <button class="btn btn-outline-info" onclick="viewAssessmentStats('<?php echo $assessment['id']; ?>')" title="View Statistics">
                                                         <i class="bi bi-graph-up me-1"></i>Stats
                                                     </button>
-                                                    <button class="btn btn-outline-danger" onclick="deleteAssessment('<?php echo $assessment['id']; ?>', '<?php echo htmlspecialchars($assessment['assessment_title']); ?>')" title="Delete Assessment">
-                                                        <i class="bi bi-trash me-1"></i>Delete
+                                                    <?php if (isset($assessment['is_archived']) && $assessment['is_archived']): ?>
+                                                        <button class="btn btn-outline-success" onclick="unarchiveAssessment('<?php echo $assessment['id']; ?>', '<?php echo htmlspecialchars($assessment['assessment_title']); ?>')" title="Recover Assessment">
+                                                            <i class="bi bi-arrow-clockwise me-1"></i>Recover
                                                         </button>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-outline-warning" onclick="archiveAssessment('<?php echo $assessment['id']; ?>', '<?php echo htmlspecialchars($assessment['assessment_title']); ?>')" title="Archive Assessment">
+                                                            <i class="bi bi-archive me-1"></i>Archive
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -1843,10 +1973,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     </div>
 </div>
 
-<!-- Delete Assessment Form -->
-<form id="deleteAssessmentForm" method="post" action="module_assessments.php?module_id=<?php echo $module_id; ?>" style="display: none;">
-    <input type="hidden" name="action" value="delete_assessment">
-    <input type="hidden" name="assessment_id" id="delete_assessment_id">
+<!-- Archive Assessment Form -->
+<form id="archiveAssessmentForm" method="post" action="module_assessments.php?module_id=<?php echo $module_id; ?>" style="display: none;">
+    <input type="hidden" name="action" value="archive_assessment">
+    <input type="hidden" name="assessment_id" id="archive_assessment_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
+<!-- Unarchive Assessment Form -->
+<form id="unarchiveAssessmentForm" method="post" action="module_assessments.php?module_id=<?php echo $module_id; ?>" style="display: none;">
+    <input type="hidden" name="action" value="unarchive_assessment">
+    <input type="hidden" name="assessment_id" id="unarchive_assessment_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
+<!-- Recover All Assessments Form -->
+<form id="recoverAllAssessmentsForm" method="post" action="module_assessments.php?module_id=<?php echo $module_id; ?>" style="display: none;">
+    <input type="hidden" name="action" value="recover_all_assessments">
     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
 </form>
 
@@ -2718,6 +2861,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
+/* Archived Assessment Styles */
+.archived-assessment {
+    opacity: 0.7;
+    position: relative;
+}
+
+.archived-assessment::before {
+    content: "ARCHIVED";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #6c757d;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* Alert Styles for Assessment Status */
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-success {
+    background-color: #d1edff;
+    border-color: #b3d9ff;
+    color: #0c5460;
+}
+
 .assessment-card .card-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -2921,10 +3104,29 @@ function viewAssessmentStats(assessmentId) {
     statsModal.show();
 }
 
-function deleteAssessment(assessmentId, assessmentTitle) {
-    if (confirm(`Are you sure you want to delete "${assessmentTitle}"?\n\nThis action cannot be undone and will remove all assessment data.`)) {
-        document.getElementById('delete_assessment_id').value = assessmentId;
-        document.getElementById('deleteAssessmentForm').submit();
+function archiveAssessment(assessmentId, assessmentTitle) {
+    if (confirm(`Are you sure you want to archive "${assessmentTitle}"?\n\nThis will hide the assessment from students but preserve all data.`)) {
+        document.getElementById('archive_assessment_id').value = assessmentId;
+        document.getElementById('archiveAssessmentForm').submit();
+    }
+}
+
+function unarchiveAssessment(assessmentId, assessmentTitle) {
+    if (confirm(`Are you sure you want to recover "${assessmentTitle}"?\n\nThis will make the assessment visible to students again.`)) {
+        document.getElementById('unarchive_assessment_id').value = assessmentId;
+        document.getElementById('unarchiveAssessmentForm').submit();
+    }
+}
+
+function recoverAllAssessments() {
+    const archivedCount = <?= count($archived_assessments) ?>;
+    if (archivedCount === 0) {
+        alert('No archived assessments to recover.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to recover ALL ${archivedCount} archived assessments?\n\nThis will make all archived assessments visible to students again.`)) {
+        document.getElementById('recoverAllAssessmentsForm').submit();
     }
 }
 

@@ -318,6 +318,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
             $course['id']
         ]);
         
+        // Update module_progress table
+        $stmt = $pdo->prepare("
+            INSERT INTO module_progress (student_id, module_id, course_id, is_completed, completed_at, progress_percentage) 
+            VALUES (?, ?, ?, 1, NOW(), 100.00)
+            ON DUPLICATE KEY UPDATE 
+            is_completed = 1, 
+            completed_at = NOW(), 
+            progress_percentage = 100.00,
+            updated_at = NOW()
+        ");
+        $stmt->execute([$user_id, $module_id, $course['id']]);
+        
+        // Award module-specific badges
+        require_once '../includes/module_completion_handler.php';
+        $moduleCompletionHandler = new ModuleCompletionHandler($pdo);
+        $moduleCompletionHandler->awardModuleBadges($user_id, $module_id);
+        
+        // Check if course is now completed and award badges
+        require_once '../includes/course_completion_handler.php';
+        $completionHandler = new CourseCompletionHandler($pdo);
+        $course_completed = $completionHandler->updateCourseCompletion($user_id, $course['id']);
+        
         // Send Pusher notifications
         require_once '../config/pusher.php';
         require_once '../includes/pusher_notifications.php';
@@ -337,7 +359,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
             $course['course_name']
         );
         
-        $_SESSION['success'] = "Module marked as completed!";
+        if ($course_completed) {
+            $_SESSION['success'] = "Module completed! Course completed! You've earned course badges!";
+        } else {
+            $_SESSION['success'] = "Module marked as completed!";
+        }
     } else {
         // Build detailed error message
         $error_messages = [];
@@ -499,11 +525,29 @@ foreach ($assessments as $index => $a) {
         $previous_assessment_completed = false;
         $previous_assessment_title = '';
         
-        // Find the assessment with the previous order
-        foreach ($assessments as $prev_assessment) {
+        // Get all assessments from the course (not just current module)
+        $stmt = $pdo->prepare("
+            SELECT a.id, a.assessment_title, a.passing_rate, a.assessment_order
+            FROM assessments a
+            WHERE a.course_id = ? AND a.status = 'active'
+            ORDER BY a.assessment_order ASC
+        ");
+        $stmt->execute([$course['id']]);
+        $all_course_assessments = $stmt->fetchAll();
+        
+        // Find the assessment with the previous order from all course assessments
+        foreach ($all_course_assessments as $prev_assessment) {
             $prev_order = $prev_assessment['assessment_order'] ?? 1;
             if ($prev_order == $previous_order) {
-                $prev_best_score = $prev_assessment['best_score'] ?? 0;
+                // Get student's best score for this assessment
+                $stmt = $pdo->prepare("
+                    SELECT MAX(score) as best_score
+                    FROM assessment_attempts 
+                    WHERE student_id = ? AND assessment_id = ?
+                ");
+                $stmt->execute([$user_id, $prev_assessment['id']]);
+                $score_result = $stmt->fetch();
+                $prev_best_score = $score_result['best_score'] ?? 0;
                 $prev_passing_rate = $prev_assessment['passing_rate'] ?? 70;
                 $previous_assessment_title = $prev_assessment['assessment_title'] ?? 'Previous Assessment';
                 $previous_assessment_completed = ($prev_best_score >= $prev_passing_rate);

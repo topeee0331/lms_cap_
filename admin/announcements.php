@@ -511,6 +511,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message_type = 'warning';
                 }
                 break;
+                
+            case 'archive':
+                $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+                $stmt = $db->prepare('UPDATE announcements SET is_archived = 1 WHERE id = ?');
+                $stmt->execute([$announcement_id]);
+                $message = 'Announcement archived successfully.';
+                $message_type = 'success';
+                break;
+                
+            case 'recover':
+                $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+                $stmt = $db->prepare('UPDATE announcements SET is_archived = 0 WHERE id = ?');
+                $stmt->execute([$announcement_id]);
+                $message = 'Announcement recovered successfully.';
+                $message_type = 'success';
+                break;
         }
     }
 }
@@ -518,9 +534,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get announcements with search and filter
 $search = sanitizeInput($_GET['search'] ?? '');
 $course_filter = (int)($_GET['course'] ?? 0);
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
 
 $where_conditions = [];
 $params = [];
+
+// Add archive filter - show only archived announcements when requested, otherwise show only active announcements
+if ($show_archived === '1') {
+    $where_conditions[] = "a.is_archived = 1";
+} else {
+    $where_conditions[] = "(a.is_archived = 0 OR a.is_archived IS NULL)";
+}
 
 if (!empty($search)) {
     $where_conditions[] = "(a.title LIKE ? OR a.content LIKE ?)";
@@ -646,15 +670,33 @@ $courses = $stmt->fetchAll();
         <!-- Announcements List -->
         <div class="row">
             <div class="col-12">
+                <?php if ($show_archived === '1'): ?>
+                    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                        <i class="bi bi-archive-fill me-2"></i>
+                        <div>
+                            <strong>Viewing Archived Announcements</strong> - These announcements have been archived and can be recovered. 
+                            Click the green recover button (🔄) to restore them to active status.
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="card announcements-container">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
-                                <i class="bi bi-megaphone me-2"></i>Announcements
+                                <i class="bi bi-megaphone me-2"></i><?= $show_archived === '1' ? 'Archived Announcements' : 'Announcements' ?>
                                 <span class="badge bg-primary ms-2"><?php echo count($announcements); ?></span>
                             </h5>
-                            <?php if (!empty($announcements)): ?>
-                                <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <?php if ($show_archived === '1'): ?>
+                                    <a href="announcements.php" class="btn btn-outline-success btn-sm" title="Back to Active Announcements">
+                                        <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                    </a>
+                                <?php else: ?>
+                                    <a href="announcements.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Announcements">
+                                        <i class="bi bi-archive me-1"></i>View Archived
+                                    </a>
+                                <?php endif; ?>
+                                <?php if (!empty($announcements)): ?>
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="selectAllAnnouncements">
                                         <label class="form-check-label" for="selectAllAnnouncements">
@@ -664,8 +706,8 @@ $courses = $stmt->fetchAll();
                                     <button type="button" class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn" disabled>
                                         <i class="bi bi-trash me-1"></i>Delete Selected
                                     </button>
-                                </div>
-                            <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -681,7 +723,7 @@ $courses = $stmt->fetchAll();
                         <?php else: ?>
                             <div class="accordion" id="announcementsAccordion">
                                 <?php foreach ($announcements as $index => $announcement): ?>
-                                    <div class="accordion-item announcement-accordion-item">
+                                    <div class="accordion-item announcement-accordion-item <?= (isset($announcement['is_archived']) && $announcement['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                         <h2 class="accordion-header" id="heading<?php echo $announcement['id']; ?>">
                                             <button class="accordion-button collapsed" type="button" 
                                                     data-bs-toggle="collapse" 
@@ -703,6 +745,11 @@ $courses = $stmt->fetchAll();
                                                                     <i class="bi bi-<?php echo $announcement['announcement_type'] === 'General Announcement' ? 'globe' : 'book'; ?> me-1"></i>
                                                                     <?php echo htmlspecialchars($announcement['announcement_type']); ?>
                                                                 </span>
+                                                                <?php if (isset($announcement['is_archived']) && $announcement['is_archived']): ?>
+                                                                    <span class="badge bg-warning text-dark me-2">
+                                                                        <i class="bi bi-archive me-1"></i>Archived
+                                                                    </span>
+                                                                <?php endif; ?>
                                                                 <small class="text-muted">
                                                                     <i class="bi bi-calendar me-1"></i><?php echo formatDate($announcement['created_at']); ?>
                                                                 </small>
@@ -728,6 +775,19 @@ $courses = $stmt->fetchAll();
                                                                 onclick="editAnnouncement(<?php echo htmlspecialchars(json_encode($announcement)); ?>)">
                                                             <i class="bi bi-pencil me-1"></i>Edit
                                                         </button>
+                                                        <?php if (isset($announcement['is_archived']) && $announcement['is_archived']): ?>
+                                                            <!-- Recover button for archived announcements -->
+                                                            <button class="btn btn-success btn-sm" 
+                                                                    onclick="recoverAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
+                                                                <i class="bi bi-arrow-clockwise me-1"></i>Recover
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <!-- Archive button for active announcements -->
+                                                            <button class="btn btn-warning btn-sm" 
+                                                                    onclick="archiveAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
+                                                                <i class="bi bi-archive me-1"></i>Archive
+                                                            </button>
+                                                        <?php endif; ?>
                                                         <button class="btn btn-outline-danger btn-sm" 
                                                                 onclick="deleteAnnouncement(<?php echo $announcement['id']; ?>, '<?php echo htmlspecialchars($announcement['title']); ?>')">
                                                             <i class="bi bi-trash me-1"></i>Delete
@@ -852,6 +912,20 @@ $courses = $stmt->fetchAll();
     <div id="bulkDeleteInputs"></div>
 </form>
 
+<!-- Archive Announcement Form -->
+<form id="archiveAnnouncementForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="archive">
+    <input type="hidden" name="announcement_id" id="archive_announcement_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
+<!-- Recover Announcement Form -->
+<form id="recoverAnnouncementForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="recover">
+    <input type="hidden" name="announcement_id" id="recover_announcement_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
 <script>
 function editAnnouncement(announcement) {
     document.getElementById('edit_announcement_id').value = announcement.id;
@@ -866,6 +940,20 @@ function deleteAnnouncement(announcementId, announcementTitle) {
     if (confirm(`Are you sure you want to delete "${announcementTitle}"? This action cannot be undone.`)) {
         document.getElementById('delete_announcement_id').value = announcementId;
         document.getElementById('deleteAnnouncementForm').submit();
+    }
+}
+
+function archiveAnnouncement(announcementId, announcementTitle) {
+    if (confirm(`Are you sure you want to archive "${announcementTitle}"? It will be hidden but can be recovered later.`)) {
+        document.getElementById('archive_announcement_id').value = announcementId;
+        document.getElementById('archiveAnnouncementForm').submit();
+    }
+}
+
+function recoverAnnouncement(announcementId, announcementTitle) {
+    if (confirm(`Are you sure you want to recover "${announcementTitle}"? It will be restored to active status.`)) {
+        document.getElementById('recover_announcement_id').value = announcementId;
+        document.getElementById('recoverAnnouncementForm').submit();
     }
 }
 

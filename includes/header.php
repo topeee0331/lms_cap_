@@ -1342,7 +1342,7 @@ if (!defined('NO_HTML_OUTPUT')) {
                                 </a>
                             </li>
                             <li class="nav-item dropdown<?php 
-    $teacher_activity_pages = ['modules.php','assessments.php','students.php','videos.php','announcements.php'];
+    $teacher_activity_pages = ['modules.php','assessments.php','students.php','announcements.php'];
     foreach ($teacher_activity_pages as $tap) { if (strpos($current_page, basename($tap, '.php')) === 0) { echo ' active'; break; } }
 ?>">
                                 <a class="nav-link dropdown-toggle" href="#" id="teacherActivityDropdown" role="button" data-bs-toggle="dropdown">
@@ -1357,9 +1357,6 @@ if (!defined('NO_HTML_OUTPUT')) {
                                     </a></li>
                                     <li><a class="dropdown-item<?php if ($current_page == 'students.php') echo ' active'; ?>" href="<?php echo SITE_URL; ?>/teacher/students.php">
                                         <i class="bi bi-people"></i>Students
-                                    </a></li>
-                                    <li><a class="dropdown-item<?php if ($current_page == 'videos.php') echo ' active'; ?>" href="<?php echo SITE_URL; ?>/teacher/videos.php">
-                                        <i class="bi bi-camera-video"></i>Videos
                                     </a></li>
                                 </ul>
                             </li>
@@ -3948,33 +3945,6 @@ class TutorialSystem {
                         'Organize videos logically by topic or lesson sequence'
                     ]
                 },
-                'videos.php': {
-                    title: 'Video Library',
-                    description: 'Manage your entire video library across all courses. Upload, organize, and maintain your educational video content.',
-                    features: [
-                        {
-                            icon: 'bi bi-collection',
-                            title: 'Video Library',
-                            description: 'View and manage all videos across all your courses in one central location.'
-                        },
-                        {
-                            icon: 'bi bi-search',
-                            title: 'Search & Filter',
-                            description: 'Search for specific videos and filter by course or module.'
-                        },
-                        {
-                            icon: 'bi bi-download',
-                            title: 'Bulk Operations',
-                            description: 'Download multiple videos or perform bulk operations on your video library.'
-                        }
-                    ],
-                    tips: [
-                        'Use consistent naming conventions for your videos',
-                        'Add tags and categories to make videos easier to find',
-                        'Regularly review and update video content for accuracy',
-                        'Consider video quality and file size for optimal student experience'
-                    ]
-                }
             },
             'admin': {
                 'index.php': {

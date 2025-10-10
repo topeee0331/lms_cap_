@@ -161,9 +161,20 @@ foreach ($courses as $course) {
             $module['is_locked'] = 0;
         }
         
-        // Count videos and assessments for this module
+        // Count videos, assessments, and files for this module
         $module['video_count'] = isset($module['videos']) ? count($module['videos']) : 0;
         $module['assessment_count'] = isset($module['assessments']) ? count($module['assessments']) : 0;
+        
+        // Count files - check for both single file and files array
+        $file_count = 0;
+        if (isset($module['files']) && is_array($module['files'])) {
+            // Multiple files stored in files array
+            $file_count = count($module['files']);
+        } elseif (isset($module['file']) && !empty($module['file']['filename'])) {
+            // Single file stored in file field
+            $file_count = 1;
+        }
+        $module['file_count'] = $file_count;
         
         $all_modules[] = $module;
     }
@@ -1011,12 +1022,22 @@ usort($all_modules, function($a, $b) {
                                     </td>
                                     <td>
                                         <div class="text-center clickable-content" data-module-id="<?php echo $module['id']; ?>" data-redirect="files" title="Click to view files">
-                                            <?php if (isset($module['file']) && !empty($module['file']['filename'])): ?>
+                                            <?php if ($module['file_count'] > 0): ?>
                                                 <span class="badge bg-success fs-6">
-                                                    <i class="bi bi-paperclip me-1"></i>1
+                                                    <i class="bi bi-paperclip me-1"></i><?php echo $module['file_count']; ?>
                                                 </span>
                                                 <br>
-                                                <small class="text-muted"><?php echo htmlspecialchars(substr($module['file']['original_name'] ?? 'file', 0, 10)) . '...'; ?></small>
+                                                <small class="text-muted">
+                                                    <?php 
+                                                    if (isset($module['file']) && !empty($module['file']['original_name'])) {
+                                                        echo htmlspecialchars(substr($module['file']['original_name'], 0, 10)) . '...';
+                                                    } elseif (isset($module['files']) && is_array($module['files']) && count($module['files']) > 0) {
+                                                        echo htmlspecialchars(substr($module['files'][0]['original_name'] ?? 'file', 0, 10)) . '...';
+                                                    } else {
+                                                        echo 'file(s)';
+                                                    }
+                                                    ?>
+                                                </small>
                                             <?php else: ?>
                                                 <span class="badge bg-light text-muted fs-6">
                                                     <i class="bi bi-file-x me-1"></i>0

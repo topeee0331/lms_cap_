@@ -112,6 +112,31 @@ if (!empty($course['modules'])) {
         $is_completed = isset($module_progress[$module_id]) && $module_progress[$module_id]['is_completed'] == 1;
         $completed_at = isset($module_progress[$module_id]) ? $module_progress[$module_id]['completed_at'] : null;
         
+        // Check if module is unlocked based on previous module completion
+        $is_unlocked = true;
+        $unlock_reason = '';
+        
+        if ($module['module_order'] > 1) {
+            // Find the previous module
+            $previous_module = null;
+            foreach ($modules_data as $prev_module) {
+                if ($prev_module['module_order'] == $module['module_order'] - 1) {
+                    $previous_module = $prev_module;
+                    break;
+                }
+            }
+            
+            if ($previous_module) {
+                $prev_module_id = $previous_module['id'];
+                $prev_is_completed = isset($module_progress[$prev_module_id]) && $module_progress[$prev_module_id]['is_completed'] == 1;
+                
+                if (!$prev_is_completed) {
+                    $is_unlocked = false;
+                    $unlock_reason = "Complete " . $previous_module['module_title'] . " first";
+                }
+            }
+        }
+        
         // Check if student meets requirements for module completion
         $can_complete = true;
         $requirement_message = '';
@@ -166,6 +191,8 @@ if (!empty($course['modules'])) {
             'module_order' => $module['module_order'],
             'is_locked' => $module['is_locked'] ?? 0,
             'unlock_score' => $module['unlock_score'] ?? 70,
+            'is_unlocked' => $is_unlocked,
+            'unlock_reason' => $unlock_reason,
             'video_count' => $video_count,
             'assessment_count' => $assessment_count,
             'file_count' => $file_count,
@@ -342,7 +369,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                 $course_id
             ]);
             
-            $_SESSION['success'] = "Module marked as completed!";
+            // Update module_progress table
+            $stmt = $pdo->prepare("
+                INSERT INTO module_progress (student_id, module_id, course_id, is_completed, completed_at, progress_percentage) 
+                VALUES (?, ?, ?, 1, NOW(), 100.00)
+                ON DUPLICATE KEY UPDATE 
+                is_completed = 1, 
+                completed_at = NOW(), 
+                progress_percentage = 100.00,
+                updated_at = NOW()
+            ");
+            $stmt->execute([$user_id, $module_id, $course_id]);
+            
+            // Award module-specific badges
+            require_once '../includes/module_completion_handler.php';
+            $moduleCompletionHandler = new ModuleCompletionHandler($pdo);
+            $moduleCompletionHandler->awardModuleBadges($user_id, $module_id);
+            
+            // Check if course is now completed and award badges
+            require_once '../includes/course_completion_handler.php';
+            $completionHandler = new CourseCompletionHandler($pdo);
+            $course_completed = $completionHandler->updateCourseCompletion($user_id, $course_id);
+            
+            if ($course_completed) {
+                $_SESSION['success'] = "Module completed! Course completed! You've earned course badges!";
+            } else {
+                $_SESSION['success'] = "Module marked as completed!";
+            }
         } else {
             $_SESSION['error'] = $requirement_message;
         }
@@ -677,7 +730,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                         <div class="row">
                             <?php foreach ($modules as $index => $module): ?>
                                 <?php 
-                                $is_locked = $module['is_locked'] && $index > 0 && !$modules[$index - 1]['is_completed'];
+                                $is_locked = !$module['is_unlocked'];
                                 ?>
                                 <div class="col-md-6 col-lg-4 mb-3">
                                     <div class="card module-card <?php echo $module['is_completed'] ? 'completed' : ''; ?> <?php echo $is_locked ? 'locked' : ''; ?>">
@@ -720,7 +773,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
                                             
                                             <?php if ($is_locked): ?>
                                                 <button class="btn btn-secondary w-100" disabled>
-                                                    Complete previous module first
+                                                    <?php echo htmlspecialchars($module['unlock_reason']); ?>
                                                 </button>
                                             <?php elseif ($module['is_completed']): ?>
                                                 <div class="d-grid gap-2">
@@ -777,7 +830,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Real-time progress updates
         function updateProgressData() {

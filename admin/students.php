@@ -562,24 +562,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
-            case 'delete':
+            case 'archive':
                 $user_id = (int)($_POST['user_id'] ?? 0);
                 if ($user_id === $_SESSION['user_id']) {
-                    $message = 'You cannot delete your own account.';
+                    $message = 'You cannot archive your own account.';
                     $message_type = 'danger';
                 } else {
-                    $stmt = $db->prepare('UPDATE users SET status = ? WHERE id = ? AND role = ?');
-                    $stmt->execute(['inactive', $user_id, 'student']);
+                    $stmt = $db->prepare('UPDATE users SET is_archived = 1 WHERE id = ? AND role = ?');
+                    $stmt->execute([$user_id, 'student']);
                     $message = 'Student archived successfully.';
                     $message_type = 'success';
                 }
                 break;
                 
-            case 'unarchive':
+            case 'recover':
                 $user_id = (int)($_POST['user_id'] ?? 0);
-                $stmt = $db->prepare('UPDATE users SET status = ? WHERE id = ? AND role = ?');
-                $stmt->execute(['active', $user_id, 'student']);
-                $message = 'Student unarchived successfully.';
+                $stmt = $db->prepare('UPDATE users SET is_archived = 0 WHERE id = ? AND role = ?');
+                $stmt->execute([$user_id, 'student']);
+                $message = 'Student recovered successfully.';
                 $message_type = 'success';
                 break;
         }
@@ -591,9 +591,17 @@ $search = sanitizeInput($_GET['search'] ?? '');
 $status_filter = sanitizeInput($_GET['status'] ?? '');
 $section_filter = sanitizeInput($_GET['section'] ?? '');
 $year_filter = sanitizeInput($_GET['year'] ?? '');
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
 
 $where_conditions = ["role = 'student'"];
 $params = [];
+
+// Add archive filter - show only archived students when requested, otherwise show only active students
+if ($show_archived === '1') {
+    $where_conditions[] = "is_archived = 1";
+} else {
+    $where_conditions[] = "(is_archived = 0 OR is_archived IS NULL)";
+}
 
 if (!empty($search)) {
     $where_conditions[] = "(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ? OR identifier LIKE ?)";
@@ -930,13 +938,31 @@ foreach ($students as $stu) {
         <!-- Students Table -->
         <div class="row">
             <div class="col-12">
+                <?php if ($show_archived === '1'): ?>
+                    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                        <i class="bi bi-archive-fill me-2"></i>
+                        <div>
+                            <strong>Viewing Archived Students</strong> - These students have been archived and can be recovered. 
+                            Click the green recover button (🔄) to restore them to active status.
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="card table-container">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5>
-                                <i class="bi bi-mortarboard me-2"></i>Students Management
+                                <i class="bi bi-mortarboard me-2"></i><?= $show_archived === '1' ? 'Archived Students Management' : 'Students Management' ?>
                             </h5>
                             <div class="d-flex align-items-center gap-2">
+                                <?php if ($show_archived === '1'): ?>
+                                    <a href="students.php" class="btn btn-outline-success btn-sm" title="Back to Active Students">
+                                        <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                    </a>
+                                <?php else: ?>
+                                    <a href="students.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Students">
+                                        <i class="bi bi-archive me-1"></i>View Archived
+                                    </a>
+                                <?php endif; ?>
                                 <span class="badge bg-primary fs-6"><?= count($students) ?> students found</span>
                                 <div id="loadingIndicator" style="display: none;">
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -985,8 +1011,8 @@ foreach ($students as $stu) {
                                     </tr>
                                 </thead>
                             <tbody>
-                                <?php foreach ($students as $student): ?>
-                                    <tr>
+                                    <?php foreach ($students as $student): ?>
+                                        <tr class="<?= (isset($student['is_archived']) && $student['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="flex-shrink-0">
@@ -1014,6 +1040,11 @@ foreach ($students as $stu) {
                                                     <i class="bi bi-<?= (isset($student['status']) && $student['status'] === 'inactive') ? 'archive' : 'check-circle' ?> me-1"></i>
                                                     <?= (isset($student['status']) && $student['status'] === 'inactive') ? 'Archived' : 'Active' ?>
                                                 </span>
+                                                <?php if (isset($student['is_archived']) && $student['is_archived']): ?>
+                                                    <span class="badge bg-warning mb-1">
+                                                        <i class="bi bi-archive me-1"></i>Archived
+                                                    </span>
+                                                <?php endif; ?>
                                                 <span class="badge bg-<?= (isset($student['is_irregular']) && $student['is_irregular']) ? 'danger' : 'success' ?>">
                                                     <?= (isset($student['is_irregular']) && $student['is_irregular']) ? 'Irregular' : 'Regular' ?>
                                                 </span>
@@ -1058,23 +1089,25 @@ foreach ($students as $stu) {
                                                         title="Edit Student">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <?php if (isset($student['status']) && $student['status'] === 'inactive'): ?>
+                                                <?php if (isset($student['is_archived']) && $student['is_archived']): ?>
+                                                    <!-- Recover button for archived students -->
                                                     <form method="post" action="students.php" style="display:inline;" 
-                                                          onsubmit="return confirm('Are you sure you want to unarchive this student?');">
-                                                        <input type="hidden" name="action" value="unarchive">
+                                                          onsubmit="return confirm('Are you sure you want to recover this student?');">
+                                                        <input type="hidden" name="action" value="recover">
                                                         <input type="hidden" name="user_id" value="<?= $student['id'] ?>">
                                                         <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
-                                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Unarchive Student">
+                                                        <button type="submit" class="btn btn-sm btn-success" title="Recover Student">
                                                             <i class="bi bi-arrow-clockwise"></i>
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
+                                                    <!-- Archive button for active students -->
                                                     <form method="post" action="students.php" style="display:inline;" 
-                                                          onsubmit="return confirm('Are you sure you want to archive this student?');">
-                                                        <input type="hidden" name="action" value="delete">
+                                                          onsubmit="return confirm('Are you sure you want to archive this student? They will be hidden but can be recovered later.');">
+                                                        <input type="hidden" name="action" value="archive">
                                                         <input type="hidden" name="user_id" value="<?= $student['id'] ?>">
                                                         <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Archive Student">
+                                                        <button type="submit" class="btn btn-sm btn-warning" title="Archive Student">
                                                             <i class="bi bi-archive"></i>
                                                         </button>
                                                     </form>

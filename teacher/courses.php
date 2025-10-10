@@ -5,6 +5,8 @@ require_once '../includes/header.php';
 <!-- Font Awesome for icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+    
     .course-card {
         transition: transform 0.2s, box-shadow 0.2s;
         height: 100%;
@@ -30,9 +32,6 @@ require_once '../includes/header.php';
         z-index: 2;
     }
     
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-    
     /* Clickable card styles */
     .clickable-card {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -41,6 +40,153 @@ require_once '../includes/header.php';
     .clickable-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Badge modal specific styles */
+    .badge-item {
+        transition: all 0.3s ease;
+    }
+    
+    .badge-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .selected-badge-item {
+        transition: all 0.3s ease;
+    }
+    
+    .selected-badge-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Ensure proper padding in modal content */
+    .modal-xl .modal-body {
+        padding: 0;
+    }
+    
+    .modal-xl .container-fluid {
+        padding: 1.5rem;
+    }
+    
+    /* Badge selection states */
+    .badge-item.selected {
+        background-color: rgba(25, 135, 84, 0.1) !important;
+        border-color: #198754 !important;
+    }
+    
+    .badge-item.selected .form-check-input:checked {
+        background-color: #198754;
+        border-color: #198754;
+    }
+    
+    /* Badge filtering styles */
+    .badge-item {
+        transition: all 0.3s ease;
+    }
+    
+    .badge-item[style*="display: none"] {
+        opacity: 0;
+        transform: scale(0.95);
+        pointer-events: none;
+    }
+    
+    .badge-item[style*="display: block"] {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+    }
+    
+    .no-results-message {
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Filter status indicator */
+    .filter-active {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    }
+    
+    /* Filter controls styling */
+    .form-select:focus, .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Quick filter buttons */
+    .btn-group .btn {
+        border-radius: 0.375rem;
+        margin-right: 2px;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+    
+    /* Smooth transitions for all interactive elements */
+    .form-check-input {
+        transition: all 0.3s ease;
+    }
+    
+    .btn {
+        transition: all 0.3s ease;
+    }
+    
+    /* Improved scrollbar styling */
+    .modal-xl .card-body::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .modal-xl .card-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .modal-xl .card-body::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    
+    .modal-xl .card-body::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+    
+    /* Horizontal badge layout */
+    .selected-badge-item {
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+    
+    .selected-badge-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    /* Responsive horizontal layout */
+    @media (max-width: 768px) {
+        .selected-badge-item {
+            min-width: 180px !important;
+            max-width: 200px !important;
+        }
+    }
+    
+    /* Compact badge display */
+    .selected-badge-item h6 {
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .selected-badge-item .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
     }
 </style>
 <?php
@@ -566,6 +712,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                                         <a href="course.php?id=<?php echo $course['id']; ?>" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">
                                             <i class="bi bi-gear me-1"></i>Manage Course
                                         </a>
+                                        <button class="btn btn-outline-primary" onclick="manageCourseBadges(<?php echo $course['id']; ?>, '<?php echo htmlspecialchars($course['course_name']); ?>')">
+                                            <i class="bi bi-award me-1"></i>Manage Badges
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -682,6 +831,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     <button type="submit" name="create_course" class="btn" style="background: var(--main-green); color: var(--white); font-weight: 700; border: none;">Create Course</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Course Badge Management Modal -->
+<div class="modal fade" id="courseBadgeModal" tabindex="-1" aria-labelledby="courseBadgeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="courseBadgeModalLabel">
+                    <i class="bi bi-award me-2"></i>Manage Course Badges
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="courseBadgeContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading badges...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <div class="d-flex justify-content-between w-100">
+                    <div>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Students will automatically earn these badges when they complete the course
+                        </small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="saveCourseBadges()">
+                            <i class="bi bi-check-circle me-1"></i>Save Badge Assignments
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -875,6 +1066,557 @@ function viewStudents(courseId, sectionId, sectionName, courseName) {
             modalContent.innerHTML = '<div class="alert alert-danger">Error loading students. Please try again.</div>';
             console.error('Error fetching students:', error);
         });
+}
+
+// Global variables for badge management
+let currentCourseId = null;
+let currentCourseName = '';
+
+// Function to manage course badges
+function manageCourseBadges(courseId, courseName) {
+    currentCourseId = courseId;
+    currentCourseName = courseName;
+    
+    // Update modal title
+    document.getElementById('courseBadgeModalLabel').innerHTML = 
+        `<i class="bi bi-award me-2"></i>Manage Badges for "${courseName}"`;
+    
+    // Show loading state
+    const modalContent = document.getElementById('courseBadgeContent');
+    modalContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading badges...</p>
+        </div>
+    `;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('courseBadgeModal'));
+    modal.show();
+    
+    // Load badges
+    loadCourseBadges(courseId);
+}
+
+// Function to load course badges
+function loadCourseBadges(courseId) {
+    fetch(`get_course_badges.php?course_id=${courseId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayCourseBadges(data);
+            } else {
+                throw new Error(data.message || 'Failed to load badges');
+            }
+        })
+        .catch(error => {
+            document.getElementById('courseBadgeContent').innerHTML = 
+                '<div class="alert alert-danger">Error loading badges: ' + error.message + '</div>';
+            console.error('Error loading course badges:', error);
+        });
+}
+
+// Function to display course badges
+function displayCourseBadges(data) {
+    const modalContent = document.getElementById('courseBadgeContent');
+    
+    let html = `
+        <div class="container-fluid p-4">
+            <!-- Header Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">Course Badge Management</h4>
+                            <p class="text-muted mb-0">Assign badges that students will earn upon course completion</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary fs-6">${data.available_badges.length} Available</span>
+                            <span class="badge bg-success fs-6 ms-2">${data.assigned_badges.length} Selected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search and Filter Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body py-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" id="badgeSearch" placeholder="Search badges by name or description..." onkeyup="filterBadges()">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex gap-2">
+                                        <select class="form-select" id="categoryFilter" onchange="filterBadges()">
+                                            <option value="">All Categories</option>
+                                            <option value="achievement">Achievement</option>
+                                            <option value="milestone">Milestone</option>
+                                            <option value="skill">Skill</option>
+                                            <option value="participation">Participation</option>
+                                            <option value="special">Special</option>
+                                        </select>
+                                        <select class="form-select" id="contextFilter" onchange="filterBadges()">
+                                            <option value="">All Contexts</option>
+                                            <option value="course">Course</option>
+                                            <option value="global">Global</option>
+                                            <option value="requirement">Requirement</option>
+                                        </select>
+                                        <div class="btn-group">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="quickFilter('milestone')" title="Show milestone badges">
+                                                <i class="bi bi-flag"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success btn-sm" onclick="quickFilter('skill')" title="Show skill badges">
+                                                <i class="bi bi-lightning"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info btn-sm" onclick="quickFilter('achievement')" title="Show achievement badges">
+                                                <i class="bi bi-trophy"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()" title="Clear all filters">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-award me-2"></i>Available Badges</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div style="max-height: 500px; overflow-y: auto;">
+                                <div id="availableBadges" class="p-3">
+    `;
+    
+    // Available badges
+    data.available_badges.forEach(badge => {
+        const isSelected = data.assigned_badges.some(assigned => assigned.badge_id === badge.id);
+        const typeColor = {
+            'course_completion': 'primary',
+            'high_score': 'warning',
+            'participation': 'info',
+            'streak': 'success',
+            'special': 'danger'
+        }[badge.badge_type] || 'secondary';
+        
+        html += `
+            <div class="badge-item mb-3 p-3 border rounded-3 ${isSelected ? 'bg-success bg-opacity-10 border-success' : 'bg-white border-light'} shadow-sm" 
+                 data-badge-id="${badge.id}" data-badge-type="${badge.badge_type}" 
+                 data-badge-category="${badge.category}" data-badge-context="${badge.context}">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="badge_${badge.id}" 
+                           ${isSelected ? 'checked' : ''} onchange="toggleBadge(${badge.id}, this.checked)">
+                    <label class="form-check-label w-100" for="badge_${badge.id}">
+                        <div class="d-flex align-items-center">
+                            <div class="badge-icon-display me-3 flex-shrink-0" 
+                                 style="width:50px;height:50px;background:linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <i class="${badge.badge_icon}" style="font-size:20px;color:white;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">${badge.badge_name}</h6>
+                                        <p class="text-muted small mb-2">${badge.badge_description}</p>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="d-flex flex-wrap gap-1 justify-content-end mb-1">
+                                            <span class="badge bg-${typeColor}">${badge.badge_type.replace('_', ' ')}</span>
+                                            <span class="badge bg-info">${badge.category}</span>
+                                            <span class="badge bg-secondary">${badge.context}</span>
+                                            ${badge.is_restricted ? '<span class="badge bg-warning">Restricted</span>' : ''}
+                                        </div>
+                                        <div class="small text-success fw-bold">${badge.points_value} pts</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Selected Badges Sidebar -->
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Selected Badges</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div style="max-height: 500px; overflow-y: auto; padding: 1rem;">
+                                <div id="selectedBadges" class="d-flex flex-wrap gap-2">
+    `;
+    
+    // Selected badges
+    if (data.assigned_badges.length > 0) {
+        data.assigned_badges.forEach(badge => {
+            const typeColor = {
+                'course_completion': 'primary',
+                'high_score': 'warning',
+                'participation': 'info',
+                'streak': 'success',
+                'special': 'danger'
+            }[badge.badge_type] || 'secondary';
+            
+            html += `
+                <div class="selected-badge-item d-flex align-items-center p-2 border rounded-3 bg-success bg-opacity-10 border-success shadow-sm" data-badge-id="${badge.badge_id}" style="min-width: 200px; max-width: 250px;">
+                    <div class="badge-icon-display me-2 flex-shrink-0" 
+                         style="width:35px;height:35px;background:linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <i class="${badge.badge_icon}" style="font-size:16px;color:white;"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 fw-bold small">${badge.badge_name}</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-${typeColor} small">${badge.badge_type.replace('_', ' ')}</span>
+                            <span class="text-success fw-bold small">${badge.points_value}pts</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger flex-shrink-0 ms-2" onclick="removeBadge(${badge.badge_id})" title="Remove badge" style="width: 24px; height: 24px; padding: 0;">
+                        <i class="bi bi-x" style="font-size: 12px;"></i>
+                    </button>
+                </div>
+            `;
+        });
+    } else {
+        html += `
+            <div class="text-center py-4">
+                <i class="bi bi-award text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3 mb-2">No badges selected</p>
+                <small class="text-muted">Select badges from the left panel to assign them to this course</small>
+            </div>
+        `;
+    }
+    
+    html += `
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modalContent.innerHTML = html;
+    
+    // Initialize selected badges display for pre-assigned badges
+    setTimeout(() => {
+        // Clear any existing selected badges first
+        const selectedBadgesContainer = document.getElementById('selectedBadges');
+        selectedBadgesContainer.innerHTML = '';
+        
+        // Add pre-assigned badges to selected panel
+        data.assigned_badges.forEach(badge => {
+            addToSelectedBadges(badge.id);
+        });
+        
+        // If no badges are assigned, show empty state
+        if (data.assigned_badges.length === 0) {
+            selectedBadgesContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-award text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3 mb-2">No badges selected</p>
+                    <small class="text-muted">Select badges from the left panel to assign them to this course</small>
+                </div>
+            `;
+        }
+    }, 100);
+}
+
+// Function to toggle badge selection
+function toggleBadge(badgeId, isSelected) {
+    const badgeItem = document.querySelector(`[data-badge-id="${badgeId}"]`);
+    const checkbox = document.getElementById(`badge_${badgeId}`);
+    
+    if (isSelected) {
+        // Update visual state for selected badge
+        badgeItem.classList.remove('bg-white', 'border-light');
+        badgeItem.classList.add('bg-success', 'bg-opacity-10', 'border-success');
+        addToSelectedBadges(badgeId);
+    } else {
+        // Update visual state for deselected badge
+        badgeItem.classList.remove('bg-success', 'bg-opacity-10', 'border-success');
+        badgeItem.classList.add('bg-white', 'border-light');
+        removeFromSelectedBadges(badgeId);
+    }
+}
+
+// Function to add badge to selected list
+function addToSelectedBadges(badgeId) {
+    // Check if badge is already in selected list
+    const existingBadge = document.querySelector(`#selectedBadges .selected-badge-item[data-badge-id="${badgeId}"]`);
+    if (existingBadge) return;
+    
+    // Find the badge data
+    const badgeItem = document.querySelector(`[data-badge-id="${badgeId}"]`);
+    if (!badgeItem) return;
+    
+    const badgeName = badgeItem.querySelector('h6').textContent;
+    const badgeDesc = badgeItem.querySelector('p').textContent;
+    const badgeIcon = badgeItem.querySelector('i').className;
+    const badgeType = badgeItem.getAttribute('data-badge-type');
+    const pointsValue = badgeItem.querySelector('.text-success').textContent;
+    
+    const typeColor = {
+        'course_completion': 'primary',
+        'high_score': 'warning',
+        'participation': 'info',
+        'streak': 'success',
+        'special': 'danger'
+    }[badgeType] || 'secondary';
+    
+    // Add to selected badges display
+    const selectedBadgesContainer = document.getElementById('selectedBadges');
+    const emptyState = selectedBadgesContainer.querySelector('.text-center');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    const selectedBadgeHtml = `
+        <div class="selected-badge-item d-flex align-items-center p-2 border rounded-3 bg-success bg-opacity-10 border-success shadow-sm" data-badge-id="${badgeId}" style="min-width: 200px; max-width: 250px;">
+            <div class="badge-icon-display me-2 flex-shrink-0" 
+                 style="width:35px;height:35px;background:linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <i class="${badgeIcon}" style="font-size:16px;color:white;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 fw-bold small">${badgeName}</h6>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-${typeColor} small">${badgeType.replace('_', ' ')}</span>
+                    <span class="text-success fw-bold small">${pointsValue}</span>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger flex-shrink-0 ms-2" onclick="removeBadge(${badgeId})" title="Remove badge" style="width: 24px; height: 24px; padding: 0;">
+                <i class="bi bi-x" style="font-size: 12px;"></i>
+            </button>
+        </div>
+    `;
+    
+    selectedBadgesContainer.insertAdjacentHTML('beforeend', selectedBadgeHtml);
+}
+
+// Function to remove badge from selected list
+function removeFromSelectedBadges(badgeId) {
+    const selectedBadgeItem = document.querySelector(`#selectedBadges .selected-badge-item[data-badge-id="${badgeId}"]`);
+    if (selectedBadgeItem) {
+        selectedBadgeItem.remove();
+    }
+    
+    // Check if no badges are selected and show empty state
+    const selectedBadgesContainer = document.getElementById('selectedBadges');
+    const remainingBadges = selectedBadgesContainer.querySelectorAll('.selected-badge-item');
+    if (remainingBadges.length === 0) {
+        selectedBadgesContainer.innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-award text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3 mb-2">No badges selected</p>
+                <small class="text-muted">Select badges from the left panel to assign them to this course</small>
+            </div>
+        `;
+    }
+}
+
+// Function to remove badge
+function removeBadge(badgeId) {
+    const checkbox = document.getElementById(`badge_${badgeId}`);
+    if (checkbox) {
+        checkbox.checked = false;
+        toggleBadge(badgeId, false);
+    }
+    
+    // Remove from selected badges display
+    removeFromSelectedBadges(badgeId);
+}
+
+// Function to filter badges
+function filterBadges() {
+    const searchTerm = document.getElementById('badgeSearch').value.toLowerCase().trim();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const contextFilter = document.getElementById('contextFilter').value;
+    const badgeItems = document.querySelectorAll('.badge-item');
+    
+    let visibleCount = 0;
+    let hasActiveFilters = false;
+    
+    // Check if any filters are active
+    if (searchTerm !== '' || categoryFilter !== '' || contextFilter !== '') {
+        hasActiveFilters = true;
+    }
+    
+    badgeItems.forEach(item => {
+        const badgeName = item.querySelector('h6').textContent.toLowerCase();
+        const badgeDesc = item.querySelector('p').textContent.toLowerCase();
+        const badgeCategory = item.getAttribute('data-badge-category');
+        const badgeContext = item.getAttribute('data-badge-context');
+        
+        // Apply strict filtering - all conditions must match
+        let matchesSearch = true;
+        let matchesCategory = true;
+        let matchesContext = true;
+        
+        // Search filter (name or description)
+        if (searchTerm !== '') {
+            matchesSearch = badgeName.includes(searchTerm) || badgeDesc.includes(searchTerm);
+        }
+        
+        // Category filter (exact match)
+        if (categoryFilter !== '') {
+            matchesCategory = badgeCategory === categoryFilter;
+        }
+        
+        // Context filter (exact match)
+        if (contextFilter !== '') {
+            matchesContext = badgeContext === contextFilter;
+        }
+        
+        // Only show if ALL active filters match
+        if (matchesSearch && matchesCategory && matchesContext) {
+            item.style.display = 'block';
+            item.style.opacity = '1';
+            item.style.transform = 'scale(1)';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+            item.style.opacity = '0';
+            item.style.transform = 'scale(0.95)';
+        }
+    });
+    
+    // Update the header with filtered count
+    const headerElement = document.querySelector('#availableBadges').closest('.card').querySelector('.card-header h6');
+    if (headerElement) {
+        const originalText = headerElement.textContent.replace(/\(\d+\)/, '');
+        if (hasActiveFilters) {
+            headerElement.textContent = `${originalText} (${visibleCount} of ${badgeItems.length})`;
+        } else {
+            headerElement.textContent = originalText;
+        }
+    }
+    
+    // Show "No badges found" message if no results
+    const availableBadgesContainer = document.getElementById('availableBadges');
+    const existingNoResults = availableBadgesContainer.querySelector('.no-results-message');
+    
+    if (visibleCount === 0 && hasActiveFilters) {
+        if (!existingNoResults) {
+            const noResultsHtml = `
+                <div class="no-results-message text-center py-4">
+                    <i class="bi bi-search fs-1 text-muted"></i>
+                    <h6 class="text-muted mt-2">No badges found</h6>
+                    <p class="text-muted small">Try adjusting your search or filters</p>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="clearFilters()">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </button>
+                </div>
+            `;
+            availableBadgesContainer.insertAdjacentHTML('beforeend', noResultsHtml);
+        }
+    } else {
+        if (existingNoResults) {
+            existingNoResults.remove();
+        }
+    }
+    
+    // Update filter status
+    updateFilterStatus();
+}
+
+// Function to update filter status display
+function updateFilterStatus() {
+    const searchTerm = document.getElementById('badgeSearch').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const contextFilter = document.getElementById('contextFilter').value;
+    
+    const activeFilters = [];
+    
+    if (searchTerm) {
+        activeFilters.push(`Search: "${searchTerm}"`);
+    }
+    if (categoryFilter) {
+        activeFilters.push(`Category: ${categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)}`);
+    }
+    if (contextFilter) {
+        activeFilters.push(`Context: ${contextFilter.charAt(0).toUpperCase() + contextFilter.slice(1)}`);
+    }
+    
+    // You can add a filter status display here if needed
+    console.log('Active filters:', activeFilters.join(' • '));
+}
+
+// Function for quick filtering by category
+function quickFilter(category) {
+    document.getElementById('badgeSearch').value = '';
+    document.getElementById('categoryFilter').value = category;
+    document.getElementById('contextFilter').value = '';
+    filterBadges();
+}
+
+// Function to clear all filters
+function clearFilters() {
+    document.getElementById('badgeSearch').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('contextFilter').value = '';
+    filterBadges();
+}
+
+// Function to save course badges
+function saveCourseBadges() {
+    const selectedBadges = [];
+    const checkboxes = document.querySelectorAll('#availableBadges input[type="checkbox"]:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const badgeId = checkbox.id.replace('badge_', '');
+        selectedBadges.push(badgeId);
+    });
+    
+    // Send data to server
+    fetch('save_course_badges.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            course_id: currentCourseId,
+            badge_ids: selectedBadges
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Badges saved successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('courseBadgeModal')).hide();
+        } else {
+            alert('Error saving badges: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error saving badges. Please try again.');
+        console.error('Error saving course badges:', error);
+    });
 }
 </script>
 

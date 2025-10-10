@@ -755,12 +755,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             <p class="text-muted">Students will appear here once they enroll in your courses.</p>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-hover mb-0">
-                                <thead class="table-light">
+                                <thead class="table-light" style="position: sticky; top: 0; z-index: 10; background-color: #f8f9fa;">
                                     <tr>
                                         <th>Student</th>
-                                        <th>Email</th>
                                         <th>Courses Enrolled</th>
                                         <th>Assessments Completed</th>
                                         <th>Average Score</th>
@@ -781,9 +780,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <small class="text-muted">@<?php echo htmlspecialchars($student['username']); ?></small>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <small><?php echo htmlspecialchars($student['email']); ?></small>
                                         </td>
                                         <td>
                                             <span class="badge bg-primary"><?php echo $student['enrolled_courses_count']; ?></span>
@@ -810,12 +806,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="student_progress.php?student_id=<?php echo $student['id']; ?>" 
-                                                   class="btn btn-outline-primary" title="View Progress">
+                                                   class="btn btn-primary" title="View Progress">
                                                     <i class="bi bi-graph-up"></i>
-                                                </a>
-                                                <a href="mailto:<?php echo htmlspecialchars($student['email']); ?>" 
-                                                   class="btn btn-outline-success" title="Send Email">
-                                                    <i class="bi bi-envelope"></i>
                                                 </a>
                                             </div>
                                         </td>

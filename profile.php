@@ -1076,7 +1076,7 @@ if ($user['role'] === 'student') {
                             <p class="text-muted small mb-2"><?php echo htmlspecialchars($badge['badge_description']); ?></p>
                             <small class="text-success">
                                 <i class="fas fa-calendar me-1"></i>
-                                Earned <?php echo date('M j, Y', strtotime($earned_date)); ?>
+                                Earned <?php echo $earned_date ? date('M j, Y', strtotime($earned_date)) : 'Unknown Date'; ?>
                             </small>
                         </div>
                     </div>

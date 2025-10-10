@@ -664,17 +664,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
-            case 'delete':
+            case 'archive':
                 $user_id = (int)($_POST['user_id'] ?? 0);
                 if ($user_id === $_SESSION['user_id']) {
-                    $message = 'You cannot delete your own account.';
+                    $message = 'You cannot archive your own account.';
                     $message_type = 'danger';
                 } else {
-                    $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
+                    $stmt = $db->prepare('UPDATE users SET is_archived = 1 WHERE id = ?');
                     $stmt->execute([$user_id]);
-                    $message = 'User deleted successfully.';
+                    $message = 'User archived successfully.';
                     $message_type = 'success';
                 }
+                break;
+                
+            case 'recover':
+                $user_id = (int)($_POST['user_id'] ?? 0);
+                $stmt = $db->prepare('UPDATE users SET is_archived = 0 WHERE id = ?');
+                $stmt->execute([$user_id]);
+                $message = 'User recovered successfully.';
+                $message_type = 'success';
                 break;
         }
     }
@@ -685,9 +693,17 @@ $search = sanitizeInput($_GET['search'] ?? '');
 $role_filter = sanitizeInput($_GET['role'] ?? '');
 $section_filter = sanitizeInput($_GET['section'] ?? '');
 $year_filter = sanitizeInput($_GET['year'] ?? '');
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
 
 $where_conditions = [];
 $params = [];
+
+// Add archive filter - show only archived users when requested, otherwise show only active users
+if ($show_archived === '1') {
+    $where_conditions[] = "is_archived = 1";
+} else {
+    $where_conditions[] = "(is_archived = 0 OR is_archived IS NULL)";
+}
 
 if (!empty($search)) {
     $where_conditions[] = "(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ?)";
@@ -702,9 +718,9 @@ if (!empty($role_filter)) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
-// Update users query to fetch is_irregular, status, identifier, and plain_text_password
+// Update users query to fetch is_irregular, status, identifier, plain_text_password, and is_archived
 $stmt = $db->prepare("
-    SELECT id, username, email, first_name, last_name, role, profile_picture, created_at, is_irregular, status, identifier, plain_text_password 
+    SELECT id, username, email, first_name, last_name, role, profile_picture, created_at, is_irregular, status, identifier, plain_text_password, is_archived 
     FROM users 
     $where_clause 
     ORDER BY created_at DESC
@@ -1101,13 +1117,31 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
         <!-- Users Table -->
         <div class="row">
             <div class="col-12">
+                <?php if ($show_archived === '1'): ?>
+                    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                        <i class="bi bi-archive-fill me-2"></i>
+                        <div>
+                            <strong>Viewing Archived Users</strong> - These users have been archived and can be recovered. 
+                            Click the green recover button (🔄) to restore them to active status.
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="card table-container">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5>
-                                <i class="bi bi-people me-2"></i>Users Management
+                                <i class="bi bi-people me-2"></i><?= $show_archived === '1' ? 'Archived Users Management' : 'Users Management' ?>
                             </h5>
                             <div class="d-flex align-items-center gap-2">
+                                <?php if ($show_archived === '1'): ?>
+                                    <a href="users.php" class="btn btn-outline-success btn-sm" title="Back to Active Users">
+                                        <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                    </a>
+                                <?php else: ?>
+                                    <a href="users.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Users">
+                                        <i class="bi bi-archive me-1"></i>View Archived
+                                    </a>
+                                <?php endif; ?>
                                 <span class="badge bg-primary fs-6"><?= count($users) ?> users found</span>
                                 <div id="loadingIndicator" style="display: none;">
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -1165,7 +1199,7 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
                                 </thead>
                                 <tbody>
                                     <?php foreach ($users as $user): ?>
-                                        <tr>
+                                        <tr class="<?= (isset($user['is_archived']) && $user['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="flex-shrink-0">
@@ -1203,6 +1237,11 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
                                                         <i class="bi bi-<?= $user['role'] === 'admin' ? 'shield-check' : ($user['role'] === 'teacher' ? 'person-badge' : 'mortarboard') ?> me-1"></i>
                                                         <?= ucfirst($user['role']) ?>
                                                     </span>
+                                                    <?php if (isset($user['is_archived']) && $user['is_archived']): ?>
+                                                        <span class="badge bg-warning">
+                                                            <i class="bi bi-archive me-1"></i>Archived
+                                                        </span>
+                                                    <?php endif; ?>
                                                     <?php if ($user['role'] === 'student'): ?>
                                                         <span class="badge bg-<?= (isset($user['is_irregular']) && $user['is_irregular']) ? 'danger' : 'success' ?>">
                                                             <?= (isset($user['is_irregular']) && $user['is_irregular']) ? 'Irregular' : 'Regular' ?>
@@ -1255,17 +1294,31 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <?php if ($user['id'] !== $_SESSION['user_id']): ?>
-                                                        <form method="post" action="users.php" style="display:inline;" 
-                                                              onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                                            <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete User">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                            </form>
+                                                        <?php if (isset($user['is_archived']) && $user['is_archived']): ?>
+                                                            <!-- Recover button for archived users -->
+                                                            <form method="post" action="users.php" style="display:inline;" 
+                                                                  onsubmit="return confirm('Are you sure you want to recover this user?');">
+                                                                <input type="hidden" name="action" value="recover">
+                                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                                <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
+                                                                <button type="submit" class="btn btn-sm btn-success" title="Recover User">
+                                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                                </button>
+                                                            </form>
+                                                        <?php else: ?>
+                                                            <!-- Archive button for active users -->
+                                                            <form method="post" action="users.php" style="display:inline;" 
+                                                                  onsubmit="return confirm('Are you sure you want to archive this user? They will be hidden but can be recovered later.');">
+                                                                <input type="hidden" name="action" value="archive">
+                                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                                <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? '') ?>">
+                                                                <button type="submit" class="btn btn-sm btn-warning" title="Archive User">
+                                                                    <i class="bi bi-archive"></i>
+                                                                </button>
+                                                            </form>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
-                                                        <button class="btn btn-sm btn-outline-secondary" disabled title="Cannot delete your own account">
+                                                        <button class="btn btn-sm btn-outline-secondary" disabled title="Cannot archive your own account">
                                                             <i class="bi bi-shield-lock"></i>
                                                         </button>
                                                     <?php endif; ?>
@@ -1778,6 +1831,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const role = roleSelect.value;
         const section = sectionSelect.value;
         const year = yearSelect.value;
+        const showArchived = false; // Archive view is handled via direct links, not AJAX
         
         // Show loading indicator and disable form
         loadingIndicator.style.display = 'block';
@@ -1790,6 +1844,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (role) params.append('role', role);
         if (section) params.append('section', section);
         if (year) params.append('year', year);
+        if (showArchived) params.append('show_archived', '1');
         
         // Make AJAX request
         fetch(`ajax_get_users.php?${params.toString()}`)
@@ -1960,6 +2015,8 @@ document.addEventListener('DOMContentLoaded', function() {
         performSearch();
         setTimeout(() => this.classList.remove('filtering'), 1000);
     });
+    
+    // Archive button functionality is handled via direct links, no JavaScript needed
     
     // Filter button (for manual trigger)
     filterBtn.addEventListener('click', performSearch);

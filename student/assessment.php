@@ -583,7 +583,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
     }
     
     // Check if this is a retake and get previous best score
-    $is_retake_submission = $is_retake;
+    $is_retake_submission = isset($is_retake) ? $is_retake : false;
     $previous_best_score = null;
     $previous_attempt_id = null;
     
@@ -1144,7 +1144,7 @@ $previous_attempts = $stmt->fetchAll();
                                 <span class="text-muted">Question <?php echo $current_question + 1; ?> of <?php echo $total_questions; ?></span>
                             </div>
                             <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-primary" style="width: <?php echo (($current_question + 1) / $total_questions) * 100; ?>%"></div>
+                                <div class="progress-bar bg-primary" style="width: <?php echo round((($current_question + 1) / $total_questions) * 100, 2); ?>%"></div>
                             </div>
                         </div>
 
@@ -1306,13 +1306,13 @@ $previous_attempts = $stmt->fetchAll();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Timer functionality
-        let timeLimit = <?php echo $assessment['time_limit']; ?> * 60; // Convert to seconds
+        let timeLimit = <?php echo max(($assessment['time_limit'] ?? 30) * 60, 300); ?>; // Convert to seconds, minimum 5 minutes
         let timeLeft = timeLimit;
         let timerInterval;
         let startTime = null; // Will be set when assessment actually begins
         
         // Timer persistence key
-        const timerKey = 'assessment_timer_' + '<?php echo $assessment_id; ?>';
+        const timerKey = 'assessment_timer_' + '<?php echo (string)$assessment_id; ?>';
         
         // Save timer state to localStorage
         function saveTimerState() {
@@ -1357,6 +1357,13 @@ $previous_attempts = $stmt->fetchAll();
                 console.log('Timer not started yet, startTime is null');
                 return; // Don't tick until started
             }
+            
+            // Prevent immediate auto-submission if time limit is too short
+            if (timeLimit < 60) { // Less than 1 minute
+                console.log('Time limit too short, setting minimum time');
+                timeLimit = 300; // 5 minutes minimum
+                timeLeft = timeLimit;
+            }
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             const timeDisplay = document.getElementById('time-display');
@@ -1374,7 +1381,7 @@ $previous_attempts = $stmt->fetchAll();
             
             // Add visual warnings based on time remaining
             const timerElement = document.getElementById('timer');
-            const timeLimitMinutes = <?php echo $assessment['time_limit']; ?>;
+            const timeLimitMinutes = <?php echo max(($assessment['time_limit'] ?? 30), 5); ?>;
             const warningThreshold = Math.floor(timeLimitMinutes * 0.25); // 25% of time left
             const dangerThreshold = Math.floor(timeLimitMinutes * 0.1); // 10% of time left
             const criticalThreshold = Math.floor(timeLimitMinutes * 0.05); // 5% of time left
@@ -1444,6 +1451,12 @@ $previous_attempts = $stmt->fetchAll();
         function beginAssessment() {
             console.log('beginAssessment() called');
             
+            // Ensure minimum time limit
+            if (timeLimit < 60) {
+                console.log('Time limit too short, setting minimum time');
+                timeLimit = 300; // 5 minutes minimum
+            }
+            
             // Check if timer state exists in localStorage
             if (!restoreTimerState()) {
                 // No saved state, start fresh
@@ -1485,22 +1498,6 @@ $previous_attempts = $stmt->fetchAll();
             }, 5000);
         }
 
-        function selectOption(element, questionId, optionValue) {
-            // Remove selected class from other options in this question
-            const questionCard = element.closest('.question-card');
-            questionCard.querySelectorAll('.option-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            
-            // Add selected class to clicked option
-            element.classList.add('selected');
-            
-            // Check the radio button
-            const radio = element.querySelector('input[type="radio"]');
-            radio.checked = true;
-            
-            updateProgress();
-        }
 
         function updateProgress() {
             const totalQuestions = <?php echo count($questions); ?>;
@@ -1521,10 +1518,10 @@ $previous_attempts = $stmt->fetchAll();
             console.log('Retake detected - clearing localStorage...');
             const questionIds = <?php echo json_encode(array_column($questions, 'id')); ?>;
             questionIds.forEach(questionId => {
-                localStorage.removeItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId);
+                localStorage.removeItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId);
             });
             // Also clear any timer state
-            localStorage.removeItem('assessment_timer_' + '<?php echo $assessment_id; ?>');
+            localStorage.removeItem('assessment_timer_' + '<?php echo (string)$assessment_id; ?>');
             <?php endif; ?>
             
             const timer = document.getElementById('timer');
@@ -1583,7 +1580,7 @@ $previous_attempts = $stmt->fetchAll();
             const questionIds = <?php echo json_encode(array_column($questions, 'id')); ?>;
             
             questionIds.forEach(questionId => {
-                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId);
+                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId);
                 // Always include the answer, even if it's empty (to track unanswered questions)
                 let finalAnswer = savedAnswer || '';
                 
@@ -1726,8 +1723,7 @@ $previous_attempts = $stmt->fetchAll();
             
             console.log('💾 saveCurrentAnswer called for question:', questionId);
             
-            // Update auto-save status to saving
-            updateAutoSaveStatus('saving', 'Saving...');
+            // Auto-save in progress
             
             // For identification questions (text input)
             const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
@@ -1757,7 +1753,7 @@ $previous_attempts = $stmt->fetchAll();
             
             try {
             // Save answer to localStorage
-            localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
+            localStorage.setItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId, answer);
             console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
                 
                 
@@ -1815,7 +1811,7 @@ $previous_attempts = $stmt->fetchAll();
             let unansweredQuestions = [];
             
             questionIds.forEach(qId => {
-                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + qId);
+                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + qId);
                 if (!savedAnswer || savedAnswer.trim() === '') {
                     unansweredQuestions.push(qId);
                 }
@@ -1865,7 +1861,7 @@ $previous_attempts = $stmt->fetchAll();
                 }
                 
                 // Always save answer to localStorage (even if empty, to track that question was visited)
-                localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
+                localStorage.setItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId, answer);
                 console.log('Saved answer for question ' + questionId + ': "' + answer + '"');
             }
             
@@ -1878,14 +1874,14 @@ $previous_attempts = $stmt->fetchAll();
             // Navigate to next question
             const currentQ = <?php echo $current_question; ?>;
             const nextQ = currentQ + 1;
-            window.location.href = 'assessment.php?id=<?php echo $assessment_id; ?>&q=' + nextQ;
+            window.location.href = 'assessment.php?id=<?php echo (string)$assessment_id; ?>&q=' + nextQ;
         }
 
         // Load saved answers when page loads
         document.addEventListener('DOMContentLoaded', function() {
             const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
             if (questionId) {
-                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId);
+                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId);
                 if (savedAnswer !== null) {
                     // For identification questions (text input)
                     const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
@@ -1961,12 +1957,11 @@ $previous_attempts = $stmt->fetchAll();
                 }
                 
                 // Always save answer to localStorage (even if empty, to track that question was visited)
-                localStorage.setItem('assessment_' + '<?php echo $assessment_id; ?>' + '_q_' + questionId, answer);
+                localStorage.setItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId, answer);
                 console.log('Auto-saved answer for question ' + questionId + ': "' + answer + '"');
                 
             }
         }, 5000); // Auto-save every 5 seconds
     </script>
 </body>
-</html> 
 </html> 

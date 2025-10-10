@@ -540,9 +540,102 @@ function deleteModuleFile($filename) {
     color: white;
 }
 
-.btn-delete {
+.btn-badges {
+    background: #e67e22;
+    color: white;
+}
+
+/* Badge filtering styles */
+.badge-item {
+    transition: all 0.3s ease;
+}
+
+.badge-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.badge-item[style*="display: none"] {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+}
+
+.badge-item[style*="display: block"] {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.no-results-message {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Filter status indicator */
+.filter-active {
+    border-color: #e67e22 !important;
+    box-shadow: 0 0 0 0.2rem rgba(230, 126, 34, 0.25) !important;
+}
+
+/* Filter controls styling */
+.form-select:focus, .form-control:focus {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 0.2rem rgba(230, 126, 34, 0.25);
+}
+
+.btn-archive {
     background: #e74c3c;
     color: white;
+}
+
+.btn-unarchive {
+    background: #28a745;
+    color: white;
+}
+
+/* Archived Module Styles */
+.archived-module {
+    opacity: 0.7;
+    position: relative;
+}
+
+.archived-module::before {
+    content: "ARCHIVED";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #6c757d;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* Alert Styles for Module Status */
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-success {
+    background-color: #d1edff;
+    border-color: #b3d9ff;
+    color: #0c5460;
 }
 
 .module-status {
@@ -910,7 +1003,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
-            case 'delete_module':
+            case 'archive_module':
                 $module_id = sanitizeInput($_POST['module_id'] ?? '');
                 
                 // Get current modules JSON
@@ -919,26 +1012,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $current_modules = [];
                 }
                 
-                // Find and delete associated files
-                foreach ($current_modules as $module) {
+                // Find and archive the module (mark as archived instead of deleting)
+                foreach ($current_modules as &$module) {
                     if ($module['id'] === $module_id) {
-                        if (isset($module['files']) && is_array($module['files'])) {
-                            foreach ($module['files'] as $file) {
-                                deleteModuleFile($file['filename']);
-                            }
-                        }
+                        $module['is_archived'] = true;
+                        $module['archived_at'] = date('Y-m-d H:i:s');
                         break;
                     }
                 }
                 
-                // Remove the module
-                $current_modules = array_filter($current_modules, function($module) use ($module_id) {
-                    return $module['id'] !== $module_id;
-                });
-                
                 // Update course with updated modules JSON
                 $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
-                $stmt->execute([json_encode(array_values($current_modules)), $course_id]);
+                $stmt->execute([json_encode($current_modules), $course_id]);
                 
                 // Refresh course data to show updated modules
                 $stmt = $db->prepare("
@@ -951,7 +1036,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$course_id, $_SESSION['user_id']]);
                 $course = $stmt->fetch();
                 
-                $message = 'Module deleted successfully.';
+                $message = 'Module archived successfully.';
+                $message_type = 'success';
+                        break;
+                
+            case 'unarchive_module':
+                $module_id = sanitizeInput($_POST['module_id'] ?? '');
+                
+                // Get current modules JSON
+                $current_modules = $course['modules'] ? json_decode($course['modules'], true) : [];
+                if (!is_array($current_modules)) {
+                    $current_modules = [];
+                }
+                
+                // Find and unarchive the module
+                foreach ($current_modules as &$module) {
+                    if ($module['id'] === $module_id) {
+                        $module['is_archived'] = false;
+                        unset($module['archived_at']);
+                        $module['recovered_at'] = date('Y-m-d H:i:s');
+                        break;
+                    }
+                }
+                
+                // Update course with updated modules JSON
+                $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                $stmt->execute([json_encode($current_modules), $course_id]);
+                
+                // Refresh course data to show updated modules
+                $stmt = $db->prepare("
+                    SELECT c.*, ap.academic_year, ap.semester_name, u.first_name, u.last_name
+                    FROM courses c
+                    JOIN academic_periods ap ON c.academic_period_id = ap.id
+                    JOIN users u ON c.teacher_id = u.id
+                    WHERE c.id = ? AND c.teacher_id = ?
+                ");
+                $stmt->execute([$course_id, $_SESSION['user_id']]);
+                $course = $stmt->fetch();
+                
+                $message = 'Module recovered successfully.';
+                $message_type = 'success';
+                break;
+                
+            case 'recover_all_modules':
+                // Get current modules JSON
+                $current_modules = $course['modules'] ? json_decode($course['modules'], true) : [];
+                if (!is_array($current_modules)) {
+                    $current_modules = [];
+                }
+                
+                $recovered_count = 0;
+                // Find and recover all archived modules
+                foreach ($current_modules as &$module) {
+                    if (isset($module['is_archived']) && $module['is_archived']) {
+                        $module['is_archived'] = false;
+                        unset($module['archived_at']);
+                        $module['recovered_at'] = date('Y-m-d H:i:s');
+                        $recovered_count++;
+                    }
+                }
+                
+                // Update course with updated modules JSON
+                $stmt = $db->prepare('UPDATE courses SET modules = ? WHERE id = ?');
+                $stmt->execute([json_encode($current_modules), $course_id]);
+                
+                // Refresh course data to show updated modules
+                $stmt = $db->prepare("
+                    SELECT c.*, ap.academic_year, ap.semester_name, u.first_name, u.last_name
+                    FROM courses c
+                    JOIN academic_periods ap ON c.academic_period_id = ap.id
+                    JOIN users u ON c.teacher_id = u.id
+                    WHERE c.id = ? AND c.teacher_id = ?
+                ");
+                $stmt->execute([$course_id, $_SESSION['user_id']]);
+                $course = $stmt->fetch();
+                
+                $message = "Successfully recovered {$recovered_count} archived modules.";
                 $message_type = 'success';
                 break;
                 
@@ -1097,7 +1257,9 @@ function formatSectionName($section) {
 }
 
 // Get course modules from JSON field
+$show_archived = isset($_GET['show_archived']) && $_GET['show_archived'] == '1';
 $modules = [];
+$archived_modules = [];
 if ($course['modules']) {
     $modules_data = json_decode($course['modules'], true);
     if (is_array($modules_data)) {
@@ -1106,7 +1268,12 @@ if ($course['modules']) {
             $module['video_count'] = isset($module['videos']) ? count($module['videos']) : 0;
             $module['assessment_count'] = isset($module['assessments']) ? count($module['assessments']) : 0;
             $module['file_count'] = isset($module['files']) ? count($module['files']) : 0;
+            
+            if (isset($module['is_archived']) && $module['is_archived']) {
+                $archived_modules[] = $module;
+            } else {
             $modules[] = $module;
+            }
         }
     }
 }
@@ -1294,11 +1461,59 @@ $stats = [
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Course Modules</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        Course Modules
+                        <?php if ($show_archived): ?>
+                            <span class="badge bg-warning ms-2">Archived View</span>
+                        <?php endif; ?>
+                    </h5>
+                    <?php if (!empty($archived_modules)): ?>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary"><?= count($archived_modules) ?> Archived</span>
+                            <?php if ($show_archived): ?>
+                                <button class="btn btn-sm btn-success" onclick="recoverAllModules()" title="Recover All Archived Modules">
+                                    <i class="bi bi-arrow-clockwise"></i> Recover All
+                                </button>
+                            <?php endif; ?>
+                            <a href="?id=<?= $course_id ?>&show_archived=<?= $show_archived ? '0' : '1' ?>" 
+                               class="btn btn-sm <?= $show_archived ? 'btn-outline-secondary' : 'btn-secondary' ?>">
+                                <i class="bi bi-<?= $show_archived ? 'eye-slash' : 'eye' ?>"></i>
+                                <?= $show_archived ? 'Hide' : 'Show' ?> Archived
+                            </a>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body">
-                    <?php if (empty($modules)): ?>
+                    <?php 
+                    $display_modules = $show_archived ? array_merge($modules, $archived_modules) : $modules;
+                    
+                    // Get recently recovered modules for display
+                    $recently_recovered = [];
+                    if ($course['modules']) {
+                        $modules_data = json_decode($course['modules'], true);
+                        if (is_array($modules_data)) {
+                            foreach ($modules_data as $module) {
+                                if (isset($module['recovered_at']) && !isset($module['is_archived'])) {
+                                    $recently_recovered[] = $module;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Show recovery notification if there are recently recovered modules
+                    if (!empty($recently_recovered) && !$show_archived): ?>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Recovery Notice:</strong> 
+                            <?= count($recently_recovered) ?> module(s) have been recently recovered from archive.
+                            <a href="?id=<?= $course_id ?>&show_archived=1" class="btn btn-sm btn-outline-info ms-2">
+                                <i class="bi bi-eye"></i> View Archived
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (empty($display_modules)): ?>
                         <div class="empty-state">
                             <div class="empty-state-content">
                                 <i class="bi bi-collection display-1 text-muted mb-4"></i>
@@ -1332,12 +1547,12 @@ $stats = [
                             ];
                             $color_index = 0;
                             ?>
-                            <?php foreach ($modules as $module): ?>
+                            <?php foreach ($display_modules as $module): ?>
                                 <?php 
                                 $card_color = $module_colors[$color_index % count($module_colors)];
                                 $color_index++;
                                 ?>
-                                <div class="module-card" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
+                                <div class="module-card <?= isset($module['is_archived']) && $module['is_archived'] ? 'archived-module' : '' ?>" style="border-left: 4px solid <?php echo $card_color; ?>; background-color: <?php echo $card_color; ?>;">
                                     <!-- Module Status Badge - Clickable -->
                                     <div class="module-status <?php echo $module['is_locked'] ? 'status-locked' : 'status-unlocked'; ?> clickable-status" 
                                          onclick="toggleModuleStatus('<?php echo $module['id']; ?>', <?php echo $module['is_locked'] ? 'false' : 'true'; ?>)"
@@ -1399,14 +1614,40 @@ $stats = [
                                                 <i class="bi bi-file-earmark"></i>
                                                 <span>Files</span>
                                             </a>
-                                            <a href="javascript:void(0)" onclick="deleteModule('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-delete" title="Delete Module">
-                                                <i class="bi bi-trash"></i>
-                                                <span>Delete</span>
-                                                    </a>
+                                            <a href="javascript:void(0)" onclick="manageModuleBadges('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-badges" title="Manage Module Badges">
+                                                <i class="bi bi-award"></i>
+                                                <span>Badges</span>
+                                            </a>
+                                            <?php if (isset($module['is_archived']) && $module['is_archived']): ?>
+                                                <a href="javascript:void(0)" onclick="unarchiveModule('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-unarchive" title="Recover Module">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                    <span>Recover</span>
+                                                </a>
+                                            <?php else: ?>
+                                                <a href="javascript:void(0)" onclick="archiveModule('<?php echo $module['id']; ?>', '<?php echo htmlspecialchars($module['module_title']); ?>')" class="module-action-btn btn-archive" title="Archive Module">
+                                                    <i class="bi bi-archive"></i>
+                                                    <span>Archive</span>
+                                                </a>
+                                            <?php endif; ?>
                                                 </div>
                                         
                                         <!-- Module Info -->
                                         <div class="mt-2">
+                                            <?php if (isset($module['is_archived']) && $module['is_archived']): ?>
+                                                <div class="alert alert-warning alert-sm mb-2">
+                                                    <i class="bi bi-archive me-1"></i>
+                                                    <strong>Archived</strong>
+                                                    <?php if (isset($module['archived_at'])): ?>
+                                                        on <?= date('M j, Y g:i A', strtotime($module['archived_at'])) ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (isset($module['recovered_at'])): ?>
+                                                <div class="alert alert-success alert-sm mb-2">
+                                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                                    <strong>Recovered</strong> on <?= date('M j, Y g:i A', strtotime($module['recovered_at'])) ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <small class="text-muted">
                                                 <i class="bi bi-sort-numeric-up me-1"></i>Module <?php echo $module['module_order']; ?>
                                                 <?php if ($module['is_locked']): ?>
@@ -1591,10 +1832,23 @@ $stats = [
     </div>
 </div>
 
-<!-- Delete Module Form -->
-<form id="deleteModuleForm" method="post" style="display: none;">
-    <input type="hidden" name="action" value="delete_module">
-    <input type="hidden" name="module_id" id="delete_module_id">
+<!-- Archive Module Form -->
+<form id="archiveModuleForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="archive_module">
+    <input type="hidden" name="module_id" id="archive_module_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
+<!-- Unarchive Module Form -->
+<form id="unarchiveModuleForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="unarchive_module">
+    <input type="hidden" name="module_id" id="unarchive_module_id">
+    <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
+</form>
+
+<!-- Recover All Modules Form -->
+<form id="recoverAllModulesForm" method="post" style="display: none;">
+    <input type="hidden" name="action" value="recover_all_modules">
     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
 </form>
 
@@ -1611,10 +1865,29 @@ function editModule(module) {
     new bootstrap.Modal(document.getElementById('editModuleModal')).show();
 }
 
-function deleteModule(moduleId, moduleTitle) {
-    if (confirm(`Are you sure you want to delete "${moduleTitle}"? This will also delete all videos and assessments in this module.`)) {
-        document.getElementById('delete_module_id').value = moduleId;
-        document.getElementById('deleteModuleForm').submit();
+function archiveModule(moduleId, moduleTitle) {
+    if (confirm(`Are you sure you want to archive "${moduleTitle}"? This will hide the module from students but preserve all content.`)) {
+        document.getElementById('archive_module_id').value = moduleId;
+        document.getElementById('archiveModuleForm').submit();
+    }
+}
+
+function unarchiveModule(moduleId, moduleTitle) {
+    if (confirm(`Are you sure you want to recover "${moduleTitle}"? This will make the module visible to students again.`)) {
+        document.getElementById('unarchive_module_id').value = moduleId;
+        document.getElementById('unarchiveModuleForm').submit();
+    }
+}
+
+function recoverAllModules() {
+    const archivedCount = <?= count($archived_modules) ?>;
+    if (archivedCount === 0) {
+        alert('No archived modules to recover.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to recover ALL ${archivedCount} archived modules? This will make all archived modules visible to students again.`)) {
+        document.getElementById('recoverAllModulesForm').submit();
     }
 }
 
@@ -2149,5 +2422,529 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Module Badge Management Modal -->
+<div class="modal fade" id="moduleBadgeModal" tabindex="-1" aria-labelledby="moduleBadgeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="moduleBadgeModalLabel">
+                    <i class="bi bi-award me-2"></i>Manage Module Badges
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="moduleBadgeContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading badges...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveModuleBadges()">
+                    <i class="bi bi-check-lg me-1"></i>Save Badges
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Module Badge Management Variables
+let currentModuleId = '';
+let currentModuleName = '';
+
+// Function to manage module badges
+function manageModuleBadges(moduleId, moduleName) {
+    currentModuleId = moduleId;
+    currentModuleName = moduleName;
+    
+    // Update modal title
+    document.getElementById('moduleBadgeModalLabel').innerHTML = 
+        `<i class="bi bi-award me-2"></i>Manage Badges for "${moduleName}"`;
+    
+    // Show loading state
+    const modalContent = document.getElementById('moduleBadgeContent');
+    modalContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading badges...</p>
+        </div>
+    `;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('moduleBadgeModal'));
+    modal.show();
+    
+    // Load badges
+    loadModuleBadges(moduleId);
+}
+
+// Function to load module badges
+function loadModuleBadges(moduleId) {
+    fetch(`get_module_badges.php?module_id=${moduleId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayModuleBadges(data);
+            } else {
+                throw new Error(data.message || 'Failed to load badges');
+            }
+        })
+        .catch(error => {
+            document.getElementById('moduleBadgeContent').innerHTML = 
+                '<div class="alert alert-danger">Error loading badges: ' + error.message + '</div>';
+            console.error('Error loading module badges:', error);
+        });
+}
+
+// Function to display module badges
+function displayModuleBadges(data) {
+    let html = `
+        <div class="container-fluid p-4">
+            <!-- Header Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">Module Badge Management</h4>
+                            <p class="text-muted mb-0">Assign badges that students will earn upon module completion</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary fs-6">${data.available_badges.length} Available</span>
+                            <span class="badge bg-success fs-6 ms-2">${data.assigned_badges.length} Selected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search and Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="badgeSearch" placeholder="Search badges..." onkeyup="filterBadges()">
+                    </div>
+                    <!-- Filter Status -->
+                    <div id="filterStatus" class="mt-2" style="display: none;">
+                        <small class="text-muted">
+                            <i class="bi bi-funnel me-1"></i>
+                            <span id="activeFilters"></span>
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="categoryFilter" onchange="filterBadges()">
+                        <option value="">All Categories</option>
+                        <option value="achievement">Achievement</option>
+                        <option value="milestone">Milestone</option>
+                        <option value="skill">Skill</option>
+                        <option value="participation">Participation</option>
+                        <option value="special">Special</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="contextFilter" onchange="filterBadges()">
+                        <option value="">All Contexts</option>
+                        <option value="module">Module</option>
+                        <option value="global">Global</option>
+                        <option value="requirement">Requirement</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm" onclick="quickFilter('milestone')" title="Show milestone badges">
+                            <i class="bi bi-flag"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="quickFilter('skill')" title="Show skill badges">
+                            <i class="bi bi-lightning"></i>
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="quickFilter('achievement')" title="Show achievement badges">
+                            <i class="bi bi-trophy"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()" title="Clear all filters">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Two Column Layout -->
+            <div class="row">
+                <!-- Available Badges Column -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Available Badges <span class="badge bg-primary ms-2" id="badgeCount">${data.available_badges.length}</span></h5>
+                        </div>
+                        <div class="card-body p-3" style="max-height: 500px; overflow-y: auto;">
+                            <div id="availableBadges">
+                                ${data.available_badges.map(badge => `
+                                    <div class="badge-item d-flex align-items-center p-3 border rounded-3 mb-2 bg-white border-light shadow-sm" 
+                                         data-badge-id="${badge.id}" data-badge-type="${badge.badge_type}" 
+                                         data-badge-category="${badge.category}" data-badge-context="${badge.context}">
+                                        <div class="form-check me-3">
+                                            <input class="form-check-input" type="checkbox" id="badge_${badge.id}" 
+                                                   onchange="toggleBadge('${badge.id}', this.checked)">
+                                        </div>
+                                        <div class="badge-icon-display me-3">
+                                            <i class="${badge.badge_icon} fs-3 text-${getTypeColor(badge.badge_type)}"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">${badge.badge_name}</h6>
+                                            <p class="text-muted mb-1 small">${badge.badge_description}</p>
+                                            <div class="d-flex align-items-center flex-wrap gap-1">
+                                                <span class="badge bg-${getTypeColor(badge.badge_type)} me-1">${badge.badge_type.replace('_', ' ')}</span>
+                                                <span class="badge bg-info me-1">${badge.category}</span>
+                                                <span class="badge bg-secondary me-1">${badge.context}</span>
+                                                ${badge.is_restricted ? '<span class="badge bg-warning me-1">Restricted</span>' : ''}
+                                                <span class="text-success fw-bold">+${badge.points_value} pts</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Selected Badges Column -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Selected Badges</h5>
+                        </div>
+                        <div class="card-body p-3" style="max-height: 500px; overflow-y: auto;">
+                            <div id="selectedBadges" class="d-flex flex-wrap gap-2">
+                                ${data.assigned_badges.length === 0 ? 
+                                    '<div class="text-center text-muted w-100 py-4"><i class="bi bi-inbox fs-1"></i><p class="mt-2">No badges selected</p></div>' :
+                                    data.assigned_badges.map(badge => `
+                                        <div class="selected-badge-item d-flex align-items-center p-2 border rounded-3 bg-success bg-opacity-10 border-success shadow-sm" 
+                                             data-badge-id="${badge.id}" style="min-width: 200px; max-width: 250px;">
+                                            <div class="badge-icon-display me-2">
+                                                <i class="${badge.badge_icon} fs-4 text-${getTypeColor(badge.badge_type)}"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0 small">${badge.badge_name}</h6>
+                                                <small class="text-muted">+${badge.points_value} pts</small>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                                                    onclick="removeBadge('${badge.id}')" title="Remove badge">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    `).join('')
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('moduleBadgeContent').innerHTML = html;
+    
+    // Initialize pre-assigned badges
+    data.assigned_badges.forEach(badge => {
+        const checkbox = document.getElementById(`badge_${badge.id}`);
+        if (checkbox) {
+            checkbox.checked = true;
+            const badgeItem = document.querySelector(`[data-badge-id="${badge.id}"]`);
+            if (badgeItem) {
+                badgeItem.classList.remove('bg-white', 'border-light');
+                badgeItem.classList.add('bg-success', 'bg-opacity-10', 'border-success');
+            }
+        }
+    });
+}
+
+// Helper function to get type color
+function getTypeColor(type) {
+    const colors = {
+        'course_completion': 'primary',
+        'high_score': 'warning',
+        'participation': 'info',
+        'streak': 'success',
+        'special': 'danger'
+    };
+    return colors[type] || 'secondary';
+}
+
+// Function to toggle badge selection
+function toggleBadge(badgeId, isSelected) {
+    const badgeItem = document.querySelector(`[data-badge-id="${badgeId}"]`);
+    const checkbox = document.getElementById(`badge_${badgeId}`);
+    
+    if (isSelected) {
+        // Update visual state for selected badge
+        badgeItem.classList.remove('bg-white', 'border-light');
+        badgeItem.classList.add('bg-success', 'bg-opacity-10', 'border-success');
+        addToSelectedBadges(badgeId);
+    } else {
+        // Update visual state for deselected badge
+        badgeItem.classList.remove('bg-success', 'bg-opacity-10', 'border-success');
+        badgeItem.classList.add('bg-white', 'border-light');
+        removeFromSelectedBadges(badgeId);
+    }
+}
+
+// Function to add badge to selected list
+function addToSelectedBadges(badgeId) {
+    // Check if badge is already in selected list
+    const existingBadge = document.querySelector(`#selectedBadges .selected-badge-item[data-badge-id="${badgeId}"]`);
+    if (existingBadge) return;
+    
+    // Find the badge data
+    const badgeItem = document.querySelector(`[data-badge-id="${badgeId}"]`);
+    if (!badgeItem) return;
+    
+    const badgeName = badgeItem.querySelector('h6').textContent;
+    const badgeDesc = badgeItem.querySelector('p').textContent;
+    const badgeIcon = badgeItem.querySelector('i').className;
+    const badgeType = badgeItem.getAttribute('data-badge-type');
+    const pointsValue = badgeItem.querySelector('.text-success').textContent;
+    
+    const typeColor = getTypeColor(badgeType);
+    
+    // Add to selected badges display
+    const selectedBadgesContainer = document.getElementById('selectedBadges');
+    const emptyState = selectedBadgesContainer.querySelector('.text-center');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    const selectedBadgeHtml = `
+        <div class="selected-badge-item d-flex align-items-center p-2 border rounded-3 bg-success bg-opacity-10 border-success shadow-sm" data-badge-id="${badgeId}" style="min-width: 200px; max-width: 250px;">
+            <div class="badge-icon-display me-2">
+                <i class="${badgeIcon} fs-4 text-${typeColor}"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 small">${badgeName}</h6>
+                <small class="text-muted">${pointsValue}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeBadge('${badgeId}')" title="Remove badge">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+    
+    selectedBadgesContainer.insertAdjacentHTML('beforeend', selectedBadgeHtml);
+}
+
+// Function to remove badge from selected list
+function removeFromSelectedBadges(badgeId) {
+    const selectedBadge = document.querySelector(`#selectedBadges .selected-badge-item[data-badge-id="${badgeId}"]`);
+    if (selectedBadge) {
+        selectedBadge.remove();
+    }
+    
+    // Show empty state if no badges selected
+    const selectedBadgesContainer = document.getElementById('selectedBadges');
+    const remainingBadges = selectedBadgesContainer.querySelectorAll('.selected-badge-item');
+    if (remainingBadges.length === 0) {
+        selectedBadgesContainer.innerHTML = '<div class="text-center text-muted w-100 py-4"><i class="bi bi-inbox fs-1"></i><p class="mt-2">No badges selected</p></div>';
+    }
+}
+
+// Function to remove badge
+function removeBadge(badgeId) {
+    const checkbox = document.getElementById(`badge_${badgeId}`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+    removeFromSelectedBadges(badgeId);
+    
+    // Update visual state
+    const badgeItem = document.querySelector(`[data-badge-id="${badgeId}"]`);
+    if (badgeItem) {
+        badgeItem.classList.remove('bg-success', 'bg-opacity-10', 'border-success');
+        badgeItem.classList.add('bg-white', 'border-light');
+    }
+}
+
+// Function to filter badges
+function filterBadges() {
+    const searchTerm = document.getElementById('badgeSearch').value.toLowerCase().trim();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const contextFilter = document.getElementById('contextFilter').value;
+    const badgeItems = document.querySelectorAll('.badge-item');
+    
+    let visibleCount = 0;
+    let hasActiveFilters = false;
+    
+    // Check if any filters are active
+    if (searchTerm !== '' || categoryFilter !== '' || contextFilter !== '') {
+        hasActiveFilters = true;
+    }
+    
+    badgeItems.forEach(item => {
+        const badgeName = item.querySelector('h6').textContent.toLowerCase();
+        const badgeCategory = item.getAttribute('data-badge-category');
+        const badgeContext = item.getAttribute('data-badge-context');
+        
+        // Apply strict filtering - all conditions must match
+        let matchesSearch = true;
+        let matchesCategory = true;
+        let matchesContext = true;
+        
+        // Search filter (name only for modules)
+        if (searchTerm !== '') {
+            matchesSearch = badgeName.includes(searchTerm);
+        }
+        
+        // Category filter (exact match)
+        if (categoryFilter !== '') {
+            matchesCategory = badgeCategory === categoryFilter;
+        }
+        
+        // Context filter (exact match)
+        if (contextFilter !== '') {
+            matchesContext = badgeContext === contextFilter;
+        }
+        
+        // Only show if ALL active filters match
+        if (matchesSearch && matchesCategory && matchesContext) {
+            item.style.display = 'block';
+            item.style.opacity = '1';
+            item.style.transform = 'scale(1)';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+            item.style.opacity = '0';
+            item.style.transform = 'scale(0.95)';
+        }
+    });
+    
+    // Update the header with filtered count
+    const headerElement = document.querySelector('#availableBadges').closest('.card').querySelector('.card-header h5');
+    if (headerElement) {
+        const originalText = headerElement.textContent.replace(/\(\d+\)/, '');
+        if (hasActiveFilters) {
+            headerElement.textContent = `${originalText} (${visibleCount} of ${badgeItems.length})`;
+        } else {
+            headerElement.textContent = originalText;
+        }
+    }
+    
+    // Show "No badges found" message if no results
+    const availableBadgesContainer = document.getElementById('availableBadges');
+    const existingNoResults = availableBadgesContainer.querySelector('.no-results-message');
+    
+    if (visibleCount === 0 && hasActiveFilters) {
+        if (!existingNoResults) {
+            const noResultsHtml = `
+                <div class="no-results-message text-center py-4">
+                    <i class="bi bi-search fs-1 text-muted"></i>
+                    <h6 class="text-muted mt-2">No badges found</h6>
+                    <p class="text-muted small">Try adjusting your search or filters</p>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="clearFilters()">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </button>
+                </div>
+            `;
+            availableBadgesContainer.insertAdjacentHTML('beforeend', noResultsHtml);
+        }
+    } else {
+        if (existingNoResults) {
+            existingNoResults.remove();
+        }
+    }
+    
+    // Update filter status
+    updateFilterStatus();
+}
+
+// Function to update filter status display
+function updateFilterStatus() {
+    const searchTerm = document.getElementById('badgeSearch').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const contextFilter = document.getElementById('contextFilter').value;
+    
+    const activeFilters = [];
+    
+    if (searchTerm) {
+        activeFilters.push(`Search: "${searchTerm}"`);
+    }
+    if (categoryFilter) {
+        activeFilters.push(`Category: ${categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)}`);
+    }
+    if (contextFilter) {
+        activeFilters.push(`Context: ${contextFilter.charAt(0).toUpperCase() + contextFilter.slice(1)}`);
+    }
+    
+    const filterStatus = document.getElementById('filterStatus');
+    const activeFiltersSpan = document.getElementById('activeFilters');
+    
+    if (activeFilters.length > 0) {
+        activeFiltersSpan.textContent = activeFilters.join(' • ');
+        filterStatus.style.display = 'block';
+    } else {
+        filterStatus.style.display = 'none';
+    }
+}
+
+// Function for quick filtering by category
+function quickFilter(category) {
+    document.getElementById('badgeSearch').value = '';
+    document.getElementById('categoryFilter').value = category;
+    document.getElementById('contextFilter').value = '';
+    filterBadges();
+}
+
+// Function to clear filters
+function clearFilters() {
+    document.getElementById('badgeSearch').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('contextFilter').value = '';
+    filterBadges();
+}
+
+// Function to save module badges
+function saveModuleBadges() {
+    const selectedBadges = [];
+    const checkboxes = document.querySelectorAll('#availableBadges input[type="checkbox"]:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const badgeId = checkbox.id.replace('badge_', '');
+        selectedBadges.push(badgeId);
+    });
+    
+    // Send data to server
+    fetch('save_module_badges.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            module_id: currentModuleId,
+            badge_ids: selectedBadges
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessMessage('Module badges saved successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('moduleBadgeModal')).hide();
+        } else {
+            showErrorMessage('Error saving badges: ' + data.message);
+        }
+    })
+    .catch(error => {
+        showErrorMessage('Error saving badges. Please try again.');
+        console.error('Error saving module badges:', error);
+    });
+}
+</script>
 
 <?php require_once '../includes/footer.php'; ?> 

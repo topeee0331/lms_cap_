@@ -160,14 +160,14 @@ $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
 $stmt = $db->prepare("
     SELECT a.*, c.teacher_id, c.course_name, c.course_code,
            COUNT(aa.id) as attempt_count,
-           AVG(aa.score) as average_score,
+           AVG(CASE WHEN aa.status = 'completed' THEN aa.score ELSE NULL END) as average_score,
            a.is_locked, a.lock_type, a.prerequisite_assessment_id, 
            a.prerequisite_score, a.prerequisite_video_count, a.unlock_date, a.lock_message,
            (a.status = 'active') as is_active,
            'Module Assessment' as module_title
     FROM assessments a
     JOIN courses c ON a.course_id = c.id
-    LEFT JOIN assessment_attempts aa ON a.id = aa.assessment_id AND aa.status = 'completed'
+    LEFT JOIN assessment_attempts aa ON a.id = aa.assessment_id
     $where_clause
     GROUP BY a.id
     ORDER BY a.created_at DESC

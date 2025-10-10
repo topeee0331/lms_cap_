@@ -533,33 +533,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
-            case 'delete':
+            case 'archive':
                 $user_id = (int)($_POST['user_id'] ?? 0);
                 if ($user_id === $_SESSION['user_id']) {
-                    $message = 'You cannot delete your own account.';
+                    $message = 'You cannot archive your own account.';
                     $message_type = 'danger';
                 } else {
-                    $stmt = $db->prepare('UPDATE users SET status = ? WHERE id = ? AND role = ?');
-                    $stmt->execute(['inactive', $user_id, 'teacher']);
+                    $stmt = $db->prepare('UPDATE users SET is_archived = 1 WHERE id = ? AND role = ?');
+                    $stmt->execute([$user_id, 'teacher']);
                     $message = 'Teacher archived successfully.';
                     $message_type = 'success';
                 }
                 break;
                 
-            case 'unarchive':
+            case 'recover':
                 $user_id = (int)($_POST['user_id'] ?? 0);
-                $stmt = $db->prepare('UPDATE users SET status = ? WHERE id = ? AND role = ?');
-                $stmt->execute(['active', $user_id, 'teacher']);
-                $message = 'Teacher unarchived successfully.';
-                    $message_type = 'success';
+                $stmt = $db->prepare('UPDATE users SET is_archived = 0 WHERE id = ? AND role = ?');
+                $stmt->execute([$user_id, 'teacher']);
+                $message = 'Teacher recovered successfully.';
+                $message_type = 'success';
                 break;
         }
     }
 }
 
-// Fetch all teachers with status
-$stmt = $db->prepare("SELECT * FROM users WHERE role = 'teacher' ORDER BY last_name, first_name");
-$stmt->execute();
+// Get teachers with search and filter
+$search = sanitizeInput($_GET['search'] ?? '');
+$status_filter = sanitizeInput($_GET['status'] ?? '');
+$show_archived = sanitizeInput($_GET['show_archived'] ?? '0');
+
+$where_conditions = ["role = 'teacher'"];
+$params = [];
+
+// Add archive filter - show only archived teachers when requested, otherwise show only active teachers
+if ($show_archived === '1') {
+    $where_conditions[] = "is_archived = 1";
+} else {
+    $where_conditions[] = "(is_archived = 0 OR is_archived IS NULL)";
+}
+
+if (!empty($search)) {
+    $where_conditions[] = "(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ? OR identifier LIKE ?)";
+    $search_param = "%$search%";
+    $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param, $search_param]);
+}
+
+if (!empty($status_filter)) {
+    if ($status_filter === 'active') {
+        $where_conditions[] = "(status IS NULL OR status = 'active')";
+    } elseif ($status_filter === 'inactive') {
+        $where_conditions[] = "status = 'inactive'";
+    }
+}
+
+$where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+$stmt = $db->prepare("SELECT * FROM users $where_clause ORDER BY last_name, first_name");
+$stmt->execute($params);
 $teachers = $stmt->fetchAll();
 
 // Assign IDs to existing teachers who don't have them
@@ -736,13 +765,33 @@ foreach ($teachers as $teacher) {
                     </div>
                 </div>
             </div>
+            <?php if ($show_archived === '1'): ?>
+                <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                    <i class="bi bi-archive-fill me-2"></i>
+                    <div>
+                        <strong>Viewing Archived Teachers</strong> - These teachers have been archived and can be recovered. 
+                        Click the green recover button (🔄) to restore them to active status.
+                    </div>
+                </div>
+            <?php endif; ?>
             <div class="card table-container">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5>
-                            <i class="bi bi-person-badge me-2"></i>Teachers List
+                            <i class="bi bi-person-badge me-2"></i><?= $show_archived === '1' ? 'Archived Teachers List' : 'Teachers List' ?>
                         </h5>
-                        <span class="badge bg-primary fs-6" id="teacherCountBadge"><?= $total_teachers ?> teachers</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <?php if ($show_archived === '1'): ?>
+                                <a href="teachers.php" class="btn btn-outline-success btn-sm" title="Back to Active Teachers">
+                                    <i class="bi bi-arrow-left me-1"></i>Back to Active
+                                </a>
+                            <?php else: ?>
+                                <a href="teachers.php?show_archived=1" class="btn btn-outline-warning btn-sm" title="View Archived Teachers">
+                                    <i class="bi bi-archive me-1"></i>View Archived
+                                </a>
+                            <?php endif; ?>
+                            <span class="badge bg-primary fs-6" id="teacherCountBadge"><?= $total_teachers ?> teachers</span>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -772,7 +821,7 @@ foreach ($teachers as $teacher) {
                             </thead>
                             <tbody id="teachersTableContainer">
                                 <?php foreach ($teachers as $teacher): ?>
-                                <tr>
+                                <tr class="<?= (isset($teacher['is_archived']) && $teacher['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="flex-shrink-0">
@@ -799,6 +848,11 @@ foreach ($teachers as $teacher) {
                                             <i class="bi bi-<?= (isset($teacher['status']) && $teacher['status'] === 'inactive') ? 'archive' : 'check-circle' ?> me-1"></i>
                                             <?= (isset($teacher['status']) && $teacher['status'] === 'inactive') ? 'Archived' : 'Active' ?>
                                         </span>
+                                        <?php if (isset($teacher['is_archived']) && $teacher['is_archived']): ?>
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-archive me-1"></i>Archived
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -824,14 +878,14 @@ foreach ($teachers as $teacher) {
                                                     title="Edit Teacher">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
-                                            <?php if (isset($teacher['status']) && $teacher['status'] === 'inactive'): ?>
+                                            <?php if (isset($teacher['is_archived']) && $teacher['is_archived']): ?>
                                                 <button class="btn btn-sm btn-success" 
-                                                        onclick="unarchiveTeacher(<?= $teacher['id'] ?>)"
-                                                        title="Unarchive Teacher">
+                                                        onclick="recoverTeacher(<?= $teacher['id'] ?>)"
+                                                        title="Recover Teacher">
                                                     <i class="bi bi-arrow-clockwise"></i>
                                                 </button>
                                             <?php else: ?>
-                                                <button class="btn btn-sm btn-danger" 
+                                                <button class="btn btn-sm btn-warning" 
                                                         onclick="archiveTeacher(<?= $teacher['id'] ?>)"
                                                         title="Archive Teacher">
                                                     <i class="bi bi-archive"></i>
@@ -1193,7 +1247,7 @@ function editTeacher(teacherId) {
 }
 
 function archiveTeacher(teacherId) {
-    if (confirm('Are you sure you want to archive this teacher?')) {
+    if (confirm('Are you sure you want to archive this teacher? They will be hidden but can be recovered later.')) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = 'teachers.php';
@@ -1202,7 +1256,7 @@ function archiveTeacher(teacherId) {
         const actionInput = document.createElement('input');
         actionInput.type = 'hidden';
         actionInput.name = 'action';
-        actionInput.value = 'delete';
+        actionInput.value = 'archive';
         
         const userIdInput = document.createElement('input');
         userIdInput.type = 'hidden';
@@ -1223,8 +1277,8 @@ function archiveTeacher(teacherId) {
     }
 }
 
-function unarchiveTeacher(teacherId) {
-    if (confirm('Are you sure you want to unarchive this teacher?')) {
+function recoverTeacher(teacherId) {
+    if (confirm('Are you sure you want to recover this teacher?')) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = 'teachers.php';
@@ -1233,7 +1287,7 @@ function unarchiveTeacher(teacherId) {
         const actionInput = document.createElement('input');
         actionInput.type = 'hidden';
         actionInput.name = 'action';
-        actionInput.value = 'unarchive';
+        actionInput.value = 'recover';
         
         const userIdInput = document.createElement('input');
         userIdInput.type = 'hidden';

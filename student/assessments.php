@@ -297,23 +297,46 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
 
-        /* Statistics Cards */
+        /* Statistics Cards - Theme Solid Colors */
         .stats-card {
-            background: white;
-            border: 2px solid var(--border-color);
+            border: none;
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
             transition: var(--transition);
+            color: white;
+        }
+
+        .stats-card:nth-child(1) {
+            background: var(--primary-color);
+        }
+
+        .stats-card:nth-child(2) {
+            background: var(--success-color);
+        }
+
+        .stats-card:nth-child(3) {
+            background: var(--info-color);
+        }
+
+        .stats-card:nth-child(4) {
+            background: var(--warning-color);
         }
 
         .stats-card:hover {
-            border-color: var(--primary-color);
             transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(46, 94, 78, 0.15);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
 
         .stats-icon {
-            color: var(--primary-color);
+            color: white;
+        }
+
+        .stats-card .card-title {
+            color: white;
+        }
+
+        .stats-card .card-text {
+            color: rgba(255, 255, 255, 0.9);
         }
 
         /* Assessment Main Card */
@@ -321,6 +344,14 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             border: none;
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .assessment-main-card .card-body {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 1.5rem;
         }
 
         .assessment-header {
@@ -690,6 +721,19 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             background-color: #fafafa;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: var(--dark-color);
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .container-fluid {
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        main {
+            overflow-x: hidden;
+            overflow-y: auto;
+            max-height: 100vh;
         }
 
         .assessment-card {
@@ -1225,7 +1269,12 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .status-badge.available {
-            background: var(--primary-color);
+            background: #28a745; /* Green for truly available */
+        }
+
+        .status-badge.locked {
+            background: #ffc107; /* Yellow for locked/unavailable */
+            color: #000; /* Black text for better contrast on yellow */
         }
 
         .status-badge i {
@@ -1850,6 +1899,146 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         .assessment-item:nth-child(7) { animation-delay: 0.7s; }
         .assessment-item:nth-child(8) { animation-delay: 0.8s; }
         .assessment-item:nth-child(9) { animation-delay: 0.9s; }
+
+        /* View Toggle Styles */
+        .view-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 0.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .view-toggle-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .view-toggle-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .view-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        /* List View Styles */
+        .list-view .assessment-item {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .list-view .modern-assessment-card {
+            display: flex;
+            flex-direction: row;
+            height: auto;
+            min-height: 120px;
+        }
+
+        /* Scrollable Content */
+        .scrollable-content {
+            max-height: 60vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        .scrollable-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: #1e3a32;
+        }
+
+        .list-view .card-header-section {
+            flex: 0 0 200px;
+            border-right: 1px solid var(--border-color);
+            border-bottom: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .list-view .card-content-section {
+            flex: 1;
+            padding: 1.5rem;
+        }
+
+        .list-view .quick-stats {
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.75rem;
+        }
+
+        .list-view .stat-box {
+            padding: 0.75rem 0.5rem;
+        }
+
+        .list-view .title-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .list-view .assessment-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .list-view .course-details {
+            flex-direction: row;
+            gap: 1rem;
+        }
+
+        .list-view .course-name,
+        .list-view .module-name,
+        .list-view .teacher-name {
+            padding: 0.25rem 0;
+        }
+
+        /* Cards View Styles */
+        .cards-view .assessment-item {
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .cards-view .assessment-item {
+                width: 50%;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .cards-view .assessment-item {
+                width: 33.333%;
+            }
+        }
+
+        /* Hidden class for toggling */
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -1942,7 +2131,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                 <option value="completed">Completed (Any Score)</option>
                                         </select>
                                         </div>
-                                        <div class="d-flex align-items-center">
+                                        <div class="d-flex align-items-center me-3">
                                             <label for="courseFilter" class="form-label mb-0 me-2 small" style="color: rgba(255,255,255,0.9);">Course:</label>
                                         <select class="form-select form-select-sm" id="courseFilter" style="width: auto; background: rgba(255,255,255,0.9); border: none; border-radius: 8px;">
                                             <option value="all">All Courses</option>
@@ -1958,6 +2147,14 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                             ?>
                                         </select>
                                         </div>
+                                        <div class="view-toggle me-3">
+                                            <button class="view-toggle-btn" id="cardsViewBtn" data-view="cards">
+                                                <i class="fas fa-th-large me-1"></i>Cards
+                                            </button>
+                                            <button class="view-toggle-btn active" id="listViewBtn" data-view="list">
+                                                <i class="fas fa-list me-1"></i>List
+                                            </button>
+                                        </div>
                                         <div class="ms-2">
                                             <i class="fas fa-info-circle" 
                                                style="color: rgba(255,255,255,0.8);"
@@ -1968,7 +2165,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body scrollable-content">
                                 <?php
                                 // Check for assessments with limited attempts remaining
                                 $attempts_warning = false;
@@ -2063,10 +2260,15 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                                     <i class="fas fa-check-circle"></i>
                                                                     <span>Completed</span>
                                                                 </div>
-                                                            <?php else: ?>
+                                                            <?php elseif ($assessment['is_accessible'] && $assessment['academic_year_active'] && $assessment['semester_active']): ?>
                                                                 <div class="status-badge available">
                                                                     <i class="fas fa-play-circle"></i>
                                                                     <span>Available</span>
+                                                                </div>
+                                                            <?php else: ?>
+                                                                <div class="status-badge locked">
+                                                                    <i class="fas fa-lock"></i>
+                                                                    <span>Locked</span>
                                                                 </div>
                                                             <?php endif; ?>
                                                     </div>
@@ -2691,6 +2893,46 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                 }
             `;
             document.head.appendChild(style);
+
+            // View Toggle Functionality
+            const cardsViewBtn = document.getElementById('cardsViewBtn');
+            const listViewBtn = document.getElementById('listViewBtn');
+            const assessmentsContainer = document.querySelector('.card-body .row');
+            let currentView = 'list'; // Default view
+
+            function toggleView(view) {
+                currentView = view;
+                
+                // Update button states
+                if (view === 'cards') {
+                    cardsViewBtn.classList.add('active');
+                    listViewBtn.classList.remove('active');
+                    assessmentsContainer.classList.remove('list-view');
+                    assessmentsContainer.classList.add('cards-view');
+                } else {
+                    listViewBtn.classList.add('active');
+                    cardsViewBtn.classList.remove('active');
+                    assessmentsContainer.classList.remove('cards-view');
+                    assessmentsContainer.classList.add('list-view');
+                }
+
+                // Store preference in localStorage
+                localStorage.setItem('assessmentsView', view);
+            }
+
+            // Initialize view toggle
+            if (cardsViewBtn && listViewBtn) {
+                cardsViewBtn.addEventListener('click', () => toggleView('cards'));
+                listViewBtn.addEventListener('click', () => toggleView('list'));
+
+                // Load saved preference
+                const savedView = localStorage.getItem('assessmentsView');
+                if (savedView && (savedView === 'cards' || savedView === 'list')) {
+                    toggleView(savedView);
+                } else {
+                    toggleView('list'); // Default to list view
+                }
+            }
 
             // Function to load assessment attempts
             function loadAssessmentAttempts(assessmentId) {

@@ -129,15 +129,29 @@ $stmt->execute([
 // We'll use a hash of the video_id string to create a consistent integer
 $video_id_int = crc32($video_id);
 
-$stmt = $pdo->prepare("
-    INSERT INTO video_views (student_id, video_id, watch_duration, completion_percentage, viewed_at) 
-    VALUES (?, ?, ?, ?, NOW())
-    ON DUPLICATE KEY UPDATE 
-    watch_duration = GREATEST(watch_duration, VALUES(watch_duration)),
-    completion_percentage = GREATEST(completion_percentage, VALUES(completion_percentage)),
-    viewed_at = NOW()
-");
-$stmt->execute([$user_id, $video_id_int, $watch_duration, $completion_percentage]);
+// Check if record already exists
+$stmt = $pdo->prepare("SELECT id FROM video_views WHERE student_id = ? AND video_id = ?");
+$stmt->execute([$user_id, $video_id_int]);
+$existing_record = $stmt->fetch();
+
+if ($existing_record) {
+    // Update existing record
+    $stmt = $pdo->prepare("
+        UPDATE video_views 
+        SET watch_duration = GREATEST(watch_duration, ?),
+            completion_percentage = GREATEST(completion_percentage, ?),
+            viewed_at = NOW()
+        WHERE student_id = ? AND video_id = ?
+    ");
+    $stmt->execute([$watch_duration, $completion_percentage, $user_id, $video_id_int]);
+} else {
+    // Insert new record
+    $stmt = $pdo->prepare("
+        INSERT INTO video_views (student_id, video_id, watch_duration, completion_percentage, viewed_at) 
+        VALUES (?, ?, ?, ?, NOW())
+    ");
+    $stmt->execute([$user_id, $video_id_int, $watch_duration, $completion_percentage]);
+}
 
 // Send Pusher notifications (with error handling)
 try {

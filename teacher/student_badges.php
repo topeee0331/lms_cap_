@@ -318,8 +318,16 @@ try {
                                             <div class="col-md-6 col-lg-4">
                                                 <div class="card h-100 border-0 shadow-sm">
                                                     <div class="card-body text-center">
-                                                        <img src="../uploads/badges/<?php echo htmlspecialchars($badge['badge_icon'] ?: 'default.png'); ?>" 
-                                                             alt="badge" style="height:60px;" class="mb-3">
+                                                        <?php 
+                                                        $icon_class = $badge['badge_icon'] ?: 'bi-award';
+                                                        // Check if it's an old image file and convert to Bootstrap icon
+                                                        if (strpos($icon_class, '.png') !== false || strpos($icon_class, '.jpg') !== false) {
+                                                            $icon_class = 'bi-award'; // Default fallback
+                                                        }
+                                                        ?>
+                                                        <div class="badge-icon-display mb-3" style="width:60px;height:60px;background:linear-gradient(135deg, #7DCB80 0%, #2E5E4E 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                                            <i class="<?php echo htmlspecialchars($icon_class); ?>" style="font-size:30px;color:white;"></i>
+                                                        </div>
                                                         <h6 class="card-title"><?php echo htmlspecialchars($badge['badge_name']); ?></h6>
                                                         <p class="card-text small text-muted">
                                                             <?php echo htmlspecialchars($badge['badge_description']); ?>

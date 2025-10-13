@@ -55,7 +55,7 @@ $stmt = $pdo->prepare("
     FROM course_enrollments e
     JOIN courses c ON e.course_id = c.id
     JOIN users u ON c.teacher_id = u.id
-    WHERE e.student_id = ? AND e.status = 'active' AND c.academic_period_id = ?
+    WHERE e.student_id = ? AND e.status IN ('active', 'completed') AND c.academic_period_id = ?
     ORDER BY c.created_at DESC
 ");
 $stmt->execute([$user_id, $selected_year_id]);
@@ -130,10 +130,10 @@ $stmt = $pdo->prepare("
          WHERE e2.student_id = ? AND e2.status = 'active' AND c.academic_period_id = ? AND c.modules IS NOT NULL) as courses_with_modules,
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active') as available_in_section,
         (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'inactive') as inactive_periods,
-        (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active' AND id NOT IN (SELECT course_id FROM course_enrollments WHERE student_id = ? AND status = 'active')) as other_sections
+        (SELECT COUNT(*) FROM courses WHERE academic_period_id = ? AND status = 'active' AND id NOT IN (SELECT course_id FROM course_enrollments WHERE student_id = ? AND status IN ('active', 'completed'))) as other_sections
     FROM course_enrollments e
     JOIN courses c ON e.course_id = c.id
-    WHERE e.student_id = ? AND e.status = 'active' AND c.academic_period_id = ?
+    WHERE e.student_id = ? AND e.status IN ('active', 'completed') AND c.academic_period_id = ?
 ");
 $stmt->execute([$user_id, $selected_year_id, $selected_year_id, $selected_year_id, $selected_year_id, $user_id, $user_id, $selected_year_id]);
 $stats = $stmt->fetch();

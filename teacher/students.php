@@ -60,6 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt->execute([$student_id, $course_id]);
                             $message = 'Student enrolled successfully.';
                             $message_type = 'success';
+                            
+                            // Send real-time statistics update
+                            require_once '../includes/teacher_statistics_events.php';
+                            TeacherStatisticsEvents::sendEnrollmentUpdate(
+                                $_SESSION['user_id'],
+                                $student_id,
+                                [
+                                    'student_name' => 'Student', // You might want to get the actual name
+                                    'action' => 'enrolled in course'
+                                ]
+                            );
+                            TeacherStatisticsEvents::triggerStatisticsRefresh($_SESSION['user_id']);
                         }
                     } else {
                         $message = 'Invalid course selected.';
@@ -106,7 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $stmt->execute([$student_id, $course_id]);
                             } catch (PDOException $e) {
                                 // Table doesn't exist, skip this step
-                                error_log("Video views table not found, skipping: " . $e->getMessage());
                             }
                             
                             // Remove module progress for this student in this course (if table exists)
@@ -119,7 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $stmt->execute([$student_id, $course_id]);
                             } catch (PDOException $e) {
                                 // Table doesn't exist, skip this step
-                                error_log("Module progress table not found, skipping: " . $e->getMessage());
                             }
                             
                             // Remove any enrollment requests for this course
@@ -167,7 +177,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $message = 'Error kicking student: ' . $e->getMessage();
                         $message_type = 'danger';
-                        error_log("Error kicking student: " . $e->getMessage());
                     }
                 }
                 break;
@@ -219,7 +228,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $stmt->execute([$student_id, $course_id]);
                                 } catch (PDOException $e) {
                                     // Table doesn't exist, skip this step
-                                    error_log("Video views table not found in bulk kick, skipping: " . $e->getMessage());
                                 }
                                 
                                 // Remove module progress for this student in this course (if table exists)
@@ -232,7 +240,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $stmt->execute([$student_id, $course_id]);
                                 } catch (PDOException $e) {
                                     // Table doesn't exist, skip this step
-                                    error_log("Module progress table not found in bulk kick, skipping: " . $e->getMessage());
                                 }
                                 
                                 // Remove any enrollment requests for this course
@@ -278,7 +285,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $message = 'Error bulk kicking students: ' . $e->getMessage();
                         $message_type = 'danger';
-                        error_log("Error bulk kicking students: " . $e->getMessage());
                     }
                 }
                 break;
@@ -290,6 +296,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$enrollment_id, $_SESSION['user_id'], $selected_year_id]);
                 $message = 'Student unenrolled successfully.';
                 $message_type = 'success';
+                
+                // Send real-time statistics update
+                require_once '../includes/teacher_statistics_events.php';
+                TeacherStatisticsEvents::sendEnrollmentUpdate(
+                    $_SESSION['user_id'],
+                    0, // We don't have student_id here, but that's okay
+                    [
+                        'student_name' => 'Student',
+                        'action' => 'unenrolled from course'
+                    ]
+                );
+                TeacherStatisticsEvents::triggerStatisticsRefresh($_SESSION['user_id']);
                 break;
         }
     }
@@ -399,23 +417,6 @@ $where_clause = !empty($where_conditions) ? implode(' AND ', $where_conditions) 
 $show_enrolled_only = isset($_GET['enrolled_only']) && $_GET['enrolled_only'] === '1';
 $having_clause = $show_enrolled_only ? "HAVING COUNT(DISTINCT e.id) > 0" : "";
 
-// Debug: Log the query and parameters for troubleshooting
-error_log("Students Query Debug:");
-error_log("Course Filter: " . $course_filter);
-error_log("Section Filter: " . $section_filter);
-error_log("Search Filter: " . $search_filter);
-error_log("Enrolled Only: " . ($show_enrolled_only ? 'Yes' : 'No'));
-error_log("Where conditions: " . implode(' AND ', $where_conditions));
-error_log("Parameters: " . json_encode($params));
-error_log("Having clause: " . $having_clause);
-
-// Debug: Check if there are any enrollments for this course
-if ($course_filter > 0) {
-    $debug_stmt = $db->prepare("SELECT COUNT(*) as count FROM course_enrollments WHERE course_id = ?");
-    $debug_stmt->execute([$course_filter]);
-    $enrollment_count = $debug_stmt->fetch()['count'];
-    error_log("Enrollments in course $course_filter: $enrollment_count");
-}
 
 // If filtering by course, show students from sections assigned to that course
 if ($course_filter > 0) {
@@ -638,67 +639,6 @@ function getSortClause($sort_by) {
         </div>
     <?php endif; ?>
 
-    <!-- Debug Information (remove in production) -->
-    <?php if (isset($_GET['debug'])): ?>
-        <div class="alert alert-info">
-            <strong>Debug Info:</strong><br>
-            Course Filter: <?php echo $course_filter ?: 'None'; ?><br>
-            Section Filter: <?php echo $section_filter ?: 'None'; ?><br>
-            Search Filter: <?php echo $search_filter ?: 'None'; ?><br>
-            Enrolled Only: <?php echo $show_enrolled_only ? 'Yes' : 'No'; ?><br>
-            Sort By: <?php echo $sort_by; ?><br>
-            Where Clause: <?php echo $where_clause ?: 'None'; ?><br>
-            Having Clause: <?php echo $having_clause ?: 'None'; ?><br>
-            Total Students Found: <?php echo count($course_enrollments); ?><br><br>
-            
-            <strong>Student Status Breakdown:</strong><br>
-            <?php 
-            $regular_count = 0;
-            $irregular_count = 0;
-            foreach ($course_enrollments as $student) {
-                if ($student['student_status'] === 'Regular') {
-                    $regular_count++;
-                } else {
-                    $irregular_count++;
-                }
-            }
-            echo "Regular: $regular_count students<br>";
-            echo "Irregular: $irregular_count students<br><br>";
-            ?>
-            
-            <strong>Sample Student Data:</strong><br>
-            <?php 
-            $sample_count = 0;
-            foreach ($course_enrollments as $student) {
-                if ($sample_count >= 3) break;
-                echo "Student: " . $student['first_name'] . " " . $student['last_name'] . 
-                     " | Enrolled: " . $student['enrolled_courses'] . 
-                     " | Total: " . $student['total_courses'] . 
-                     " | Status: " . $student['student_status'] . "<br>";
-                $sample_count++;
-            }
-            ?>
-            <br>
-            
-            <strong>Available Sections (assigned to your courses):</strong><br>
-            <?php foreach ($sections as $section): ?>
-                <?php 
-                // Count students in this section for debug
-                $debug_stmt = $db->prepare("
-                    SELECT COUNT(*) as count
-                    FROM sections s
-                    JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL
-                    JOIN courses c ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
-                        AND c.teacher_id = ? AND c.academic_period_id = ?
-                    WHERE s.is_active = 1 AND s.id = ?
-                ");
-                $debug_stmt->execute([$_SESSION['user_id'], $selected_year_id, $section['id']]);
-                $debug_count = $debug_stmt->fetch()['count'];
-                ?>
-                BSIT-<?php echo $section['year_level'] . $section['section_name']; ?> (ID: <?php echo $section['id']; ?>) - <?php echo $debug_count; ?> students<br>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
 
     <!-- Enhanced Filters -->
     <div class="row mb-4">
@@ -806,7 +746,7 @@ function getSortClause($sort_by) {
                         <div class="stats-content">
                             <h3 class="stats-number total-students"><?php echo count($course_enrollments); ?></h3>
                             <p class="stats-label mb-0">Total Students</p>
-                            <small class="stats-subtitle">All enrolled students</small>
+                            <small class="stats-subtitle">All students in sections</small>
                         </div>
                         <div class="stats-icon">
                             <i class="bi bi-people"></i>
@@ -822,14 +762,15 @@ function getSortClause($sort_by) {
                         <div class="stats-content">
                             <h3 class="stats-number active-students">
                                 <?php 
+                                // Count students who are truly active (have progress > 0%)
                                 $active_students = array_filter($course_enrollments, function($e) { 
-                                    return ($e['enrolled_courses'] ?? 0) > 0; 
+                                    return ($e['enrolled_courses'] ?? 0) > 0 && ($e['avg_progress'] ?? 0) > 0; 
                                 });
                                 echo count($active_students);
                                 ?>
                             </h3>
                             <p class="stats-label mb-0">Active Students</p>
-                            <small class="stats-subtitle">Currently enrolled</small>
+                            <small class="stats-subtitle">With progress > 0%</small>
                         </div>
                         <div class="stats-icon">
                             <i class="bi bi-person-check"></i>
@@ -845,8 +786,9 @@ function getSortClause($sort_by) {
                         <div class="stats-content">
                             <h3 class="stats-number avg-progress">
                                 <?php 
+                                // Only include students with actual progress (exclude 0% progress)
                                 $progress_values = array_filter(array_column($course_enrollments, 'avg_progress'), function($val) {
-                                    return $val !== null && $val !== '';
+                                    return $val !== null && $val !== '' && $val > 0;
                                 });
                                 $avg_progress = count($progress_values) > 0 ? 
                                     array_sum($progress_values) / count($progress_values) : 0;
@@ -870,11 +812,16 @@ function getSortClause($sort_by) {
                         <div class="stats-content">
                             <h3 class="stats-number avg-score">
                                 <?php 
-                                $score_values = array_filter(array_column($course_enrollments, 'avg_score'), function($val) {
-                                    return $val !== null && $val !== '' && $val > 0;
-                                });
-                                $avg_score = count($score_values) > 0 ? 
-                                    array_sum($score_values) / count($score_values) : 0;
+                                // Get average score directly from assessment attempts for accuracy
+                                $stmt = $db->prepare('
+                                    SELECT AVG(aa.score) as avg_score
+                                    FROM assessment_attempts aa
+                                    JOIN assessments a ON aa.assessment_id = a.id
+                                    JOIN courses c ON a.course_id = c.id
+                                    WHERE c.teacher_id = ? AND c.academic_period_id = ? AND aa.status = "completed"
+                                ');
+                                $stmt->execute([$_SESSION['user_id'], $selected_year_id]);
+                                $avg_score = $stmt->fetchColumn() ?: 0;
                                 echo number_format($avg_score, 1);
                                 ?>%
                             </h3>
@@ -913,18 +860,14 @@ function getSortClause($sort_by) {
                         <?php endif; ?>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                        <div id="updateIndicator" class="me-2" style="display: none;">
-                            <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-                            <small class="text-muted ms-1">Updating...</small>
-                        </div>
                         <small class="text-muted" id="lastUpdate">
                             <i class="bi bi-clock me-1"></i>Last updated: Just now
                         </small>
-                        <small class="text-success ms-2" id="realtimeStatus" style="display: none;">
-                            <i class="bi bi-broadcast me-1"></i>Live Updates Active
-                        </small>
                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateProgressData()" title="Refresh Progress">
                             <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="refreshStatistics()" title="Refresh Statistics">
+                            <i class="bi bi-graph-up"></i>
                         </button>
                             <button type="button" class="btn btn-sm btn-success" id="exportStatsBtn" onclick="exportStudentStats()" title="Export Student Statistics">
                             <i class="bi bi-download me-1"></i>Export Stats
@@ -1040,8 +983,13 @@ function getSortClause($sort_by) {
                                                                      ($progress_percentage >= 60 ? 'bg-warning' : 
                                                                      ($progress_percentage >= 40 ? 'bg-info' : 'bg-danger'));
                                                     ?>
-                                                    <div class="progress me-2" style="width: 60px; height: 6px;">
-                                                        <div class="progress-bar <?php echo $progress_color; ?>" style="width: <?php echo $progress_percentage; ?>%"></div>
+                                                    <div class="progress me-2" style="width: 80px; height: 8px;">
+                                                        <div class="progress-bar <?php echo $progress_color; ?>" 
+                                                             role="progressbar" 
+                                                             style="width: <?php echo $progress_percentage; ?>%" 
+                                                             aria-valuenow="<?php echo $progress_percentage; ?>" 
+                                                             aria-valuemin="0" 
+                                                             aria-valuemax="100"></div>
                                                     </div>
                                                     <small class="fw-bold progress-text"><?php echo number_format($progress_percentage, 1); ?>%</small>
                                                 </div>
@@ -2267,10 +2215,7 @@ function updateProgressData() {
     if (!isPageVisible) return;
     
     // Show update indicator
-    const updateIndicator = document.getElementById('updateIndicator');
     const lastUpdate = document.getElementById('lastUpdate');
-    
-    if (updateIndicator) updateIndicator.style.display = 'block';
     
     const url = 'ajax_get_realtime_scores.php?' + new URLSearchParams({
         academic_period_id: '<?php echo $selected_year_id; ?>',
@@ -2280,21 +2225,19 @@ function updateProgressData() {
         enrolled_only: '<?php echo $show_enrolled_only ? '1' : '0'; ?>'
     });
     
-    console.log('Fetching real-time data from:', url);
     
     fetch(url)
     .then(response => {
-        console.log('Response status:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        console.log('Received data:', data);
         if (data.success) {
             updateProgressTable(data.students);
-            updateSummaryStats(data.summary);
+            // Don't update summary stats - they should remain as calculated on page load
+            // updateSummaryStats(data.summary);
             updateScoreData(data.students);
             
             // Update last update time
@@ -2303,35 +2246,26 @@ function updateProgressData() {
                 lastUpdate.innerHTML = `<i class="bi bi-clock me-1"></i>Last updated: ${now.toLocaleTimeString()}`;
             }
         } else {
-            console.error('API returned error:', data.error);
         }
     })
     .catch(error => {
-        console.error('Error updating progress:', error);
     })
     .finally(() => {
-        // Hide update indicator
-        if (updateIndicator) updateIndicator.style.display = 'none';
+        // Update completed
     });
 }
 
 // Function to update progress table
 function updateProgressTable(students) {
-    console.log('Updating progress table with', students.length, 'students');
     students.forEach(student => {
         const row = document.querySelector(`tr[data-student-id="${student.student_id}"]`);
-        console.log('Looking for student ID:', student.student_id, 'Found row:', row);
         
         if (row) {
             // Update progress bar
             const progressBar = row.querySelector('.progress-bar');
             const progressText = row.querySelector('.progress-text');
-            const progressPercentage = parseFloat(student.course_progress) || 0;
+            const progressPercentage = parseFloat(student.avg_progress) || 0;
             
-            console.log('Student', student.student_id, 'Progress:', progressPercentage, 'Found elements:', {
-                progressBar: !!progressBar,
-                progressText: !!progressText
-            });
             
             if (progressBar && progressText) {
                 progressBar.style.width = Math.min(progressPercentage, 100) + '%';
@@ -2339,7 +2273,6 @@ function updateProgressTable(students) {
                 
                 // Update color based on progress
                 progressBar.className = 'progress-bar ' + getProgressColor(progressPercentage);
-                console.log('Updated progress for student', student.student_id, 'to', progressPercentage + '%');
             }
             
             // Update assessment data
@@ -2370,36 +2303,14 @@ function updateProgressTable(students) {
     });
 }
 
-// Function to update summary statistics
-function updateSummaryStats(summary) {
-    // Update total students
-    const totalStudents = document.querySelector('.total-students');
-    if (totalStudents) {
-        totalStudents.textContent = summary.total_students || 0;
-    }
-    
-    // Update active students
-    const activeStudents = document.querySelector('.active-students');
-    if (activeStudents) {
-        activeStudents.textContent = summary.active_students || 0;
-    }
-    
-    // Update average progress
-    const avgProgress = document.querySelector('.avg-progress');
-    if (avgProgress) {
-        avgProgress.textContent = (summary.avg_progress || 0).toFixed(1) + '%';
-    }
-    
-    // Update average score
-    const avgScore = document.querySelector('.avg-score');
-    if (avgScore) {
-        avgScore.textContent = (summary.avg_score || 0).toFixed(1) + '%';
-    }
-}
+// Function to update summary statistics (DISABLED - statistics should remain as calculated on page load)
+// function updateSummaryStats(summary) {
+//     // This function is disabled to prevent overriding correct initial statistics
+//     // with filtered data from real-time updates
+// }
 
 // Function to update score data with visual indicators
 function updateScoreData(students) {
-    console.log('Updating score data with', students.length, 'students');
     
     students.forEach(student => {
         const row = document.querySelector(`tr[data-student-id="${student.student_id}"]`);
@@ -2449,8 +2360,7 @@ function updateScoreData(students) {
                 scoreBadge.classList.remove('score-updated');
             }, 1000);
             
-            // Show real-time update notification
-            showRealtimeUpdateNotification(`${student.first_name} ${student.last_name}'s score updated to ${currentScore.toFixed(1)}%`);
+            // Score updated
         }
         
         // Update best score if available
@@ -2511,59 +2421,69 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
-// Add CSS for smooth transitions
+// Add CSS for smooth transitions and progress bar styling
 const style = document.createElement('style');
 style.textContent = `
     .progress-bar, .badge, .progress-text {
         transition: all 0.3s ease-in-out;
     }
-    .update-indicator {
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 0.375rem;
+        overflow: hidden;
     }
-    .update-indicator.show {
-        opacity: 1;
+    .progress-bar {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+        color: #fff;
+        text-align: center;
+        white-space: nowrap;
+        background-color: #0d6efd;
+        transition: width 0.6s ease;
+    }
+    .progress-bar.bg-success {
+        background-color: #198754 !important;
+    }
+    .progress-bar.bg-warning {
+        background-color: #fd7e14 !important;
+    }
+    .progress-bar.bg-info {
+        background-color: #0dcaf0 !important;
+    }
+    .progress-bar.bg-danger {
+        background-color: #dc3545 !important;
     }
 `;
 document.head.appendChild(style);
 
-// Start real-time updates (every 15 seconds for more responsive score updates)
-progressUpdateInterval = setInterval(updateProgressData, 15000);
+// Start real-time updates (every 30 seconds for progress bar updates)
+progressUpdateInterval = setInterval(updateProgressData, 30000);
 
-// Show live status indicator
-const realtimeStatus = document.getElementById('realtimeStatus');
-if (realtimeStatus) {
-    realtimeStatus.style.display = 'inline';
-}
-
-// Test function to manually update progress bars
-function testProgressBars() {
-    console.log('Testing progress bars...');
+// Initialize progress bars on page load
+function initializeProgressBars() {
     const rows = document.querySelectorAll('tr[data-student-id]');
-    console.log('Found', rows.length, 'student rows');
     
-    rows.forEach((row, index) => {
+    rows.forEach((row) => {
         const progressBar = row.querySelector('.progress-bar');
         const progressText = row.querySelector('.progress-text');
         
         if (progressBar && progressText) {
-            const testProgress = (index + 1) * 20; // 20%, 40%, 60%, 80%, 100%
-            progressBar.style.width = Math.min(testProgress, 100) + '%';
-            progressText.textContent = testProgress + '%';
-            progressBar.className = 'progress-bar ' + getProgressColor(testProgress);
-            console.log('Updated row', index, 'to', testProgress + '%');
-        } else {
-            console.log('Row', index, 'missing progress elements');
+            // Ensure progress bar has proper styling
+            if (!progressBar.classList.contains('bg-success') && 
+                !progressBar.classList.contains('bg-warning') && 
+                !progressBar.classList.contains('bg-info') && 
+                !progressBar.classList.contains('bg-danger')) {
+                
+                // Get current progress percentage from text
+                const currentProgress = parseFloat(progressText.textContent) || 0;
+                progressBar.className = 'progress-bar ' + getProgressColor(currentProgress);
+            }
         }
     });
 }
 
-// Add test button
-const testButton = document.createElement('button');
-testButton.textContent = 'Test Progress Bars';
-testButton.className = 'btn btn-sm btn-warning ms-2';
-testButton.onclick = testProgressBars;
-document.querySelector('.card-header .d-flex').appendChild(testButton);
 
 // Initial update after 5 seconds
 setTimeout(updateProgressData, 5000);
@@ -2983,7 +2903,6 @@ function loadScoreDetails(studentId, courseId, academicPeriodId) {
         }
     })
     .catch(error => {
-        console.error('Error loading score details:', error);
         content.innerHTML = `
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle me-2"></i>
@@ -3171,31 +3090,6 @@ function refreshScoreDetails() {
     }
 }
 
-// Show real-time update notification
-function showRealtimeUpdateNotification(message) {
-    // Remove any existing notification
-    const existingNotification = document.querySelector('.realtime-indicator');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-    
-    // Create new notification
-    const notification = document.createElement('div');
-    notification.className = 'realtime-indicator';
-    notification.innerHTML = `
-        <i class="bi bi-arrow-clockwise me-1"></i>
-        ${message}
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 3000);
-}
 
 // Enhanced scrolling behavior for students table
 document.addEventListener('DOMContentLoaded', function() {
@@ -3255,6 +3149,262 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize enhanced students table scrolling
     enhanceStudentsTableScrolling();
+    
+    // ===== REAL-TIME STATISTICS UPDATES =====
+    
+    // Initialize Pusher for real-time statistics updates
+    function initializeRealTimeStats() {
+        // Check if Pusher is available
+        if (typeof Pusher === 'undefined') {
+            return;
+        }
+        
+        // Get Pusher configuration from PHP
+        const pusherConfig = {
+            app_key: 'e6ceab7df8ffc96f7931',
+            cluster: 'eu',
+            available: true
+        };
+        
+        if (!pusherConfig.available) {
+            return;
+        }
+        
+        try {
+            // Initialize Pusher
+            const pusher = new Pusher(pusherConfig.app_key, {
+                cluster: pusherConfig.cluster,
+                encrypted: true
+            });
+            
+            
+            // Subscribe to user-specific channel for this teacher
+            const channel = pusher.subscribe(`user-<?php echo $_SESSION['user_id']; ?>`);
+            
+            // Handle statistics updates
+            channel.bind('notification', function(data) {
+                
+                switch(data.type) {
+                    case 'teacher_statistics_update':
+                    case 'teacher_statistics_broadcast':
+                        // Only update if the data is specifically for this teacher and academic period
+                        if (data.teacher_id == <?php echo $_SESSION['user_id']; ?> && 
+                            data.academic_period_id == <?php echo $selected_year_id ?? 1; ?>) {
+                            updateStatisticsDisplay(data.stats);
+                        }
+                        break;
+                        
+                    case 'student_progress_update':
+                        updateStudentProgress(data.student_id, data.progress);
+                        break;
+                        
+                    case 'assessment_completion':
+                        // Only handle if it's for this teacher
+                        if (data.teacher_id == <?php echo $_SESSION['user_id']; ?>) {
+                            handleAssessmentCompletion(data.student_id, data.assessment);
+                        }
+                        break;
+                        
+                    case 'enrollment_update':
+                        // Only handle if it's for this teacher
+                        if (data.teacher_id == <?php echo $_SESSION['user_id']; ?>) {
+                            handleEnrollmentUpdate(data.student_id, data.enrollment);
+                        }
+                        break;
+                        
+                    case 'statistics_refresh_requested':
+                        // Only refresh if it's for this teacher
+                        if (data.teacher_id == <?php echo $_SESSION['user_id']; ?>) {
+                            refreshStatistics();
+                        }
+                        break;
+                }
+            });
+            
+            // Connection status
+            pusher.connection.bind('connected', function() {
+            });
+            
+            pusher.connection.bind('disconnected', function() {
+            });
+            
+            
+        } catch (error) {
+        }
+    }
+    
+    // Update statistics display with animation
+    function updateStatisticsDisplay(stats) {
+        
+        // Validate stats data before updating
+        if (!stats || typeof stats !== 'object') {
+            return;
+        }
+        
+        // Only update if we have valid numeric values
+        if (typeof stats.total_students === 'number' && stats.total_students >= 0) {
+            animateStatUpdate('.total-students', stats.total_students);
+        }
+        
+        if (typeof stats.active_students === 'number' && stats.active_students >= 0) {
+            animateStatUpdate('.active-students', stats.active_students);
+        }
+        
+        if (typeof stats.avg_progress === 'number' && stats.avg_progress >= 0 && stats.avg_progress <= 100) {
+            animateStatUpdate('.avg-progress', stats.avg_progress + '%');
+        }
+        
+        if (typeof stats.avg_score === 'number' && stats.avg_score >= 0 && stats.avg_score <= 100) {
+            animateStatUpdate('.avg-score', stats.avg_score + '%');
+        }
+        
+        // Show notification only if we actually updated something
+        showStatsUpdateNotification();
+    }
+    
+    // Animate statistic value changes
+    function animateStatUpdate(selector, newValue) {
+        const element = document.querySelector(selector);
+        if (!element) return;
+        
+        const currentValue = element.textContent.trim();
+        
+        // Only animate if value actually changed
+        if (currentValue !== newValue.toString()) {
+            element.style.transition = 'all 0.3s ease';
+            element.style.transform = 'scale(1.1)';
+            element.style.color = '#28a745';
+            
+            setTimeout(() => {
+                element.textContent = newValue;
+                element.style.transform = 'scale(1)';
+                element.style.color = '';
+            }, 150);
+        }
+    }
+    
+    // Update individual student progress
+    function updateStudentProgress(studentId, progressData) {
+        
+        // Find student row and update progress
+        const studentRow = document.querySelector(`tr[data-student-id="${studentId}"]`);
+        if (studentRow) {
+            const progressCell = studentRow.querySelector('.progress-text');
+            if (progressCell) {
+                animateStatUpdate(progressCell, progressData.progress_percentage.toFixed(1) + '%');
+            }
+        }
+        
+        // Progress updated
+    }
+    
+    // Handle assessment completion
+    function handleAssessmentCompletion(studentId, assessmentData) {
+        
+        // Show toast notification
+        showToastNotification('success', 
+            `Assessment Completed`, 
+            `${assessmentData.student_name} completed "${assessmentData.assessment_title}" with ${assessmentData.score}%`
+        );
+        
+        // Don't trigger statistics refresh automatically - let the server send specific updates
+        // refreshStatistics();
+    }
+    
+    // Handle enrollment update
+    function handleEnrollmentUpdate(studentId, enrollmentData) {
+        
+        // Show toast notification
+        showToastNotification('info', 
+            'Enrollment Update', 
+            `${enrollmentData.student_name} ${enrollmentData.action}`
+        );
+        
+        // Don't trigger statistics refresh automatically - let the server send specific updates
+        // refreshStatistics();
+    }
+    
+    // Refresh statistics from server
+    function refreshStatistics() {
+        
+        const academicPeriodId = <?php echo $selected_year_id ?? 1; ?>;
+        
+        fetch(`ajax_get_teacher_student_stats.php?academic_period_id=${academicPeriodId}`, {
+            method: 'GET',
+            credentials: 'same-origin', // Include cookies/session
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatisticsDisplay(data.stats);
+            } else {
+                // Fallback: don't update if AJAX fails
+            }
+        })
+        .catch(error => {
+            // Fallback: don't update if AJAX fails
+        });
+    }
+    
+    // Show statistics update notification
+    function showStatsUpdateNotification() {
+        showToastNotification('info', 
+            'Statistics Updated', 
+            'Student statistics have been updated in real-time'
+        );
+    }
+    
+    
+    // Show toast notification
+    function showToastNotification(type, title, message) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong><br>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        // Add to toast container
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        // Initialize and show toast
+        const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+        bsToast.show();
+        
+        // Remove toast element after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+    
+    // Initialize real-time statistics when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeRealTimeStats();
+        initializeProgressBars(); // Initialize progress bars
+        
+        // Disable automatic periodic refresh to prevent overriding correct initial values
+        // Only update when we receive specific real-time events
+        // setInterval(refreshStatistics, 30000);
+    });
 });
 </script>
 

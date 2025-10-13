@@ -20,10 +20,10 @@ if (!$course_id) {
     exit();
 }
 
-// Check if student is enrolled in this course
+// Check if student is enrolled in this course (allow both active and completed statuses)
 $stmt = $pdo->prepare("
     SELECT * FROM course_enrollments 
-    WHERE student_id = ? AND course_id = ? AND status = 'active'
+    WHERE student_id = ? AND course_id = ? AND status IN ('active', 'completed')
 ");
 $stmt->execute([$user_id, $course_id]);
 

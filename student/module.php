@@ -41,10 +41,10 @@ if (!$course) {
     exit();
 }
 
-// Check if student is enrolled in this course
+// Check if student is enrolled in this course (allow both active and completed statuses)
 $stmt = $pdo->prepare("
     SELECT * FROM course_enrollments 
-    WHERE student_id = ? AND course_id = ? AND status = 'active'
+    WHERE student_id = ? AND course_id = ? AND status IN ('active', 'completed')
 ");
 $stmt->execute([$user_id, $course['id']]);
 
@@ -358,6 +358,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_module'])) {
             $module['module_title'],
             $course['course_name']
         );
+        
+        // Send teacher statistics update
+        require_once '../includes/teacher_statistics_events.php';
+        TeacherStatisticsEvents::sendStudentProgressUpdate(
+            $course['teacher_id'],
+            $user_id,
+            [
+                'student_name' => $_SESSION['first_name'] . ' ' . $_SESSION['last_name'],
+                'module_title' => $module['module_title'],
+                'course_name' => $course['course_name'],
+                'progress_percentage' => $progress_percentage
+            ]
+        );
+        
+        // Trigger statistics refresh for the teacher
+        TeacherStatisticsEvents::triggerStatisticsRefresh($course['teacher_id']);
         
         if ($course_completed) {
             $_SESSION['success'] = "Module completed! Course completed! You've earned course badges!";

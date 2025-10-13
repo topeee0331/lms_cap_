@@ -13,10 +13,15 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     exit;
 }
 
+// Debug logging
+error_log("Export request - User ID: " . ($_SESSION['user_id'] ?? 'not set') . ", Role: " . ($_SESSION['role'] ?? 'not set'));
+
 // Get parameters
 $course_id = (int)($_GET['course_id'] ?? 0);
 $export_type = $_GET['type'] ?? 'overview';
 $section_id = (int)($_GET['section_id'] ?? 0);
+
+error_log("Export parameters - Course ID: $course_id, Type: $export_type, Section ID: $section_id");
 
 if (!$course_id) {
     ob_end_clean();
@@ -39,10 +44,16 @@ if (!$course) {
 function exportOverviewCSV($course_id, $course) {
     global $db;
     
+    if (!$db) {
+        throw new Exception('Database connection not available');
+    }
+    
     // Get course data (using JSON sections field)
     $section_stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
     $section_stmt->execute([$course_id]);
     $course_sections_json = $section_stmt->fetchColumn();
+    
+    error_log("Course sections JSON: " . ($course_sections_json ? 'found' : 'not found'));
 
     $sections = [];
     if ($course_sections_json) {
@@ -52,26 +63,38 @@ function exportOverviewCSV($course_id, $course) {
             $section_stmt = $db->prepare("SELECT id, section_name as name, year_level as year FROM sections WHERE id IN ($placeholders) AND is_active = 1 ORDER BY year_level, section_name");
             $section_stmt->execute($section_ids);
             $sections = $section_stmt->fetchAll();
+            error_log("Found " . count($sections) . " active sections");
+        } else {
+            error_log("No valid section IDs found in JSON");
         }
+    } else {
+        error_log("No course sections JSON found");
     }
     
     if (empty($sections)) {
+        error_log("No sections found for course $course_id");
         $sections = [];
     }
     
     // Get all students and their assessments
-    $stmt = $db->prepare("SELECT a.id, a.assessment_title FROM assessments a JOIN course_modules cm ON a.module_id = cm.id WHERE cm.course_id = ? ORDER BY a.assessment_title");
+    $stmt = $db->prepare("SELECT a.id, a.assessment_title FROM assessments a WHERE a.course_id = ? ORDER BY a.assessment_title");
     $stmt->execute([$course_id]);
     $assessments = $stmt->fetchAll();
     
+    error_log("Found " . count($assessments) . " assessments for course $course_id");
+    
     // Get all students from all sections
     $all_students = [];
-    foreach ($sections as $section) {
-        $stmt = $db->prepare("SELECT u.id, u.first_name, u.last_name, u.identifier, s.section_name, s.year_level FROM sections s JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL WHERE s.id = ? ORDER BY u.last_name, u.first_name");
-        $stmt->execute([$section['id']]);
-        $section_students = $stmt->fetchAll();
-        $all_students = array_merge($all_students, $section_students);
+    if (!empty($sections)) {
+        foreach ($sections as $section) {
+            $stmt = $db->prepare("SELECT u.id, u.first_name, u.last_name, u.identifier, s.section_name, s.year_level FROM sections s JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL WHERE s.id = ? ORDER BY u.last_name, u.first_name");
+            $stmt->execute([$section['id']]);
+            $section_students = $stmt->fetchAll();
+            $all_students = array_merge($all_students, $section_students);
+        }
     }
+    
+    error_log("Found " . count($all_students) . " students across " . count($sections) . " sections");
     
     $csv_data = [];
     
@@ -85,40 +108,58 @@ function exportOverviewCSV($course_id, $course) {
     
     // Student Assessment Table Header
     $headers = ['Students name'];
-    foreach ($assessments as $assessment) {
-        $headers[] = $assessment['assessment_title'];
+    if (empty($assessments)) {
+        error_log("No assessments found for course $course_id");
+        $headers[] = 'No Assessments';
+    } else {
+        foreach ($assessments as $assessment) {
+            $headers[] = $assessment['assessment_title'];
+        }
     }
     $headers[] = 'Total Score';
     $csv_data[] = $headers;
     
+    error_log("CSV headers created: " . implode(', ', $headers));
+    
     // Student data with scores
-    foreach ($all_students as $student) {
-        $row = [$student['last_name'] . ', ' . $student['first_name']];
-        
-        $scores = [];
-        foreach ($assessments as $assessment) {
-            $stmt = $db->prepare("SELECT MAX(score) as score FROM assessment_attempts WHERE student_id = ? AND assessment_id = ?");
-            $stmt->execute([$student['id'], $assessment['id']]);
-            $score = $stmt->fetchColumn();
+    if (empty($all_students)) {
+        error_log("No students found for export");
+        $csv_data[] = ['No students found'];
+    } else {
+        error_log("Processing " . count($all_students) . " students for export");
+        foreach ($all_students as $student) {
+            $row = [$student['last_name'] . ', ' . $student['first_name']];
             
-            if ($score !== null) {
-                $scores[] = $score;
-                $row[] = $score;
+            $scores = [];
+            if (empty($assessments)) {
+                $row[] = 'N/A';
+            } else {
+                foreach ($assessments as $assessment) {
+                    $stmt = $db->prepare("SELECT MAX(score) as score FROM assessment_attempts WHERE student_id = ? AND assessment_id = ?");
+                    $stmt->execute([$student['id'], $assessment['id']]);
+                    $score = $stmt->fetchColumn();
+                    
+                    if ($score !== null) {
+                        $scores[] = $score;
+                        $row[] = $score;
+                    } else {
+                        $row[] = 'N/A';
+                    }
+                }
+            }
+            
+            // Calculate total score
+            $valid_scores = array_filter($scores, function($score) { return $score !== null && $score !== 'N/A'; });
+            if (!empty($valid_scores)) {
+                $total_score = array_sum($valid_scores);
+                $row[] = $total_score;
             } else {
                 $row[] = 'N/A';
             }
+            
+            $csv_data[] = $row;
         }
-        
-        // Calculate total score
-        $valid_scores = array_filter($scores, function($score) { return $score !== null && $score !== 'N/A'; });
-        if (!empty($valid_scores)) {
-            $total_score = array_sum($valid_scores);
-            $row[] = $total_score;
-        } else {
-            $row[] = 'N/A';
-        }
-        
-        $csv_data[] = $row;
+        error_log("Completed processing " . count($all_students) . " students");
     }
     
     $csv_data[] = [];
@@ -161,6 +202,10 @@ function exportOverviewCSV($course_id, $course) {
 function exportSectionDataCSV($course_id, $section_id, $course) {
     global $db;
     
+    if (!$db) {
+        throw new Exception('Database connection not available');
+    }
+    
     // Get section info
     // Get course sections from JSON
     $stmt = $db->prepare("SELECT sections FROM courses WHERE id = ?");
@@ -185,7 +230,7 @@ function exportSectionDataCSV($course_id, $section_id, $course) {
     $stmt->execute([$section_id]);
     $students = $stmt->fetchAll();
     
-    $stmt = $db->prepare("SELECT a.id, a.assessment_title, a.passing_rate FROM assessments a JOIN course_modules cm ON a.module_id = cm.id WHERE cm.course_id = ? ORDER BY a.assessment_title");
+    $stmt = $db->prepare("SELECT a.id, a.assessment_title, a.passing_rate FROM assessments a WHERE a.course_id = ? ORDER BY a.assessment_title");
     $stmt->execute([$course_id]);
     $assessments = $stmt->fetchAll();
     
@@ -195,7 +240,7 @@ function exportSectionDataCSV($course_id, $section_id, $course) {
     $csv_data[] = ['Student Assessment Scores'];
     $csv_data[] = [];
     $csv_data[] = ['Course:', $course['course_name']];
-    $csv_data[] = ['Section:', 'BSIT-' . $section['year'] . $section['name']];
+    $csv_data[] = ['Section:', 'BSIT-' . $section['year_level'] . $section['section_name']];
     $csv_data[] = ['Export Date:', date('Y-m-d H:i:s')];
     $csv_data[] = [];
     
@@ -258,23 +303,26 @@ function exportSectionDataCSV($course_id, $section_id, $course) {
 function exportAssessmentsCSV($course_id, $course) {
     global $db;
     
+    if (!$db) {
+        throw new Exception('Database connection not available');
+    }
+    
     // Get assessment data
     $stmt = $db->prepare("
         SELECT 
             a.assessment_title,
             a.passing_rate,
-            cm.module_title,
+            'N/A' as module_title,
             AVG(aa.score) as avg_score,
             COUNT(aa.id) as total_attempts,
             MIN(aa.score) as min_score,
             MAX(aa.score) as max_score,
             COUNT(CASE WHEN aa.score >= a.passing_rate THEN 1 END) as passed_attempts
         FROM assessments a 
-        JOIN course_modules cm ON a.module_id = cm.id 
         LEFT JOIN assessment_attempts aa ON a.id = aa.assessment_id
-        WHERE cm.course_id = ?
-        GROUP BY a.id, a.assessment_title, a.passing_rate, cm.module_title
-        ORDER BY cm.module_title, a.assessment_title
+        WHERE a.course_id = ?
+        GROUP BY a.id, a.assessment_title, a.passing_rate
+        ORDER BY a.assessment_title
     ");
     $stmt->execute([$course_id]);
     $assessments = $stmt->fetchAll();
@@ -333,6 +381,8 @@ try {
         ob_end_clean();
     }
     
+    error_log("Starting export process for type: $export_type");
+    
     $csv_data = null;
     
     switch ($export_type) {
@@ -378,8 +428,12 @@ try {
         ob_end_clean();
     }
     
+    // Log the error for debugging
+    error_log("Export error: " . $e->getMessage());
+    error_log("Export error trace: " . $e->getTraceAsString());
+    
     http_response_code(500);
     header('Content-Type: application/json');
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 }
 ?>

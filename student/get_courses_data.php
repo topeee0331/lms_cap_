@@ -81,7 +81,7 @@ try {
         JOIN course_enrollments e ON c.id = e.course_id
         JOIN academic_periods ay ON c.academic_period_id = ay.id
 
-        WHERE e.student_id = ? AND e.status = 'active' AND c.is_archived = 0 AND c.academic_year_id = ?
+        WHERE e.student_id = ? AND e.status IN ('active', 'completed') AND c.is_archived = 0 AND c.academic_year_id = ?
         ORDER BY e.enrolled_at ASC
     ");
     $stmt->execute([$user_id, $academic_year_id]);

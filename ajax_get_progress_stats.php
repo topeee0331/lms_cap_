@@ -27,7 +27,7 @@ try {
         SELECT 
             COUNT(DISTINCT e.course_id) as total_courses
         FROM course_enrollments e
-        WHERE e.student_id = ? AND e.status = 'active'
+        WHERE e.student_id = ? AND e.status IN ('active', 'completed')
     ");
     $stmt->execute([$user_id]);
     $total_courses = $stmt->fetchColumn();
@@ -37,7 +37,7 @@ try {
         SELECT e.module_progress, e.video_progress, c.modules
         FROM course_enrollments e
         JOIN courses c ON e.course_id = c.id
-        WHERE e.student_id = ? AND e.status = 'active'
+        WHERE e.student_id = ? AND e.status IN ('active', 'completed')
     ");
     $stmt->execute([$user_id]);
     $enrollments = $stmt->fetchAll(PDO::FETCH_ASSOC);

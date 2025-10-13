@@ -1287,7 +1287,6 @@ $page_title = "Assessment Statistics - " . htmlspecialchars($assessment['assessm
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Load question attempts when modal opens
         document.addEventListener('DOMContentLoaded', function() {

@@ -129,7 +129,7 @@ $stmt = $pdo->prepare("
     JOIN courses c ON a.course_id = c.id
     JOIN users u ON c.teacher_id = u.id
     JOIN course_enrollments e ON c.id = e.course_id
-    WHERE a.id = ? AND e.student_id = ? AND e.status = 'active'
+    WHERE a.id = ? AND e.student_id = ? AND e.status IN ('active', 'completed')
 ");
 $stmt->execute([$assessment_id, $user_id]);
 $assessment = $stmt->fetch();
@@ -673,6 +673,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
         
         // Send leaderboard update
         PusherNotifications::sendLeaderboardUpdate();
+        
+        // Send teacher statistics update
+        require_once '../includes/teacher_statistics_events.php';
+        TeacherStatisticsEvents::sendAssessmentCompletion(
+            $assessmentDetails['teacher_id'],
+            $user_id,
+            [
+                'student_name' => $_SESSION['first_name'] . ' ' . $_SESSION['last_name'],
+                'assessment_title' => $assessmentDetails['assessment_title'],
+                'score' => $score,
+                'course_name' => $assessmentDetails['course_name']
+            ]
+        );
+        
+        // Trigger statistics refresh for the teacher
+        TeacherStatisticsEvents::triggerStatisticsRefresh($assessmentDetails['teacher_id']);
     }
     
     // Debug: Log redirect attempt
@@ -835,89 +851,403 @@ $previous_attempts = $stmt->fetchAll();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-         .question-card {
-             margin-bottom: 2rem;
-             border: 1px solid #dee2e6;
-             border-radius: 16px;
-             padding: 40px;
-             min-height: 400px;
-             background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-         }
-        
-         .question-number {
-             background: linear-gradient(135deg, #007bff, #0056b3);
+        /* Modern Gamified Assessment Design */
+        :root {
+            --primary-color: #2E5E4E;
+            --primary-dark: #1e3d33;
+            --secondary-color: #7DCB80;
+            --success-color: #7DCB80;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --dark-bg: #1f2937;
+            --card-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background: linear-gradient(135deg, #2E5E4E 0%, #7DCB80 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding-top: 60px; /* Account for fixed navbar */
+        }
+
+        .assessment-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: var(--shadow-xl);
+            margin: 20px;
+            overflow: hidden;
+        }
+
+        .assessment-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
              color: white;
+            padding: 24px 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .assessment-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .assessment-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .assessment-meta {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .meta-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Progress Section */
+        .progress-section {
+            background: var(--card-bg);
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .progress-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .progress-stats {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar-container {
+            background: #f3f4f6;
              border-radius: 12px;
-             padding: 20px;
-             margin-bottom: 25px;
-             text-align: center;
-             box-shadow: 0 4px 15px rgba(0,123,255,0.3);
-         }
-        
-        .question-text {
+            height: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Question Card */
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 32px;
+            margin: 24px 32px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .question-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .question-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .question-number-badge {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
             font-size: 1.2rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+        }
+
+        .question-number-badge::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            z-index: -1;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .question-info {
+            flex: 1;
+        }
+
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .question-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .question-text {
+            font-size: 1.25rem;
             line-height: 1.6;
-            margin-bottom: 25px;
-            color: #333;
+            color: var(--text-primary);
+            margin-bottom: 32px;
+            font-weight: 500;
         }
-        
-        .progress-container {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+
+        /* Answer Options */
+        .options-container {
+            margin-bottom: 32px;
         }
-        
-        .navigation-buttons {
-            background: #f8f9fa;
-            padding: 20px;
-            border-top: 1px solid #e9ecef;
-            border-radius: 0 0 10px 10px;
+
+        .option-item {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .option-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            transition: width 0.3s ease;
+            z-index: 0;
+        }
+
+        .option-item:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .option-item:hover::before {
+            width: 4px;
+        }
+
+        .option-item.selected {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .option-item.selected::before {
+            width: 0;
+        }
+
+        .option-letter {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .option-item.selected .option-letter {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .option-text {
+            flex: 1;
+            font-size: 1.1rem;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Checkbox Options */
+        .checkbox-option {
+            position: relative;
+        }
+
+        .checkbox-icon {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            background: var(--card-bg);
+            position: relative;
+            z-index: 1;
+        }
+
+        .checkbox-option.selected .checkbox-icon {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+
+        /* Text Input */
          .identification-input {
-             border: 2px solid #e9ecef;
-             border-radius: 12px;
-             padding: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 24px;
              font-size: 1.2rem;
              transition: all 0.3s ease;
-             background: #ffffff;
-             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            background: var(--card-bg);
+            box-shadow: var(--shadow-sm);
+            width: 100%;
+            font-weight: 500;
          }
          
          .identification-input:focus {
-             border-color: #007bff;
-             box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(46, 94, 78, 0.1);
              transform: translateY(-2px);
+            outline: none;
          }
+
+        /* Timer */
         .timer {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: linear-gradient(135deg, #28a745, #20c997);
+            top: 80px; /* Below the navbar */
+            right: 24px;
+            z-index: 1020; /* Below navbar but above content */
+            background: linear-gradient(135deg, var(--success-color), var(--primary-color));
             color: white;
-            padding: 16px 20px;
-            border-radius: 15px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
+            padding: 20px 24px;
+            border-radius: 20px;
+            font-weight: 700;
+            box-shadow: var(--shadow-xl);
+            min-width: 220px;
             text-align: center;
             font-size: 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             transition: all 0.3s ease;
-            animation: timerPulse 2s ease-in-out infinite;
+            backdrop-filter: blur(10px);
         }
         
-        
         .timer.warning {
-            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
             animation: timerWarning 1s ease-in-out infinite;
         }
         
         .timer.danger {
-            background: linear-gradient(135deg, #dc3545, #c82333);
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
             animation: timerDanger 0.5s ease-in-out infinite;
         }
         
@@ -929,7 +1259,7 @@ $previous_attempts = $stmt->fetchAll();
         }
         
         .timer-icon {
-            font-size: 1rem;
+            font-size: 1.1rem;
             margin-right: 8px;
             animation: timerIconSpin 2s linear infinite;
         }
@@ -937,18 +1267,19 @@ $previous_attempts = $stmt->fetchAll();
         .timer-label {
             font-size: 0.9rem;
             opacity: 0.9;
+            font-weight: 600;
         }
         
         .timer-text {
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            font-size: 1.75rem;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             display: block;
-            margin: 4px 0;
+            margin: 8px 0;
         }
         
         .timer-total {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             opacity: 0.8;
             margin-bottom: 8px;
         }
@@ -979,86 +1310,253 @@ $previous_attempts = $stmt->fetchAll();
             left: 0;
             width: 100%;
             height: 4px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 0 0 15px 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 0 0 20px 20px;
             overflow: hidden;
         }
         
         .timer-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #ffffff, #f8f9fa);
+            background: rgba(255, 255, 255, 0.8);
             width: 100%;
             transition: width 1s linear;
-            border-radius: 0 0 15px 15px;
+            border-radius: 0 0 20px 20px;
         }
-         .option-item {
-             border: 2px solid #e9ecef;
+
+        /* Navigation */
+        .navigation-section {
+            background: var(--card-bg);
+            padding: 24px 32px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-button {
+            padding: 12px 24px;
              border-radius: 12px;
-             padding: 15px 20px;
-             margin-bottom: 12px;
-             cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
              transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
              display: flex;
              align-items: center;
-             background: #ffffff;
-             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-         }
-         .option-item:hover {
-             background-color: #f8f9fa;
-             border-color: #007bff;
-             transform: translateY(-2px);
-             box-shadow: 0 4px 12px rgba(0,123,255,0.15);
-         }
-         .option-item.selected {
-             background: linear-gradient(135deg, #007bff, #0056b3);
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .nav-button-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
              color: white;
-             border-color: #007bff;
+        }
+
+        .nav-button-secondary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+
+        .nav-button-secondary:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
              transform: translateY(-2px);
-             box-shadow: 0 6px 20px rgba(0,123,255,0.3);
-         }
-        
-        .checkbox-option {
-            position: relative;
         }
-        
-        .checkbox-icon {
-            font-size: 1.4rem;
-            margin-right: 15px;
-            color: #6c757d;
-            transition: all 0.3s ease;
-            width: 24px;
-            height: 24px;
-            display: flex;
+
+        .nav-button-danger {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-button-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            color: white;
+        }
+
+        .nav-button-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-button-success:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            color: white;
+        }
+
+        /* Achievement Badges */
+        .achievement-badge {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, var(--secondary-color), #d97706);
+            color: white;
+            padding: 20px 32px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-xl);
+            z-index: 2000;
+            display: none;
             align-items: center;
-            justify-content: center;
-            border: 2px solid #dee2e6;
-            border-radius: 6px;
-            background: #ffffff;
+            gap: 12px;
+            font-weight: 600;
+            animation: achievementPop 0.5s ease-out;
         }
-        
-        .checkbox-option.selected .checkbox-icon {
-            color: #ffffff;
-            background: #007bff;
-            border-color: #007bff;
-        }
-        
-        .checkbox-option.selected .checkbox-icon::before {
-            content: "✓";
-            font-weight: bold;
-        }
-        .progress-bar {
-            height: 5px;
+
+        @keyframes achievementPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
         
         /* Responsive Design */
         @media (max-width: 768px) {
+            .assessment-container {
+                margin: 10px;
+                border-radius: 16px;
+            }
+
+            .assessment-header {
+                padding: 20px 24px;
+            }
+
+            .assessment-title {
+                font-size: 1.5rem;
+            }
+
+            .assessment-meta {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .question-card {
+                margin: 16px 20px;
+                padding: 24px;
+            }
+
+            .navigation-section {
+                padding: 20px 24px;
+                flex-direction: column;
+                gap: 16px;
+            }
+
             .timer {
-                position: fixed;
-                top: 10px;
-                right: 10px;
-                min-width: 150px;
-                padding: 12px 16px;
+                top: 80px;
+                right: 16px;
+                min-width: 180px;
+                padding: 16px 20px;
                 font-size: 0.9rem;
+            }
+
+            .timer-text {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .question-card {
+                margin: 12px 16px;
+                padding: 20px;
+            }
+
+            .option-item {
+                padding: 16px 20px;
+            }
+
+            .option-text {
+                font-size: 1rem;
+            }
+        }
+
+        /* Additional Gamification Styles */
+        .option-item:active {
+            transform: scale(0.98);
+        }
+
+        .question-number-badge {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 10px rgba(46, 94, 78, 0.5); }
+            to { box-shadow: 0 0 20px rgba(46, 94, 78, 0.8); }
+        }
+
+        .progress-bar-fill {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: progressShine 2s infinite;
+        }
+
+        @keyframes progressShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Success animations */
+        .option-item.selected {
+            animation: successPulse 0.6s ease-out;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Loading states */
+        .nav-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .nav-button:disabled:hover {
+            transform: none !important;
+        }
+
+        /* Save feedback animations */
+        @keyframes slideInRight {
+            from { 
+                transform: translateX(100%); 
+                opacity: 0; 
+            }
+            to { 
+                transform: translateX(0); 
+                opacity: 1; 
+            }
+        }
+
+        @keyframes slideOutRight {
+            from { 
+                transform: translateX(0); 
+                opacity: 1; 
+            }
+            to { 
+                transform: translateX(100%); 
+                opacity: 0; 
             }
         }
     </style>
@@ -1066,10 +1564,8 @@ $previous_attempts = $stmt->fetchAll();
 <body>
     <?php include '../includes/header.php'; ?>
 
-    <div class="container-fluid">
-        <div class="row">
+    <!-- Timer (if academic year is active) -->
             <?php if ($is_acad_year_active): ?>
-                <!-- Timer and related JS only visible if academic year is active -->
                 <div id="timer-container">
                     <div id="timer" class="timer">
                         <div class="timer-header">
@@ -1085,39 +1581,34 @@ $previous_attempts = $stmt->fetchAll();
                 </div>
             <?php endif; ?>
 
-            <!-- Main content -->
-            <main class="col-12 px-md-4">
-                <!-- Assessment Header with Warning Background -->
-                <div class="card mb-4">
-                    <div class="card-header bg-warning text-dark">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h4 class="mb-1">
-                                    <i class="fas fa-question-circle me-2"></i>
+    <!-- Main Assessment Container -->
+    <div class="assessment-container">
+        <!-- Assessment Header -->
+        <div class="assessment-header">
+            <h1 class="assessment-title">
+                <i class="fas fa-trophy me-2"></i>
                                     <?php echo htmlspecialchars($assessment['assessment_title']); ?>
-                                </h4>
-                                <nav aria-label="breadcrumb" class="mb-0">
-                                    <ol class="breadcrumb mb-0">
-                                        <li class="breadcrumb-item"><a href="assessments.php" class="text-dark">Assessments</a></li>
-                                        <li class="breadcrumb-item active text-dark"><?php echo htmlspecialchars($assessment['assessment_title']); ?></li>
-                                    </ol>
-                                </nav>
+            </h1>
+            <div class="assessment-meta">
+                <div class="meta-item">
+                    <i class="fas fa-book meta-icon"></i>
+                    <span><?php echo htmlspecialchars($assessment['course_name']); ?></span>
                             </div>
+                <div class="meta-item">
+                    <i class="fas fa-folder meta-icon"></i>
+                    <span><?php echo htmlspecialchars($assessment['module_title']); ?></span>
                         </div>
+                <div class="meta-item">
+                    <i class="fas fa-clock meta-icon"></i>
+                    <span><?php echo $assessment['time_limit']; ?> minutes</span>
                     </div>
-                    <div class="card-body">
-                        <p class="text-muted mb-0">
-                            <i class="fas fa-book me-1"></i>
-                            <?php echo htmlspecialchars($assessment['course_name']); ?> - 
-                            <i class="fas fa-folder me-1"></i>
-                            <?php echo htmlspecialchars($assessment['module_title']); ?>
-                        </p>
                     </div>
                 </div>
 
                 <?php if ($is_view_only): ?>
-                    <div class="alert alert-warning mb-4">
-                        <strong>Inactive Academic Period:</strong> 
+            <div class="progress-section">
+                <div class="alert alert-warning">
+                    <strong><i class="fas fa-exclamation-triangle me-2"></i>Inactive Academic Period:</strong> 
                         <?php if (!$is_acad_year_active): ?>
                             This academic year is inactive. 
                         <?php endif; ?>
@@ -1126,28 +1617,40 @@ $previous_attempts = $stmt->fetchAll();
                         <?php endif; ?>
                         You cannot take or submit this assessment. Only review is allowed.
                     </div>
-                    <!-- Show assessment info in view-only mode, hide form/buttons -->
+            </div>
                 <?php else: ?>
                     <?php if (empty($questions)): ?>
+                <div class="progress-section">
                         <div class="alert alert-warning">
-                            <h5><i class="fas fa-exclamation-triangle"></i> No Questions Available</h5>
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>No Questions Available</h5>
                             <p>This assessment doesn't have any questions yet. Please contact your teacher to add questions to this assessment.</p>
-                            <a href="assessments.php" class="btn btn-secondary">
+                        <a href="assessments.php" class="nav-button nav-button-secondary">
                                 <i class="fas fa-arrow-left"></i> Back to Assessments
                             </a>
+                    </div>
                         </div>
                     <?php elseif ($current_question_data): ?>
-                        <!-- Progress Bar -->
-                        <div class="progress-container mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-muted">Progress</span>
-                                <span class="text-muted">Question <?php echo $current_question + 1; ?> of <?php echo $total_questions; ?></span>
+                <!-- Progress Section -->
+                <div class="progress-section">
+                    <div class="progress-header">
+                        <div class="progress-label">
+                            <i class="fas fa-chart-line me-2"></i>Assessment Progress
                             </div>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-primary" style="width: <?php echo round((($current_question + 1) / $total_questions) * 100, 2); ?>%"></div>
+                        <div class="progress-stats">
+                            <div class="stat-item">
+                                <i class="fas fa-question-circle"></i>
+                                <span>Question <?php echo $current_question + 1; ?> of <?php echo $total_questions; ?></span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-percentage"></i>
+                                <span><?php echo round((($current_question + 1) / $total_questions) * 100, 1); ?>% Complete</span>
                             </div>
                         </div>
-
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: <?php echo round((($current_question + 1) / $total_questions) * 100, 2); ?>%"></div>
+                            </div>
+                        </div>
                         
                         <!-- Question Form -->
                         <form method="POST" action="assessment.php?id=<?php echo $assessment_id; ?>&q=<?php echo $current_question; ?>" id="assessment-form">
@@ -1156,28 +1659,42 @@ $previous_attempts = $stmt->fetchAll();
                             <input type="hidden" name="auto_submit" id="auto-submit" value="0">
                             
                             <div class="question-card">
-                                <!-- Question Number -->
-                                <div class="question-number">
-                                    <h4>Question <?php echo $current_question + 1; ?> of <?php echo $total_questions; ?></h4>
+                        <!-- Question Header -->
+                        <div class="question-header">
+                            <div class="question-number-badge">
+                                <?php echo $current_question + 1; ?>
+                            </div>
+                            <div class="question-info">
+                                <div class="question-title">Question <?php echo $current_question + 1; ?> of <?php echo $total_questions; ?></div>
+                                <div class="question-subtitle">
+                                    <?php 
+                                    $question_type = strtolower(trim($current_question_data['question_type']));
+                                    if ($question_type === 'identification') {
+                                        echo 'Type your answer below';
+                                    } elseif ($question_type === 'true_false') {
+                                        echo 'Select True or False';
+                                    } else {
+                                        echo 'Select all correct answers';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
                                 </div>
                                 
                                 <!-- Question Text -->
                                 <div class="question-text">
                                     <?php echo htmlspecialchars($current_question_data['question_text']); ?>
                                 </div>
-                                
                                 <!-- Answer Input -->
+                        <div class="options-container">
                                 <?php if (strtolower(trim($current_question_data['question_type'])) === 'identification'): ?>
-                                    <div class="mb-4">
                                         <input type="text" 
-                                               class="form-control identification-input" 
+                                       class="identification-input" 
                                                name="answers[<?php echo $current_question_data['id']; ?>]" 
                                                placeholder="Type your answer here..." 
                                                autocomplete="off"
                                                id="identification-answer">
-                                    </div>
                                 <?php elseif (strtolower(trim($current_question_data['question_type'])) === 'true_false'): ?>
-                                    <div class="options">
                                         <?php 
                                         $options_array = [];
                                         if ($current_question_data['options']) {
@@ -1191,20 +1708,19 @@ $previous_attempts = $stmt->fetchAll();
                                         
                                          foreach ($options_array as $key => $option): 
                                          ?>
-                                             <div class="option-item" onclick="selectOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $option; ?>')">
+                                    <div class="option-item" onclick="selectOptionWithAnimation(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $option; ?>')">
                                                  <input type="radio" 
                                                         name="answers[<?php echo $current_question_data['id']; ?>]" 
                                                         value="<?php echo $option; ?>" 
                                                         style="display: none;">
-                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                        <div class="option-letter"><?php echo getOptionLetter($key); ?></div>
+                                        <div class="option-text"><?php echo htmlspecialchars($option); ?></div>
                                              </div>
                                          <?php endforeach; ?>
-                                    </div>
                                 <?php elseif (strtolower(trim($current_question_data['question_type'])) === 'multiple_choice'): ?>
-                                    <div class="options">
-                                        <div class="mb-2">
+                                <div class="mb-3">
                                             <small class="text-muted">
-                                                <i class="bi bi-info-circle me-1"></i>
+                                        <i class="fas fa-info-circle me-1"></i>
                                                 Select all correct answers. You can choose multiple options.
                                             </small>
                                         </div>
@@ -1221,22 +1737,21 @@ $previous_attempts = $stmt->fetchAll();
                                         
                                         foreach ($options_array as $key => $option): 
                                         ?>
-                                            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
+                                    <div class="option-item checkbox-option" onclick="selectMultipleOptionWithAnimation(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
                                                 <input type="checkbox" 
                                                        name="answers[<?php echo $current_question_data['id']; ?>][]" 
                                                        value="<?php echo $key; ?>" 
                                                        style="display: none;">
-                                                 <span class="checkbox-icon"></span>
-                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                        <div class="checkbox-icon"></div>
+                                        <div class="option-letter"><?php echo getOptionLetter($key); ?></div>
+                                        <div class="option-text"><?php echo htmlspecialchars($option); ?></div>
                                             </div>
                                         <?php endforeach; ?>
-                                    </div>
                                 <?php else: ?>
                                     <!-- Default to multiple choice with checkboxes -->
-                                    <div class="options">
-                                        <div class="mb-2">
+                                <div class="mb-3">
                                             <small class="text-muted">
-                                                <i class="bi bi-info-circle me-1"></i>
+                                        <i class="fas fa-info-circle me-1"></i>
                                                 Select all correct answers. You can choose multiple options.
                                             </small>
                                         </div>
@@ -1253,54 +1768,57 @@ $previous_attempts = $stmt->fetchAll();
                                         
                                         foreach ($options_array as $key => $option): 
                                         ?>
-                                            <div class="option-item checkbox-option" onclick="selectMultipleOption(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
+                                    <div class="option-item checkbox-option" onclick="selectMultipleOptionWithAnimation(this, '<?php echo $current_question_data['id']; ?>', '<?php echo $key; ?>')">
                                                 <input type="checkbox" 
                                                        name="answers[<?php echo $current_question_data['id']; ?>][]" 
                                                        value="<?php echo $key; ?>" 
                                                        style="display: none;">
-                                                 <span class="checkbox-icon"></span>
-                                                 <strong><?php echo getOptionLetter($key); ?>.</strong> <?php echo htmlspecialchars($option); ?>
+                                        <div class="checkbox-icon"></div>
+                                        <div class="option-letter"><?php echo getOptionLetter($key); ?></div>
+                                        <div class="option-text"><?php echo htmlspecialchars($option); ?></div>
                                             </div>
                                         <?php endforeach; ?>
-                                    </div>
                                 <?php endif; ?>
+                        </div>
                             </div>
                             
-                            <!-- Navigation Buttons -->
-                            <div class="navigation-buttons">
-                                <div class="d-flex justify-content-between align-items-center">
+                    <!-- Navigation Section -->
+                    <div class="navigation-section">
                                     <div>
                                         <?php if ($current_question > 0): ?>
-                                            <a href="assessment.php?id=<?php echo $assessment_id; ?>&q=<?php echo $current_question - 1; ?>" 
-                                               class="btn btn-outline-secondary"
-                                               onclick="saveTimerState(); isNavigatingBetweenQuestions = true;">
+                                            <a href="#" 
+                                   class="nav-button nav-button-secondary"
+                                   onclick="goToPrevious(); return false;">
                                                 <i class="fas fa-arrow-left"></i> Previous
                                             </a>
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <div>
-                                        <a href="assessments.php" class="btn btn-outline-danger me-2">
+                        <div style="display: flex; gap: 12px;">
+                            <a href="assessments.php" class="nav-button nav-button-danger">
                                             <i class="fas fa-times"></i> Cancel
                                         </a>
                                         
                                         <?php if ($current_question < $total_questions - 1): ?>
-                                            <button type="button" class="btn btn-primary" onclick="saveAndNext()">
+                                <button type="button" class="nav-button nav-button-primary" onclick="saveAndNext()">
                                                 Next <i class="fas fa-arrow-right"></i>
                                             </button>
                                         <?php else: ?>
-                                            <button type="submit" name="submit_assessment" class="btn btn-success" onclick="return validateAndSubmitAssessment()">
+                                <button type="submit" name="submit_assessment" class="nav-button nav-button-success" onclick="return validateAndSubmitAssessment()">
                                                 <i class="fas fa-paper-plane"></i> Submit Assessment
                                             </button>
                                         <?php endif; ?>
-                                    </div>
                                 </div>
                             </div>
                         </form>
                     <?php endif; ?>
                 <?php endif; ?>
-            </main>
         </div>
+
+    <!-- Achievement Badge -->
+    <div id="achievement-badge" class="achievement-badge">
+        <i class="fas fa-trophy"></i>
+        <span id="achievement-text">Achievement Unlocked!</span>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1481,9 +1999,12 @@ $previous_attempts = $stmt->fetchAll();
             // Create notification element
             const notification = document.createElement('div');
             notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px; max-width: 400px;';
+            notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px; max-width: 400px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);';
             notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'danger' ? 'times-circle' : 'info-circle'} me-2"></i>
                 ${message}
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             
@@ -1496,6 +2017,101 @@ $previous_attempts = $stmt->fetchAll();
                     notification.remove();
                 }
             }, 5000);
+        }
+
+        // Achievement system
+        function showAchievement(message) {
+            const badge = document.getElementById('achievement-badge');
+            const text = document.getElementById('achievement-text');
+            
+            text.textContent = message;
+            badge.style.display = 'flex';
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                badge.style.display = 'none';
+            }, 3000);
+        }
+
+        // Show save feedback
+        function showSaveFeedback() {
+            // Create a small save indicator
+            const saveIndicator = document.createElement('div');
+            saveIndicator.innerHTML = '💾 Saved';
+            saveIndicator.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 24px;
+                background: var(--success-color);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                font-weight: 600;
+                z-index: 1001;
+                box-shadow: var(--shadow-md);
+                animation: slideInRight 0.3s ease-out;
+            `;
+            
+            document.body.appendChild(saveIndicator);
+            
+            // Auto-remove after 2 seconds
+            setTimeout(() => {
+                saveIndicator.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => {
+                    if (saveIndicator.parentNode) {
+                        saveIndicator.remove();
+                    }
+                }, 300);
+            }, 2000);
+        }
+
+        // Progress celebration
+        function celebrateProgress() {
+            const currentProgress = <?php echo $current_question + 1; ?>;
+            const totalQuestions = <?php echo $total_questions; ?>;
+            const progressPercentage = Math.round((currentProgress / totalQuestions) * 100);
+            
+            // Show achievement for milestones
+            if (progressPercentage === 25) {
+                showAchievement('🎯 Quarter Complete! Keep it up!');
+            } else if (progressPercentage === 50) {
+                showAchievement('🔥 Halfway There! You\'re on fire!');
+            } else if (progressPercentage === 75) {
+                showAchievement('⚡ Almost Done! Final stretch!');
+            } else if (progressPercentage === 100) {
+                showAchievement('🏆 Assessment Complete! Excellent work!');
+            }
+        }
+
+        // Enhanced option selection with animations
+        function selectOptionWithAnimation(element, questionId, optionValue) {
+            // Add selection animation
+            element.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+            }, 150);
+            
+            // Call original function
+            selectOption(element, questionId, optionValue);
+            
+            // Show progress celebration
+            celebrateProgress();
+        }
+
+        // Enhanced multiple option selection
+        function selectMultipleOptionWithAnimation(element, questionId, optionValue) {
+            // Add selection animation
+            element.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+            }, 150);
+            
+            // Call original function
+            selectMultipleOption(element, questionId, optionValue);
+            
+            // Show progress celebration
+            celebrateProgress();
         }
 
 
@@ -1511,7 +2127,7 @@ $previous_attempts = $stmt->fetchAll();
 
         // Start assessment immediately when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, starting assessment immediately...');
+            console.log('🚀 DOM loaded, starting assessment and loading answers...');
             
             // Clear localStorage if this is a retake
             <?php if ($is_retake): ?>
@@ -1532,6 +2148,20 @@ $previous_attempts = $stmt->fetchAll();
             
             // Prevent back navigation during assessment
             preventBackNavigation();
+            
+            // Load saved answers for current question with a longer delay to ensure DOM is ready
+            setTimeout(() => {
+                console.log('🔄 Attempting to load answers after delay...');
+                loadCurrentQuestionAnswer();
+            }, 500);
+            
+            // Also try when window is fully loaded as backup
+            window.addEventListener('load', function() {
+                console.log('🔄 Window fully loaded, attempting to load answers...');
+                setTimeout(() => {
+                    loadCurrentQuestionAnswer();
+                }, 100);
+            });
         });
         
         // Function to prevent back navigation
@@ -1657,6 +2287,12 @@ $previous_attempts = $stmt->fetchAll();
         let isNavigatingBetweenQuestions = false;
         
         function beforeUnloadHandler(e) {
+            // Save current answer before leaving page
+            const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+            if (questionId) {
+                saveCurrentAnswer(questionId);
+            }
+            
             // Don't show warning if we're navigating between questions
             if (isNavigatingBetweenQuestions) {
                 return;
@@ -1667,13 +2303,29 @@ $previous_attempts = $stmt->fetchAll();
         }
         window.beforeUnloadHandler = beforeUnloadHandler;
         window.addEventListener('beforeunload', beforeUnloadHandler);
+        
+        // Save answers when page becomes hidden (tab switch, minimize, etc.)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+                if (questionId) {
+                    saveCurrentAnswer(questionId);
+                    console.log('Saved answer due to page visibility change');
+                }
+            }
+        });
 
         // New functions for one-question-at-a-time interface
         function selectOption(element, questionId, optionValue) {
+            console.log('🎯 selectOption called for question:', questionId, 'value:', optionValue);
+            
             // Remove selected class from all options for this question
             const allOptions = document.querySelectorAll(`input[name="answers[${questionId}]"]`);
             allOptions.forEach(option => {
-                option.closest('.option-item').classList.remove('selected');
+                const optionItem = option.closest('.option-item');
+                if (optionItem) {
+                    optionItem.classList.remove('selected');
+                }
             });
             
             // Add selected class to clicked option
@@ -1681,10 +2333,16 @@ $previous_attempts = $stmt->fetchAll();
             
             // Set the radio button value
             const radioButton = element.querySelector('input[type="radio"]');
-            radioButton.checked = true;
+            if (radioButton) {
+                radioButton.checked = true;
+                console.log('✅ Radio button checked:', radioButton.value);
+            }
             
             // Save answer immediately when option is selected
             saveCurrentAnswer(questionId);
+            
+            // Show visual feedback
+            console.log('🎉 Option selected and saved:', optionValue);
         }
         
         // Function for multiple choice checkboxes
@@ -1702,19 +2360,22 @@ $previous_attempts = $stmt->fetchAll();
                 console.log('🔧 Checkbox checked:', checkbox.checked);
             }
             
-             // Update the checkbox icon
-             const icon = element.querySelector('.checkbox-icon');
-             if (icon) {
-                 if (checkbox && checkbox.checked) {
-                     icon.innerHTML = '✓';
-                 } else {
-                     icon.innerHTML = '';
-                 }
-                 console.log('🔧 Icon updated to:', icon.innerHTML);
-             }
+            // Update the checkbox icon
+            const icon = element.querySelector('.checkbox-icon');
+            if (icon) {
+                if (checkbox && checkbox.checked) {
+                    icon.innerHTML = '✓';
+                } else {
+                    icon.innerHTML = '';
+                }
+                console.log('🔧 Icon updated to:', icon.innerHTML);
+            }
             
             // Save answer immediately when checkbox is toggled
             saveCurrentAnswer(questionId);
+            
+            // Show visual feedback
+            console.log('🎉 Multiple choice option toggled and saved:', optionValue);
         }
         
         // Function to save current answer immediately
@@ -1722,8 +2383,6 @@ $previous_attempts = $stmt->fetchAll();
             let answer = '';
             
             console.log('💾 saveCurrentAnswer called for question:', questionId);
-            
-            // Auto-save in progress
             
             // For identification questions (text input)
             const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
@@ -1752,19 +2411,25 @@ $previous_attempts = $stmt->fetchAll();
             }
             
             try {
-            // Save answer to localStorage
-            localStorage.setItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId, answer);
-            console.log('Immediately saved answer for question ' + questionId + ': "' + answer + '"');
+                // Save answer to localStorage
+                const storageKey = 'assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId;
+                localStorage.setItem(storageKey, answer);
+                console.log('✅ Successfully saved answer for question ' + questionId + ': "' + answer + '"');
                 
+                // Verify the save worked
+                const savedValue = localStorage.getItem(storageKey);
+                console.log('🔍 Verification - saved value:', savedValue);
                 
+                // Show visual feedback that answer was saved
+                showSaveFeedback();
                 
             } catch (error) {
-                console.error('Error saving answer:', error);
+                console.error('❌ Error saving answer:', error);
             }
             
             // Debug: Check all checkboxes for this question
             const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
-            console.log('All checkboxes for question ' + questionId + ':', allCheckboxes.length);
+            console.log('🔍 All checkboxes for question ' + questionId + ':', allCheckboxes.length);
             allCheckboxes.forEach((cb, index) => {
                 console.log(`Checkbox ${index}: value="${cb.value}", checked=${cb.checked}`);
             });
@@ -1826,6 +2491,44 @@ $previous_attempts = $stmt->fetchAll();
             return confirm('Are you sure you want to submit this assessment?');
         }
 
+        // Save current answer before navigation
+        function saveCurrentAnswerBeforeNavigation() {
+            const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+            let answer = '';
+            
+            if (questionId) {
+                // For identification questions (text input)
+                const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
+                if (textInput) {
+                    answer = textInput.value.trim();
+                } else {
+                    // Check if this is a multiple choice question with checkboxes
+                    const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]:checked`);
+                    if (checkboxes.length > 0) {
+                        // Multiple choice with checkboxes - collect all selected values
+                        const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+                        answer = selectedValues.join(',');
+                    } else {
+                        // For true/false questions (radio button)
+                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"]:checked`);
+                        if (radioButton) {
+                            answer = radioButton.value;
+                        }
+                    }
+                }
+                
+                // Save answer to localStorage (even if empty, to track that question was visited)
+                localStorage.setItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId, answer);
+                console.log('Saved answer for question ' + questionId + ': "' + answer + '"');
+            }
+            
+            // Save timer state before navigating
+            saveTimerState();
+            
+            // Set navigation flag to prevent beforeunload warning
+            isNavigatingBetweenQuestions = true;
+        }
+
         // Save answer and navigate to next question
         function saveAndNext() {
             // Get current question ID
@@ -1877,58 +2580,233 @@ $previous_attempts = $stmt->fetchAll();
             window.location.href = 'assessment.php?id=<?php echo (string)$assessment_id; ?>&q=' + nextQ;
         }
 
-        // Load saved answers when page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        // Navigate to previous question
+        function goToPrevious() {
+            console.log('🔄 goToPrevious() called');
+            
+            // Save current answer before navigating
             const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+            console.log('💾 Saving answer for question:', questionId);
+            
             if (questionId) {
-                const savedAnswer = localStorage.getItem('assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId);
-                if (savedAnswer !== null) {
+                saveCurrentAnswer(questionId);
+            }
+            
+            // Save timer state before navigating
+            saveTimerState();
+            
+            // Set navigation flag to prevent beforeunload warning
+            isNavigatingBetweenQuestions = true;
+            
+            // Navigate to previous question
+            const currentQ = <?php echo $current_question; ?>;
+            const prevQ = currentQ - 1;
+            console.log('🔄 Navigating to previous question:', prevQ);
+            window.location.href = 'assessment.php?id=<?php echo (string)$assessment_id; ?>&q=' + prevQ;
+        }
+
+        // Function to load saved answer for current question
+        function loadCurrentQuestionAnswer() {
+            console.log('🚀 Loading saved answers...');
+            const questionId = '<?php echo $current_question_data['id'] ?? ''; ?>';
+            console.log('🔍 Current question ID:', questionId);
+            
+            if (questionId) {
+                const storageKey = 'assessment_' + '<?php echo (string)$assessment_id; ?>' + '_q_' + questionId;
+                const savedAnswer = localStorage.getItem(storageKey);
+                console.log('📥 Loading saved answer for question ' + questionId + ':', savedAnswer);
+                console.log('🔑 Storage key used:', storageKey);
+                
+                // Check if DOM elements are ready
+                const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
+                const radioButtons = document.querySelectorAll(`input[name="answers[${questionId}]"]`);
+                const checkboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
+                
+                console.log('🔍 DOM elements found:', {
+                    textInput: !!textInput,
+                    radioButtons: radioButtons.length,
+                    checkboxes: checkboxes.length
+                });
+                
+                if (!textInput && radioButtons.length === 0 && checkboxes.length === 0) {
+                    console.log('⚠️ DOM elements not ready yet, retrying in 200ms...');
+                    setTimeout(() => {
+                        loadCurrentQuestionAnswer();
+                    }, 200);
+                    return;
+                }
+                
+                if (savedAnswer !== null && savedAnswer !== '') {
                     // For identification questions (text input)
-                    const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
                     if (textInput) {
                         textInput.value = savedAnswer;
+                        console.log('✅ Restored text input:', savedAnswer);
                         
                         // Add real-time saving for text input
                         textInput.addEventListener('input', function() {
+                            console.log('📝 Text input changed, saving immediately...');
                             saveCurrentAnswer(questionId);
                         });
-                    }
-                    
-                    // Check if this is a multiple choice question with checkboxes
-                    if (savedAnswer.includes(',')) {
-                        // Multiple answers (comma-separated)
-                        const selectedValues = savedAnswer.split(',');
-                        selectedValues.forEach(value => {
-                            const checkbox = document.querySelector(`input[name="answers[${questionId}][]"][value="${value}"]`);
-                            if (checkbox) {
-                                checkbox.checked = true;
-                                const optionItem = checkbox.closest('.option-item');
-                                optionItem.classList.add('selected');
-                                 const icon = optionItem.querySelector('.checkbox-icon');
-                                 if (icon) {
-                                     icon.innerHTML = '✓';
-                                 }
-                            }
+                        
+                        // Also save on blur (when user clicks away)
+                        textInput.addEventListener('blur', function() {
+                            console.log('📝 Text input blurred, saving...');
+                            saveCurrentAnswer(questionId);
                         });
                     } else {
-                        // Single answer (radio button for true/false)
-                        const radioButton = document.querySelector(`input[name="answers[${questionId}]"][value="${savedAnswer}"]`);
-                        if (radioButton) {
-                            radioButton.checked = true;
-                            radioButton.closest('.option-item').classList.add('selected');
+                        // Check if this is a multiple choice question with checkboxes
+                        if (savedAnswer.includes(',')) {
+                            // Multiple answers (comma-separated)
+                            const selectedValues = savedAnswer.split(',');
+                            console.log('🔄 Restoring multiple choice answers:', selectedValues);
+                            
+                            // First, uncheck all checkboxes for this question
+                            const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
+                            allCheckboxes.forEach(cb => {
+                                cb.checked = false;
+                                const optionItem = cb.closest('.option-item');
+                                if (optionItem) {
+                                    optionItem.classList.remove('selected');
+                                    const icon = optionItem.querySelector('.checkbox-icon');
+                                    if (icon) {
+                                        icon.innerHTML = '';
+                                    }
+                                }
+                            });
+                            
+                            // Then check the saved ones
+                            selectedValues.forEach(value => {
+                                const checkbox = document.querySelector(`input[name="answers[${questionId}][]"][value="${value}"]`);
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                    const optionItem = checkbox.closest('.option-item');
+                                    if (optionItem) {
+                                        optionItem.classList.add('selected');
+                                        const icon = optionItem.querySelector('.checkbox-icon');
+                                        if (icon) {
+                                            icon.innerHTML = '✓';
+                                        }
+                                    }
+                                    console.log('✅ Restored checkbox:', value);
+                                } else {
+                                    console.log('❌ Checkbox not found for value:', value);
+                                }
+                            });
+                        } else {
+                            // Single answer - could be radio button OR single checkbox
+                            console.log('🔄 Restoring single answer:', savedAnswer);
+                            
+                            // Try radio buttons first
+                            const allRadios = document.querySelectorAll(`input[name="answers[${questionId}]"]`);
+                            if (allRadios.length > 0) {
+                                console.log('📻 Found radio buttons, trying radio approach...');
+                                // First, uncheck all radio buttons for this question
+                                allRadios.forEach(radio => {
+                                    radio.checked = false;
+                                    const optionItem = radio.closest('.option-item');
+                                    if (optionItem) {
+                                        optionItem.classList.remove('selected');
+                                    }
+                                });
+                                
+                                // Then check the saved one
+                                const radioButton = document.querySelector(`input[name="answers[${questionId}]"][value="${savedAnswer}"]`);
+                                if (radioButton) {
+                                    radioButton.checked = true;
+                                    const optionItem = radioButton.closest('.option-item');
+                                    if (optionItem) {
+                                        optionItem.classList.add('selected');
+                                    }
+                                    console.log('✅ Restored radio button:', savedAnswer);
+                                } else {
+                                    console.log('❌ Radio button not found for value:', savedAnswer);
+                                }
+                            } else {
+                                // Try checkboxes (single selection)
+                                console.log('☑️ No radio buttons found, trying checkbox approach...');
+                                const allCheckboxes = document.querySelectorAll(`input[name="answers[${questionId}][]"]`);
+                                if (allCheckboxes.length > 0) {
+                                    console.log('📋 Found checkboxes, trying checkbox approach...');
+                                    // First, uncheck all checkboxes for this question
+                                    allCheckboxes.forEach(cb => {
+                                        cb.checked = false;
+                                        const optionItem = cb.closest('.option-item');
+                                        if (optionItem) {
+                                            optionItem.classList.remove('selected');
+                                            const icon = optionItem.querySelector('.checkbox-icon');
+                                            if (icon) {
+                                                icon.innerHTML = '';
+                                            }
+                                        }
+                                    });
+                                    
+                                    // Then check the saved one
+                                    const checkbox = document.querySelector(`input[name="answers[${questionId}][]"][value="${savedAnswer}"]`);
+                                    if (checkbox) {
+                                        checkbox.checked = true;
+                                        const optionItem = checkbox.closest('.option-item');
+                                        if (optionItem) {
+                                            optionItem.classList.add('selected');
+                                            const icon = optionItem.querySelector('.checkbox-icon');
+                                            if (icon) {
+                                                icon.innerHTML = '✓';
+                                            }
+                                        }
+                                        console.log('✅ Restored checkbox:', savedAnswer);
+                                    } else {
+                                        console.log('❌ Checkbox not found for value:', savedAnswer);
+                                    }
+                                } else {
+                                    console.log('❌ No input elements found for question:', questionId);
+                                }
+                            }
                         }
                     }
                 } else {
-                    // Add real-time saving for text input even if no saved answer
-                    const textInput = document.querySelector(`input[name="answers[${questionId}]"][type="text"]`);
-                    if (textInput) {
-                        textInput.addEventListener('input', function() {
-                            saveCurrentAnswer(questionId);
-                        });
-                    }
+                    console.log('ℹ️ No saved answer found for question:', questionId);
                 }
+                
+                // Always add real-time saving for text input
+                if (textInput) {
+                    // Save immediately when typing
+                    textInput.addEventListener('input', function() {
+                        console.log('📝 Text input changed, saving immediately...');
+                        saveCurrentAnswer(questionId);
+                    });
+                    
+                    // Also save on blur (when user clicks away)
+                    textInput.addEventListener('blur', function() {
+                        console.log('📝 Text input blurred, saving...');
+                        saveCurrentAnswer(questionId);
+                    });
+                }
+            } else {
+                console.log('❌ No question ID found');
             }
-        });
+        }
+
+        // Debug function to check localStorage
+        function debugLocalStorage() {
+            console.log('🔍 Debugging localStorage...');
+            const questionIds = <?php echo json_encode(array_column($questions, 'id')); ?>;
+            const assessmentId = '<?php echo (string)$assessment_id; ?>';
+            
+            questionIds.forEach(questionId => {
+                const key = 'assessment_' + assessmentId + '_q_' + questionId;
+                const value = localStorage.getItem(key);
+                console.log(`Key: ${key} | Value: "${value}"`);
+            });
+        }
+        
+        // Make debug functions available globally
+        window.debugLocalStorage = debugLocalStorage;
+        window.loadCurrentQuestionAnswer = loadCurrentQuestionAnswer;
+        
+        // Manual trigger for testing
+        window.testAnswerLoading = function() {
+            console.log('🧪 Manual test of answer loading...');
+            loadCurrentQuestionAnswer();
+        };
 
         // Auto-save answers periodically
         setInterval(function() {

@@ -17,8 +17,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
-// Get all course IDs the student is enrolled in
-$enrolled_stmt = $pdo->prepare('SELECT course_id FROM course_enrollments WHERE student_id = ? AND status = "active"');
+// Get all course IDs the student is enrolled in (allow both active and completed statuses)
+$enrolled_stmt = $pdo->prepare('SELECT course_id FROM course_enrollments WHERE student_id = ? AND status IN ("active", "completed")');
 $enrolled_stmt->execute([$user_id]);
 $all_course_ids = $enrolled_stmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -224,7 +224,6 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Assessments - Student Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -678,7 +677,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 1025;
+            z-index: 1020;
             max-width: 600px;
             width: 90%;
             margin: 0 !important;

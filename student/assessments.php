@@ -31,13 +31,14 @@ if (!empty($all_course_ids)) {
                ap.is_active as academic_period_active,
                c.course_name, u.first_name, u.last_name,
                a.is_locked, a.lock_type, a.prerequisite_assessment_id, 
-               a.prerequisite_score, a.prerequisite_video_count, a.unlock_date, a.lock_message
+               a.prerequisite_score, a.prerequisite_video_count, a.unlock_date, a.lock_message,
+               a.assessment_order, a.course_id
         FROM assessments a
         JOIN courses c ON a.course_id = c.id
         JOIN users u ON c.teacher_id = u.id
         JOIN academic_periods ap ON c.academic_period_id = ap.id
         WHERE c.id IN ($in)
-        ORDER BY a.created_at DESC
+        ORDER BY c.id, COALESCE(a.assessment_order, 999), a.created_at ASC
     ");
     $stmt->execute($params);
     $assessments = $stmt->fetchAll();
@@ -69,6 +70,16 @@ if (!empty($all_course_ids)) {
         $assessment['module_title'] = $module_title;
         $assessment['academic_year_active'] = $assessment['academic_period_active'];
         $assessment['semester_active'] = $assessment['academic_period_active'];
+    }
+
+    // Group assessments by course for sequence checking
+    $assessments_by_course = [];
+    foreach ($assessments as $assessment) {
+        $course_id = $assessment['course_id'];
+        if (!isset($assessments_by_course[$course_id])) {
+            $assessments_by_course[$course_id] = [];
+        }
+        $assessments_by_course[$course_id][] = $assessment;
     }
 
     // Enrich each assessment with attempt_count and best_score for the current student
@@ -110,8 +121,32 @@ if (!empty($all_course_ids)) {
         $assessment['lock_reason'] = '';
         $assessment['lock_details'] = '';
         
-        // Check if assessment is locked
-        if ($assessment['is_locked']) {
+        // Check sequence-based accessibility first
+        $course_assessments = $assessments_by_course[$assessment['course_id']];
+        $current_order = $assessment['assessment_order'] ?? 999;
+        
+        // Find all assessments with lower order numbers in the same course
+        $previous_assessments = array_filter($course_assessments, function($a) use ($current_order) {
+            $a_order = $a['assessment_order'] ?? 999;
+            return $a_order < $current_order;
+        });
+        
+        // Check if all previous assessments in sequence have been completed
+        foreach ($previous_assessments as $prev_assessment) {
+            $prev_stmt = $pdo->prepare("SELECT COUNT(*) as attempt_count FROM assessment_attempts WHERE student_id = ? AND assessment_id = ? AND status = 'completed'");
+            $prev_stmt->execute([$user_id, $prev_assessment['id']]);
+            $prev_result = $prev_stmt->fetch();
+            
+            if (($prev_result['attempt_count'] ?? 0) == 0) {
+                $assessment['is_accessible'] = false;
+                $assessment['lock_reason'] = 'Previous assessments in sequence must be completed first';
+                $assessment['lock_details'] = 'You must complete all previous assessments in order before accessing this one.';
+                break;
+            }
+        }
+        
+        // Check if assessment is locked (only if still accessible after sequence check)
+        if ($assessment['is_accessible'] && $assessment['is_locked']) {
             $assessment['is_accessible'] = false;
             
             switch ($assessment['lock_type']) {
@@ -525,7 +560,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .results-summary {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
             border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -758,11 +793,11 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+            background: var(--primary-color);
         }
 
         .assessment-card .card-header {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
+            background: #ffffff;
             border-bottom: 1px solid #e3e6f0;
             padding: 1.25rem;
         }
@@ -907,7 +942,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .stat-item {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
+            background: #ffffff;
             border: 1px solid #e3e6f0;
             border-radius: 8px;
             padding: 1rem;
@@ -927,7 +962,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         .attempts-clickable:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+            background: #ffffff;
         }
 
         .attempts-clickable:active {
@@ -999,7 +1034,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .passing-rate-section {
-            background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+            background: #e8f5e8;
             border: 1px solid #c3e6c3;
             border-radius: 8px;
             padding: 1rem;
@@ -1076,7 +1111,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            background: rgba(255, 255, 255, 0.2);
             transition: left 0.5s;
         }
 
@@ -1092,7 +1127,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
 
 
         .assessment-details-box {
-            background: linear-gradient(135deg, #f8f9fc 0%, #ffffff 100%);
+            background: #f8f9fc;
             border: 1px solid #e3e6f0;
             border-radius: 8px;
             padding: 1rem;
@@ -1199,29 +1234,23 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
 
         /* Assessment status indicators */
         .assessment-item[data-status="completed"] .status-badge {
-            background: linear-gradient(135deg, var(--success-color), #17a673);
+            background: var(--success-color);
         }
 
         .assessment-item[data-status="not-attempted"] .status-badge {
-            background: linear-gradient(135deg, var(--secondary-color), #6c757d);
+            background: var(--secondary-color);
         }
 
         /* Minimalist Assessment Card Styles */
         .modern-assessment-card {
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             overflow: hidden;
-            transition: var(--transition);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             height: 100%;
             position: relative;
-            border: 1px solid var(--border-color);
-        }
-
-        .modern-assessment-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-            border-color: var(--primary-color);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .modern-assessment-card::before {
@@ -1230,9 +1259,21 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             top: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: var(--primary-color);
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #3a6b5c, var(--success-color));
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
             z-index: 1;
+        }
+
+        .modern-assessment-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .modern-assessment-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            border-color: rgba(46, 94, 78, 0.2);
         }
 
         /* Header Section */
@@ -1254,70 +1295,58 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 0.75rem;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.8rem;
             color: white;
-            transition: var(--transition);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .status-badge:hover::before {
+            left: 100%;
         }
 
         .status-badge.completed {
-            background: var(--success-color);
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            backdrop-filter: blur(10px);
         }
 
         .status-badge.available {
-            background: #28a745; /* Green for truly available */
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            backdrop-filter: blur(10px);
         }
 
         .status-badge.locked {
-            background: #ffc107; /* Yellow for locked/unavailable */
-            color: #000; /* Black text for better contrast on yellow */
+            background: rgba(0, 0, 0, 0.1);
+            color: #000;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
         }
 
         .status-badge i {
             font-size: 0.9rem;
         }
 
-        /* Score Display */
-        .score-display {
-            text-align: center;
-        }
-
-        .score-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: var(--success-color);
-            color: white;
-            transition: var(--transition);
-        }
-
-        .score-circle.new {
-            background: var(--primary-color);
-        }
-
-        .score-circle:hover {
-            transform: scale(1.02);
-        }
-
-        .score-value {
-            font-size: 0.9rem;
-            font-weight: 600;
-            line-height: 1;
-        }
-
-        .score-label {
-            font-size: 0.65rem;
-            font-weight: 400;
-            opacity: 0.9;
-            margin-top: 0.15rem;
-        }
 
         /* Content Section */
         .card-content-section {
@@ -1370,7 +1399,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         .teacher-name {
             display: flex;
             align-items: center;
-            gap: 0.4rem;
+            gap: 0.5rem;
             padding: 0.4rem 0;
             color: var(--text-muted);
             font-size: 0.85rem;
@@ -1381,6 +1410,38 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
             font-size: 0.9rem;
             width: 16px;
             text-align: center;
+        }
+
+        /* Assessment Header Background - Theme Color Only */
+        .card-header-section {
+            position: relative;
+            background: linear-gradient(135deg, var(--primary-color), #3a6b5c);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            color: white !important;
+        }
+
+        .card-header-section * {
+            color: white !important;
+        }
+
+        /* Assessment Order Indicator */
+        .assessment-order {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
         /* Quick Stats */
@@ -1538,11 +1599,11 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .progress-bar.passed {
-            background: linear-gradient(90deg, var(--success-color), #2ecc71);
+            background: var(--success-color);
         }
 
         .progress-bar.not-passed {
-            background: linear-gradient(90deg, var(--warning-color), #f39c12);
+            background: var(--warning-color);
         }
 
         .progress-description {
@@ -1601,7 +1662,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
         }
 
         .modal-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            background: var(--primary-color);
             color: white;
             border-bottom: none;
             border-radius: var(--border-radius) var(--border-radius) 0 0;
@@ -1840,36 +1901,68 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .modern-assessment-card {
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                border-radius: 12px;
+            }
+
             .card-header-section {
                 flex-direction: column;
-                gap: 0.75rem;
+                gap: 1rem;
                 align-items: center;
             }
 
             .quick-stats {
                 grid-template-columns: 1fr;
+                gap: 0.75rem;
+                margin-top: 1rem;
+            }
+
+            .assessment-title {
+                font-size: 1.2rem;
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
+
+
+            .stat-box {
+                padding: 0.75rem;
+            }
+
+            .stat-number {
+                font-size: 1.1rem;
+            }
+
+
+            .status-badge {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.75rem;
+            }
+
+            .course-details {
+                flex-direction: column;
                 gap: 0.5rem;
+                align-items: center;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .modern-assessment-card {
+                padding: 1.25rem;
+                margin-bottom: 1.25rem;
             }
 
             .assessment-title {
                 font-size: 1.1rem;
             }
 
-            .score-circle {
-                width: 50px;
-                height: 50px;
-            }
 
-            .score-value {
-                font-size: 0.9rem;
-            }
 
-            .stat-box {
-                padding: 0.5rem;
-            }
-
-            .stat-number {
-                font-size: 1rem;
+            .status-badge {
+                padding: 0.4rem 0.7rem;
+                font-size: 0.7rem;
             }
         }
 
@@ -2221,7 +2314,17 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                     <div class="row">
                                         <?php foreach ($assessments as $assessment): ?>
                                             <div class="col-12 col-md-6 col-lg-4 mb-4 assessment-item" 
-                                                 data-status="<?php echo $assessment['attempt_count'] > 0 ? 'completed' : 'not-attempted'; ?>"
+                                                 data-status="<?php 
+                                                 if ($assessment['attempt_count'] > 0) {
+                                                     echo 'completed';
+                                                 } elseif (!$assessment['is_accessible'] || !$assessment['academic_year_active'] || !$assessment['semester_active']) {
+                                                     echo 'locked';
+                                                 } elseif ($assessment['attempt_count'] == 0) {
+                                                     echo 'new';
+                                                 } else {
+                                                     echo 'available';
+                                                 }
+                                                 ?>"
                                                  data-course="<?php echo htmlspecialchars($assessment['course_name']); ?>"
                                                  data-score="<?php echo $assessment['average_score'] ?? 0; ?>"
                                                  data-attempts="<?php echo $assessment['attempt_count']; ?>">
@@ -2253,6 +2356,13 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                     
                                                     <!-- Header Section -->
                                                     <div class="card-header-section">
+                                                        <!-- Assessment Order Indicator -->
+                                                        <?php if ($assessment['assessment_order']): ?>
+                                                            <div class="assessment-order">
+                                                                <?php echo $assessment['assessment_order']; ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
                                                         <div class="status-indicator">
                                                             <?php if ($assessment['attempt_count'] > 0): ?>
                                                                 <div class="status-badge completed">
@@ -2272,19 +2382,6 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                             <?php endif; ?>
                                                     </div>
                                                     
-                                                        <div class="score-display">
-                                                            <?php if ($assessment['attempt_count'] > 0): ?>
-                                                                <div class="score-circle">
-                                                                    <span class="score-value"><?php echo $assessment['average_score'] ?? 0; ?>%</span>
-                                                                    <span class="score-label">Average</span>
-                                                            </div>
-                                                            <?php else: ?>
-                                                                <div class="score-circle new">
-                                                                    <span class="score-value">NEW</span>
-                                                                    <span class="score-label">Assessment</span>
-                                                            </div>
-                                                            <?php endif; ?>
-                                                            </div>
                                                         </div>
                                                         
                                                     <!-- Main Content -->
@@ -2304,9 +2401,9 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                                     <span><?php echo htmlspecialchars($assessment['module_title'] ?? ''); ?></span>
                                                                 </div>
                                                                 <div class="teacher-name">
-                                                                    <i class="fas fa-user"></i>
+                                                                    <i class="fas fa-user-tie"></i>
                                                                     <span><?php echo htmlspecialchars($assessment['first_name'] ?? '') . ' ' . htmlspecialchars($assessment['last_name'] ?? ''); ?></span>
-                                                            </div>
+                                                                </div>
                                                                 </div>
                                                             </div>
                                                         

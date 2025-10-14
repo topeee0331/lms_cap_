@@ -1166,19 +1166,28 @@ foreach ($sections as $sec) {
 $stats_stmt = $db->prepare("
     SELECT 
         COUNT(*) as total_sections,
-        SUM(JSON_LENGTH(COALESCE(students, '[]'))) as total_students_assigned,
-        SUM(JSON_LENGTH(COALESCE(teachers, '[]'))) as total_teachers_assigned,
+        COALESCE(SUM(JSON_LENGTH(COALESCE(students, '[]'))), 0) as total_students_assigned,
+        COALESCE(SUM(JSON_LENGTH(COALESCE(teachers, '[]'))), 0) as total_teachers_assigned,
         COUNT(CASE WHEN s.is_active = 1 THEN 1 END) as active_sections,
         COUNT(CASE WHEN s.is_active = 0 THEN 1 END) as inactive_sections,
         COUNT(CASE WHEN ap.is_active = 1 THEN 1 END) as current_period_sections,
         COUNT(DISTINCT s.year_level) as year_levels_covered,
-        COUNT(DISTINCT s.academic_period_id) as academic_periods_covered,
-        (SELECT COUNT(*) FROM courses WHERE is_archived = 0) as total_courses
+        COUNT(DISTINCT s.academic_period_id) as academic_periods_covered
     FROM sections s
     LEFT JOIN academic_periods ap ON s.academic_period_id = ap.id
 ");
 $stats_stmt->execute();
 $stats = $stats_stmt->fetch();
+
+// Ensure all values are properly formatted
+$stats['total_sections'] = (int)$stats['total_sections'];
+$stats['total_students_assigned'] = (int)$stats['total_students_assigned'];
+$stats['total_teachers_assigned'] = (int)$stats['total_teachers_assigned'];
+$stats['active_sections'] = (int)$stats['active_sections'];
+$stats['inactive_sections'] = (int)$stats['inactive_sections'];
+$stats['current_period_sections'] = (int)$stats['current_period_sections'];
+$stats['year_levels_covered'] = (int)$stats['year_levels_covered'];
+$stats['academic_periods_covered'] = (int)$stats['academic_periods_covered'];
 
 // Get detailed teacher assignment data
 $teacher_assignments_query = "
@@ -1574,113 +1583,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
             <div class="accent-line"></div>
         </div>
 
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-primary border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-collection-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_sections'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Total Sections</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-success border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-check-circle-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['active_sections'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Active Sections</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-info border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-calendar-check-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['current_period_sections'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Current Period</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-warning border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-people-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_students_assigned'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Students Assigned</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-secondary border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-mortarboard-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['year_levels_covered'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Year Levels</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-danger border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-book-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_courses'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Total Courses</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-danger-alt border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-x-circle-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['inactive_sections'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Inactive Sections</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3">
-            <div class="card stats-card stats-purple border-0 shadow-sm h-100">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center mb-3">
-                        <div class="stats-icon bg-purple text-white rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="bi bi-people-fill fs-4"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-1 text-dark"><?= $stats['total_teachers_assigned'] ?></h3>
-                    <p class="text-muted mb-0 small fw-medium">Teachers Assigned</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Teacher Assignments Overview -->
     <?php if (!empty($assigned_teachers_details)): ?>
@@ -1779,9 +1681,6 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                         <div>
                             <h5 class="mb-0 fw-bold text-dark">
                                 <i class="bi bi-graph-up me-2 text-success"></i>Real-time Performance Summary
-                                <span class="badge bg-success ms-2" id="liveIndicator">
-                                    <i class="bi bi-circle-fill me-1"></i>Live
-                                </span>
                             </h5>
                             <small class="text-muted">Live performance data across all sections and assessments</small>
                         </div>
@@ -1798,8 +1697,30 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                 <div class="card-body">
                     <!-- Performance Overview Cards -->
                     <div class="row mb-4" id="performanceOverview">
-                        <div class="col-md-3">
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
                             <div class="card bg-primary text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-collection-fill fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1"><?= number_format($stats['total_sections']) ?></h3>
+                                    <p class="mb-0 small">Total Sections</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card bg-success text-white h-100">
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-center mb-2">
+                                        <i class="bi bi-check-circle-fill fs-2"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-1"><?= number_format($stats['active_sections']) ?></h3>
+                                    <p class="mb-0 small">Active Sections</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card bg-info text-white h-100">
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-center mb-2">
                                         <i class="bi bi-people-fill fs-2"></i>
@@ -1809,8 +1730,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white h-100">
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card bg-secondary text-white h-100">
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-center mb-2">
                                         <i class="bi bi-clipboard-check fs-2"></i>
@@ -1820,8 +1741,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white h-100">
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card bg-warning text-white h-100">
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-center mb-2">
                                         <i class="bi bi-percent fs-2"></i>
@@ -1831,8 +1752,8 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white h-100">
+                        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card bg-dark text-white h-100">
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-center mb-2">
                                         <i class="bi bi-trophy fs-2"></i>
@@ -4565,7 +4486,6 @@ function loadPerformanceData() {
                 updateRecentActivity(data.data.recent_activity);
                 updateQuestionTypePerformance(data.data.question_type_performance);
                 updateSectionPerformance(data.data.section_performance);
-                updateLiveIndicator();
             } else {
                 console.error('Error loading performance data:', data.message);
                 showPerformanceError(data.message);
@@ -4580,8 +4500,8 @@ function loadPerformanceData() {
 function updatePerformanceOverview(overview) {
     document.getElementById('totalStudents').textContent = overview.total_students;
     document.getElementById('totalAttempts').textContent = overview.total_attempts;
-    document.getElementById('averageScore').textContent = overview.average_score + '%';
-    document.getElementById('passingRate').textContent = overview.passing_rate + '%';
+    document.getElementById('averageScore').textContent = parseFloat(overview.average_score).toFixed(1) + '%';
+    document.getElementById('passingRate').textContent = parseFloat(overview.passing_rate).toFixed(1) + '%';
 }
 
 function updateRecentActivity(activity) {
@@ -4605,7 +4525,7 @@ function updateQuestionTypePerformance(questionTypes) {
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="small fw-medium">${type.question_type.replace('_', ' ').toUpperCase()}</span>
                 <span class="badge ${accuracyClass.replace('text-', 'bg-')} text-white">
-                    ${type.accuracy_rate}%
+                    ${parseFloat(type.accuracy_rate).toFixed(1)}%
                 </span>
             </div>
         `;
@@ -4644,13 +4564,13 @@ function updateSectionPerformance(sections) {
                     <span class="badge bg-info text-white small">${section.student_count}</span>
                 </td>
                 <td class="py-1 text-center">
-                    <span class="badge bg-${performanceClass} text-white small">${section.avg_score}%</span>
+                    <span class="badge bg-${performanceClass} text-white small">${parseFloat(section.avg_score).toFixed(1)}%</span>
                 </td>
                 <td class="py-1 text-center">
                     <span class="badge bg-secondary text-white small">${section.total_attempts}</span>
                 </td>
                 <td class="py-1 text-center">
-                    <span class="badge bg-${passingClass} text-white small">${section.passing_rate}%</span>
+                    <span class="badge bg-${passingClass} text-white small">${parseFloat(section.passing_rate).toFixed(1)}%</span>
                 </td>
                 <td class="py-1 text-center">
                     <div class="progress" style="height: 6px; width: 60px; margin: 0 auto;">
@@ -4664,17 +4584,6 @@ function updateSectionPerformance(sections) {
     tbody.innerHTML = html;
 }
 
-function updateLiveIndicator() {
-    const indicator = document.getElementById('liveIndicator');
-    indicator.innerHTML = '<i class="bi bi-circle-fill me-1"></i>Live';
-    indicator.className = 'badge bg-success ms-2';
-    
-    // Add a subtle animation
-    indicator.style.animation = 'pulse 1s ease-in-out';
-    setTimeout(() => {
-        indicator.style.animation = '';
-    }, 1000);
-}
 
 function showPerformanceError(message) {
     const overview = document.getElementById('performanceOverview');
@@ -4958,4 +4867,5 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 
+<?php require_once '../includes/footer.php'; ?> 
 <?php require_once '../includes/footer.php'; ?> 

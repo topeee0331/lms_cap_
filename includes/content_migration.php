@@ -11,6 +11,10 @@ require_once 'semester_security.php';
 /**
  * Migrate a course from one academic period to another
  * 
+ * IMPORTANT: This function ONLY migrates course content (modules, assessments, questions).
+ * It does NOT migrate student enrollments, student progress, or any student data.
+ * Students must enroll separately in the new academic period.
+ * 
  * @param PDO $pdo Database connection
  * @param int $source_course_id Source course ID
  * @param int $target_academic_period_id Target academic period ID
@@ -44,36 +48,66 @@ function migrateCourse($pdo, $source_course_id, $target_academic_period_id, $tea
             throw new Exception('Target academic period is not active.');
         }
         
-        // Check if course with same name already exists in target period
+        // Check if course with same name or code already exists in target period
         $stmt = $pdo->prepare("
             SELECT id FROM courses 
-            WHERE course_name = ? AND academic_period_id = ? AND teacher_id = ?
+            WHERE (course_name = ? OR course_code = ?) AND academic_period_id = ? AND teacher_id = ?
         ");
-        $stmt->execute([$source_course['course_name'], $target_academic_period_id, $teacher_id]);
+        $stmt->execute([$source_course['course_name'], $source_course['course_code'], $target_academic_period_id, $teacher_id]);
         if ($stmt->fetch()) {
-            throw new Exception('A course with the same name already exists in the target academic period.');
+            throw new Exception('A course with the same name or code already exists in the target academic period.');
         }
         
         // Create new course in target academic period
-        $new_course_id = uniqid('course_');
+        // Get the next available integer ID
+        $stmt = $pdo->prepare("SELECT MAX(id) as max_id FROM courses");
+        $stmt->execute();
+        $max_id = $stmt->fetch(PDO::FETCH_ASSOC)['max_id'];
+        $new_course_id = ($max_id + 1);
+        
+        // Make course code unique by appending a timestamp suffix
+        $timestamp = date('YmdHis');
+        $new_course_code = $source_course['course_code'] . '_' . $timestamp;
+        $new_course_name = $source_course['course_name'] . ' (Migrated)';
+        
         $stmt = $pdo->prepare("
             INSERT INTO courses (
-                id, teacher_id, course_name, course_code, course_description, 
-                academic_period_id, created_at, modules
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
+                id, teacher_id, course_name, course_code, description, 
+                status, academic_period_id, year_level, credits, is_archived,
+                modules, sections, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $new_course_id,
             $teacher_id,
-            $source_course['course_name'],
-            $source_course['course_code'],
-            $source_course['course_description'],
+            $new_course_name,
+            $new_course_code,
+            $source_course['description'],
+            'active', // Reset status to active
             $target_academic_period_id,
-            $source_course['modules'] // Copy modules JSON
+            $source_course['year_level'], // Copy year level
+            $source_course['credits'] ?? 3, // Copy credits or default to 3
+            0, // Reset archived status
+            $source_course['modules'], // Copy modules JSON
+            '[]' // Reset sections to empty array - sections should not be migrated
         ]);
         
         // Migrate assessments
         $migrated_assessments = migrateAssessments($pdo, $source_course_id, $new_course_id);
+        
+        // IMPORTANT: Ensure no student enrollments are created
+        // The migration system is designed to ONLY migrate course content,
+        // NOT student enrollments or student data
+        $stmt = $pdo->prepare("SELECT COUNT(*) as enrollment_count FROM course_enrollments WHERE course_id = ?");
+        $stmt->execute([$new_course_id]);
+        $enrollment_count = $stmt->fetch(PDO::FETCH_ASSOC)['enrollment_count'];
+        
+        if ($enrollment_count > 0) {
+            // This should never happen, but if it does, clean it up
+            error_log("WARNING: Found {$enrollment_count} student enrollments in migrated course {$new_course_id}. Removing them.");
+            $stmt = $pdo->prepare("DELETE FROM course_enrollments WHERE course_id = ?");
+            $stmt->execute([$new_course_id]);
+        }
         
         $pdo->commit();
         
@@ -87,6 +121,7 @@ function migrateCourse($pdo, $source_course_id, $target_academic_period_id, $tea
         
     } catch (Exception $e) {
         $pdo->rollback();
+        error_log('Migration error: ' . $e->getMessage());
         return [
             'success' => false,
             'message' => $e->getMessage()
@@ -115,28 +150,29 @@ function migrateAssessments($pdo, $source_course_id, $target_course_id) {
     $assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     foreach ($assessments as $assessment) {
-        // Create new assessment ID
-        $new_assessment_id = uniqid('assess_');
+        // Create new assessment ID (assessments use string IDs like 'assess_68b63fb3c750e')
+        $new_assessment_id = 'assess_' . uniqid();
         
         // Insert new assessment
         $stmt = $pdo->prepare("
             INSERT INTO assessments (
-                id, course_id, assessment_title, description, time_limit, 
-                difficulty, status, passing_rate, attempt_limit, assessment_order, 
-                is_locked, lock_type, questions, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                id, course_id, assessment_title, assessment_order, description, 
+                time_limit, difficulty, status, num_questions, passing_rate, 
+                attempt_limit, is_locked, lock_type, questions, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $new_assessment_id,
             $target_course_id,
             $assessment['assessment_title'],
+            $assessment['assessment_order'],
             $assessment['description'],
             $assessment['time_limit'],
             $assessment['difficulty'],
             'active', // Reset to active in new period
+            $assessment['num_questions'] ?? 10, // Default to 10 if not set
             $assessment['passing_rate'],
             $assessment['attempt_limit'],
-            $assessment['assessment_order'],
             0, // Reset lock status
             'manual', // Reset lock type
             $assessment['questions'] // Copy questions JSON

@@ -38,27 +38,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'enroll_student':
                 $student_id = (int)($_POST['student_id'] ?? 0);
-                $course_id = (int)($_POST['course_id'] ?? 0);
+                $section_id = (int)($_POST['section_id'] ?? 0);
                 
-                if (!$student_id || !$course_id) {
-                    $message = 'Student and course are required.';
+                if (!$student_id || !$section_id) {
+                    $message = 'Student and section are required.';
                     $message_type = 'danger';
                 } else {
-                    // Verify course belongs to teacher and is in selected academic period
-                    $stmt = $db->prepare('SELECT id FROM courses WHERE id = ? AND teacher_id = ? AND academic_period_id = ?');
-                    $stmt->execute([$course_id, $_SESSION['user_id'], $selected_year_id]);
-                    if ($stmt->fetch()) {
-                        // Check if already enrolled
-                        $stmt = $db->prepare('SELECT id FROM course_enrollments WHERE student_id = ? AND course_id = ?');
-                        $stmt->execute([$student_id, $course_id]);
+                    // Verify section exists and is in selected academic period
+                    $stmt = $db->prepare('SELECT id, students FROM sections WHERE id = ? AND academic_period_id = ? AND is_active = 1');
+                    $stmt->execute([$section_id, $selected_year_id]);
+                    $section = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($section) {
+                        // Check if student is already in this section
+                        $current_students = json_decode($section['students'], true) ?: [];
                         
-                        if ($stmt->fetch()) {
-                            $message = 'Student is already enrolled in this course.';
+                        if (in_array($student_id, $current_students)) {
+                            $message = 'Student is already enrolled in this section.';
                             $message_type = 'warning';
                         } else {
-                            $stmt = $db->prepare('INSERT INTO course_enrollments (student_id, course_id, enrolled_at) VALUES (?, ?, NOW())');
-                            $stmt->execute([$student_id, $course_id]);
-                            $message = 'Student enrolled successfully.';
+                            // Add student to section
+                            $current_students[] = $student_id;
+                            $updated_students = json_encode($current_students);
+                            
+                            $stmt = $db->prepare('UPDATE sections SET students = ? WHERE id = ?');
+                            $stmt->execute([$updated_students, $section_id]);
+                            
+                            $message = 'Student enrolled in section successfully.';
                             $message_type = 'success';
                             
                             // Send real-time statistics update
@@ -68,13 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $student_id,
                                 [
                                     'student_name' => 'Student', // You might want to get the actual name
-                                    'action' => 'enrolled in course'
+                                    'action' => 'enrolled in section'
                                 ]
                             );
                             TeacherStatisticsEvents::triggerStatisticsRefresh($_SESSION['user_id']);
                         }
                     } else {
-                        $message = 'Invalid course selected.';
+                        $message = 'Invalid section selected.';
                         $message_type = 'danger';
                     }
                 }
@@ -475,7 +481,8 @@ if ($course_filter > 0) {
     ");
     $stmt->execute([$course_filter, $_SESSION['user_id'], $selected_year_id, $course_filter]);
 } else {
-    // Original query for when not filtering by course
+    // Show students who are in sections linked to courses in the selected academic period
+    // This includes both enrolled and non-enrolled students
     $stmt = $db->prepare("
         SELECT u.id as student_id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at as user_created, u.identifier as neust_student_id,
                GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as section_names,
@@ -488,7 +495,7 @@ if ($course_filter > 0) {
                CASE 
                    WHEN COUNT(DISTINCT e.id) = COUNT(DISTINCT c.id) THEN 'Regular'
                    WHEN COUNT(DISTINCT e.id) > 0 THEN 'Irregular'
-                   ELSE 'Irregular'
+                   ELSE 'Not Enrolled'
                END as student_status,
                
                -- Overall Assessment Statistics
@@ -520,7 +527,7 @@ if ($course_filter > 0) {
             GROUP BY aa.student_id, c.id
         ) assessment_stats ON assessment_stats.student_id = u.id AND assessment_stats.course_id = c.id
         
-        WHERE s.is_active = 1
+        WHERE s.is_active = 1 AND u.role = 'student'
         " . ($where_clause ? "AND " . $where_clause : "") . "
         GROUP BY u.id, u.first_name, u.last_name, u.email, u.profile_picture, u.created_at, u.identifier
         " . $having_clause . "
@@ -530,17 +537,32 @@ if ($course_filter > 0) {
 }
 $course_enrollments = $stmt->fetchAll();
 
-// Get available students for enrollment (for courses in selected academic period)
+// Get available students for enrollment in sections (for selected academic period)
 $stmt = $db->prepare("
-    SELECT u.id, u.first_name, u.last_name, u.email
+    SELECT u.id, u.first_name, u.last_name, u.email, u.identifier,
+           GROUP_CONCAT(DISTINCT s.section_name ORDER BY s.section_name SEPARATOR ', ') as enrolled_sections
     FROM users u
-    WHERE u.role = 'student' AND u.id NOT IN (
-        SELECT student_id FROM course_enrollments WHERE course_id IN (SELECT id FROM courses WHERE teacher_id = ? AND academic_period_id = ?)
-    )
+    LEFT JOIN sections s ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL 
+        AND s.academic_period_id = ? AND s.is_active = 1
+    WHERE u.role = 'student'
+    GROUP BY u.id, u.first_name, u.last_name, u.email, u.identifier
     ORDER BY u.first_name, u.last_name
 ");
-$stmt->execute([$_SESSION['user_id'], $selected_year_id]);
+$stmt->execute([$selected_year_id]);
 $available_students = $stmt->fetchAll();
+
+// Get sections for the selected academic period
+$stmt = $db->prepare("
+    SELECT s.id, s.section_name, s.year_level, s.description, s.students,
+           COUNT(CASE WHEN JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL THEN 1 END) as student_count
+    FROM sections s
+    LEFT JOIN users u ON u.role = 'student'
+    WHERE s.academic_period_id = ? AND s.is_active = 1
+    GROUP BY s.id, s.section_name, s.year_level, s.description, s.students
+    ORDER BY s.year_level, s.section_name
+");
+$stmt->execute([$selected_year_id]);
+$sections = $stmt->fetchAll();
 
 function getRandomIconClass($userId) {
     $icons = [
@@ -886,7 +908,7 @@ function getSortClause($sort_by) {
                                 <h4 class="text-muted mb-3">No Students Found</h4>
                                 <p class="text-muted mb-4">No students assigned to your sections for the selected academic year. Students will appear here once they are assigned to your sections.</p>
                                 <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#enrollStudentModal">
-                                    <i class="bi bi-person-plus me-2"></i>Enroll Student
+                                    <i class="bi bi-person-plus me-2"></i>Enroll Student in Section
                             </button>
                             </div>
                         </div>
@@ -1817,6 +1839,93 @@ function getSortClause($sort_by) {
     letter-spacing: 0.5px;
 }
 
+/* Enhanced Enrollment Modal Styles */
+#enrollStudentModal .modal-dialog {
+    max-width: 800px;
+}
+
+#enrollStudentModal .card {
+    border: 1px solid #e9ecef;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+#enrollStudentModal .card-header {
+    border-bottom: 1px solid #e9ecef;
+    background-color: #f8f9fa !important;
+}
+
+#enrollStudentModal .form-control:focus,
+#enrollStudentModal .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+#enrollStudentModal .input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+}
+
+#enrollStudentModal .alert {
+    border: none;
+    border-radius: 0.375rem;
+}
+
+#enrollStudentModal .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#enrollStudentModal .text-danger {
+    color: #dc3545 !important;
+}
+
+#enrollStudentModal .text-success {
+    color: #198754 !important;
+}
+
+#enrollStudentModal .text-muted {
+    color: #6c757d !important;
+}
+
+/* Search input animations */
+#enrollStudentModal .form-control {
+    transition: all 0.15s ease-in-out;
+}
+
+#enrollStudentModal .form-control:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Card hover effects */
+#enrollStudentModal .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+/* Loading state for submit button */
+#enrollStudentModal .btn:disabled {
+    position: relative;
+    overflow: hidden;
+}
+
+#enrollStudentModal .btn:disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
 /* Filter Card Styles */
 .filter-card {
     border-radius: 12px;
@@ -2087,44 +2196,149 @@ function getSortClause($sort_by) {
 }
 </style>
 
-<!-- Enroll Student Modal -->
+<!-- Enhanced Enroll Student Modal -->
 <div class="modal fade" id="enrollStudentModal" tabindex="-1" aria-labelledby="enrollStudentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="enrollStudentModalLabel">Enroll Student</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="enrollStudentModalLabel">
+                    <i class="bi bi-person-plus me-2"></i>Enroll Student in Section
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST">
+            <form method="POST" id="enrollStudentForm">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo generateCSRFToken(); ?>">
                 <input type="hidden" name="action" value="enroll_student">
                 <div class="modal-body">
+                    <!-- Student Selection Section -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-person me-2"></i>Student Selection
+                                    </h6>
+                                </div>
+                                <div class="card-body">
                     <div class="mb-3">
-                        <label for="student_id" class="form-label">Select Student</label>
+                                        <label for="student_search" class="form-label">Search Student</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-search"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="student_search" placeholder="Search by name, email, or identifier...">
+                                        </div>
+                                        <div class="form-text">Type to filter students</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="student_id" class="form-label">Select Student <span class="text-danger">*</span></label>
                         <select class="form-select" id="student_id" name="student_id" required>
                             <option value="">Choose a student...</option>
                             <?php foreach ($available_students as $student): ?>
-                                <option value="<?php echo $student['id']; ?>">
-                                    <?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name'] . ' (' . $student['email'] . ')'); ?>
+                                                <option value="<?php echo $student['id']; ?>" 
+                                                        data-name="<?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?>"
+                                                        data-email="<?php echo htmlspecialchars($student['email']); ?>"
+                                                        data-identifier="<?php echo htmlspecialchars($student['identifier'] ?? ''); ?>"
+                                                        data-enrolled-sections="<?php echo htmlspecialchars($student['enrolled_sections'] ?? ''); ?>">
+                                                    <?php 
+                                                    $enrolled_info = $student['enrolled_sections'] ? ' (Enrolled in: ' . $student['enrolled_sections'] . ')' : ' (Not enrolled)';
+                                                    echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name'] . ' (' . $student['email'] . ')' . $enrolled_info); 
+                                                    ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
+                                    <!-- Selected Student Info -->
+                                    <div id="selected_student_info" class="alert alert-info d-none">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-circle me-2"></i>
+                                            <div>
+                                                <strong id="selected_student_name"></strong><br>
+                                                <small id="selected_student_details" class="text-muted"></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Selection Section -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-people me-2"></i>Section Selection
+                                    </h6>
+                                </div>
+                                <div class="card-body">
                     <div class="mb-3">
-                        <label for="course_id" class="form-label">Select Course</label>
-                        <select class="form-select" id="course_id" name="course_id" required>
-                            <option value="">Choose a course...</option>
-                            <?php foreach ($courses as $course): ?>
-                                <option value="<?php echo $course['id']; ?>">
-                                    <?php echo htmlspecialchars($course['course_name'] . ' (' . $course['course_code'] . ')'); ?>
+                                        <label for="section_search" class="form-label">Search Section</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-search"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="section_search" placeholder="Search by section name or year level...">
+                                        </div>
+                                        <div class="form-text">Type to filter sections</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="section_id" class="form-label">Select Section <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="section_id" name="section_id" required>
+                                            <option value="">Choose a section...</option>
+                                            <?php foreach ($sections as $section): ?>
+                                                <option value="<?php echo $section['id']; ?>" 
+                                                        data-name="<?php echo htmlspecialchars($section['section_name']); ?>"
+                                                        data-year="<?php echo $section['year_level']; ?>"
+                                                        data-description="<?php echo htmlspecialchars($section['description'] ?? ''); ?>"
+                                                        data-student-count="<?php echo $section['student_count']; ?>">
+                                                    <?php echo htmlspecialchars($section['section_name'] . ' (Year ' . $section['year_level'] . ') - ' . $section['student_count'] . ' students'); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                                    </div>
+                                    <!-- Selected Section Info -->
+                                    <div id="selected_section_info" class="alert alert-info d-none">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-people me-2"></i>
+                                            <div>
+                                                <strong id="selected_section_name"></strong><br>
+                                                <small id="selected_section_details" class="text-muted"></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Enrollment Summary -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-check-circle me-2"></i>Enrollment Summary
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="enrollment_summary" class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Please select both a student and a course to see enrollment details.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Enroll Student</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="enroll_submit_btn" disabled>
+                        <i class="bi bi-person-plus me-1"></i>Enroll in Section
+                    </button>
                 </div>
             </form>
         </div>
@@ -2132,17 +2346,62 @@ function getSortClause($sort_by) {
 </div>
 
 <script>
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Students page JavaScript loaded');
+    console.log('DOM elements check:');
+    console.log('Select all checkbox:', document.getElementById('selectAll'));
+    console.log('Bulk kick button:', document.getElementById('bulkKickBtn'));
+    console.log('Student checkboxes:', document.querySelectorAll('.student-checkbox').length);
+    
 // Bulk selection functionality
-document.getElementById('selectAll').addEventListener('change', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
     const checkboxes = document.querySelectorAll('.student-checkbox');
     checkboxes.forEach(checkbox => {
         checkbox.checked = this.checked;
     });
     updateBulkKickButton();
 });
+    } else {
+        console.error('Select all checkbox not found');
+    }
 
+    // Add event listeners to student checkboxes
 document.querySelectorAll('.student-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', updateBulkKickButton);
+    });
+    
+    // Initialize bulk kick button
+    updateBulkKickButton();
+    
+    // Add select all/deselect all functionality
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateBulkKickButton();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkKickButton();
+        });
+    }
+    
+    // Enhanced Enrollment Modal Functionality
+    initializeEnrollmentModal();
 });
 
 function updateBulkKickButton() {
@@ -2168,7 +2427,13 @@ function confirmKickStudent(studentName, courseName) {
 }
 
 // Bulk kick functionality
-document.getElementById('bulkKickBtn').addEventListener('click', function() {
+document.addEventListener('DOMContentLoaded', function() {
+    const bulkKickBtn = document.getElementById('bulkKickBtn');
+    console.log('Bulk kick button found:', bulkKickBtn);
+    if (bulkKickBtn) {
+        console.log('Adding click event listener to bulk kick button');
+        bulkKickBtn.addEventListener('click', function() {
+            console.log('Bulk kick button clicked');
     const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
     if (selectedCheckboxes.length === 0) return;
     
@@ -2190,6 +2455,7 @@ document.getElementById('bulkKickBtn').addEventListener('click', function() {
             ).join('')}
         `;
         document.body.appendChild(form);
+                form.submit();
         
         // Add a timeout to reset the button if form submission takes too long
         setTimeout(() => {
@@ -2200,10 +2466,225 @@ document.getElementById('bulkKickBtn').addEventListener('click', function() {
                 bulkKickBtn.innerHTML = '<i class="bi bi-person-x-fill"></i> Kick Selected';
             }
         }, 10000); // 10 second timeout
-        
-        form.submit();
+            }
+        });
+    } else {
+        console.error('Bulk kick button not found');
     }
 });
+
+// Enhanced Enrollment Modal Functionality
+function initializeEnrollmentModal() {
+    const studentSearch = document.getElementById('student_search');
+    const sectionSearch = document.getElementById('section_search');
+    const studentSelect = document.getElementById('student_id');
+    const sectionSelect = document.getElementById('section_id');
+    const enrollSubmitBtn = document.getElementById('enroll_submit_btn');
+    const enrollmentSummary = document.getElementById('enrollment_summary');
+    
+    // Student search functionality
+    if (studentSearch) {
+        studentSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = studentSelect.querySelectorAll('option');
+            
+            options.forEach(option => {
+                if (option.value === '') return; // Skip the default option
+                
+                const text = option.textContent.toLowerCase();
+                const name = option.dataset.name?.toLowerCase() || '';
+                const email = option.dataset.email?.toLowerCase() || '';
+                const identifier = option.dataset.identifier?.toLowerCase() || '';
+                
+                if (text.includes(searchTerm) || name.includes(searchTerm) || 
+                    email.includes(searchTerm) || identifier.includes(searchTerm)) {
+                    option.style.display = 'block';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Section search functionality
+    if (sectionSearch) {
+        sectionSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = sectionSelect.querySelectorAll('option');
+            
+            options.forEach(option => {
+                if (option.value === '') return; // Skip the default option
+                
+                const text = option.textContent.toLowerCase();
+                const name = option.dataset.name?.toLowerCase() || '';
+                const year = option.dataset.year?.toString() || '';
+                const description = option.dataset.description?.toLowerCase() || '';
+                
+                if (text.includes(searchTerm) || name.includes(searchTerm) || 
+                    year.includes(searchTerm) || description.includes(searchTerm)) {
+                    option.style.display = 'block';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Student selection handler
+    if (studentSelect) {
+        studentSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const studentInfo = document.getElementById('selected_student_info');
+            const studentName = document.getElementById('selected_student_name');
+            const studentDetails = document.getElementById('selected_student_details');
+            
+            if (this.value) {
+                studentName.textContent = selectedOption.dataset.name || 'Unknown Student';
+                const email = selectedOption.dataset.email || '';
+                const identifier = selectedOption.dataset.identifier || '';
+                const enrolledSections = selectedOption.dataset.enrolledSections || '';
+                let details = `${email}${identifier ? ' • ' + identifier : ''}`;
+                if (enrolledSections) {
+                    details += `\nCurrently enrolled in: ${enrolledSections}`;
+                } else {
+                    details += '\nNot enrolled in any sections';
+                }
+                studentDetails.textContent = details;
+                studentInfo.classList.remove('d-none');
+            } else {
+                studentInfo.classList.add('d-none');
+            }
+            
+            updateEnrollmentSummary();
+        });
+    }
+    
+    // Section selection handler
+    if (sectionSelect) {
+        sectionSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const sectionInfo = document.getElementById('selected_section_info');
+            const sectionName = document.getElementById('selected_section_name');
+            const sectionDetails = document.getElementById('selected_section_details');
+            
+            if (this.value) {
+                sectionName.textContent = selectedOption.dataset.name || 'Unknown Section';
+                const year = selectedOption.dataset.year || '';
+                const description = selectedOption.dataset.description || '';
+                const studentCount = selectedOption.dataset.studentCount || '0';
+                sectionDetails.textContent = `Year ${year} • ${studentCount} students${description ? ' • ' + description : ''}`;
+                sectionInfo.classList.remove('d-none');
+            } else {
+                sectionInfo.classList.add('d-none');
+            }
+            
+            updateEnrollmentSummary();
+        });
+    }
+    
+    // Update enrollment summary and submit button
+    function updateEnrollmentSummary() {
+        const studentId = studentSelect?.value;
+        const sectionId = sectionSelect?.value;
+        
+        if (studentId && sectionId) {
+            const studentName = studentSelect.options[studentSelect.selectedIndex].dataset.name;
+            const sectionName = sectionSelect.options[sectionSelect.selectedIndex].dataset.name;
+            const enrolledSections = studentSelect.options[studentSelect.selectedIndex].dataset.enrolledSections;
+            
+            let summaryText = `<strong>Ready to enroll:</strong><br>
+                <span class="text-success">${studentName}</span> will be enrolled in <span class="text-success">${sectionName}</span>`;
+            
+            if (enrolledSections) {
+                summaryText += `<br><small class="text-muted">Note: Student is already enrolled in: ${enrolledSections}</small>`;
+            }
+            
+            enrollmentSummary.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-check-circle text-success me-2"></i>
+                    <div>
+                        ${summaryText}
+                    </div>
+                </div>
+            `;
+            
+            if (enrollSubmitBtn) {
+                enrollSubmitBtn.disabled = false;
+                enrollSubmitBtn.classList.remove('btn-secondary');
+                enrollSubmitBtn.classList.add('btn-primary');
+            }
+        } else {
+            enrollmentSummary.innerHTML = `
+                <i class="bi bi-info-circle me-1"></i>
+                Please select both a student and a section to see enrollment details.
+            `;
+            
+            if (enrollSubmitBtn) {
+                enrollSubmitBtn.disabled = true;
+                enrollSubmitBtn.classList.remove('btn-primary');
+                enrollSubmitBtn.classList.add('btn-secondary');
+            }
+        }
+    }
+    
+    // Form submission handler
+    const enrollForm = document.getElementById('enrollStudentForm');
+    if (enrollForm) {
+        enrollForm.addEventListener('submit', function(e) {
+            const studentId = studentSelect?.value;
+            const sectionId = sectionSelect?.value;
+            
+            if (!studentId || !sectionId) {
+                e.preventDefault();
+                alert('Please select both a student and a section.');
+                return false;
+            }
+            
+            // Show loading state
+            if (enrollSubmitBtn) {
+                enrollSubmitBtn.disabled = true;
+                enrollSubmitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Enrolling...';
+            }
+        });
+    }
+    
+    // Reset modal when closed
+    const enrollModal = document.getElementById('enrollStudentModal');
+    if (enrollModal) {
+        enrollModal.addEventListener('hidden.bs.modal', function() {
+            // Reset form
+            if (studentSelect) studentSelect.value = '';
+            if (sectionSelect) sectionSelect.value = '';
+            if (studentSearch) studentSearch.value = '';
+            if (sectionSearch) sectionSearch.value = '';
+            
+            // Hide info panels
+            const studentInfo = document.getElementById('selected_student_info');
+            const sectionInfo = document.getElementById('selected_section_info');
+            if (studentInfo) studentInfo.classList.add('d-none');
+            if (sectionInfo) sectionInfo.classList.add('d-none');
+            
+            // Reset summary
+            updateEnrollmentSummary();
+            
+            // Reset submit button
+            if (enrollSubmitBtn) {
+                enrollSubmitBtn.disabled = true;
+                enrollSubmitBtn.innerHTML = '<i class="bi bi-person-plus me-1"></i>Enroll in Section';
+            }
+            
+            // Show all options again
+            [studentSelect, sectionSelect].forEach(select => {
+                if (select) {
+                    const options = select.querySelectorAll('option');
+                    options.forEach(option => {
+                        option.style.display = 'block';
+                    });
+                }
+            });
+        });
+    }
+}
 
 // Real-time progress and score updates
 let progressUpdateInterval;
@@ -2605,7 +3086,9 @@ function showStudentProgress(studentId) {
 
 // Function to kick student from all courses
 function kickStudentFromAllCourses(studentId, studentName) {
+    console.log('kickStudentFromAllCourses called with:', studentId, studentName);
     if (confirm(`Are you sure you want to KICK "${studentName}" from ALL courses?\n\nThis action will remove the student from all your courses and delete all their progress data.\n\nThis action CANNOT be undone!`)) {
+        console.log('Individual delete confirmed, creating form');
         // Create form and submit
         const form = document.createElement('form');
         form.method = 'POST';

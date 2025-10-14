@@ -15,14 +15,6 @@ $message = '';
 $message_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate CSRF token
-    $csrf_token = $_POST['csrf_token'] ?? '';
-    if (!validateCSRFToken($csrf_token)) {
-        $_SESSION['error'] = 'Invalid CSRF token.';
-        header('Location: courses.php');
-        exit();
-    }
-    
     $source_course_id = sanitizeInput($_POST['source_course_id'] ?? '');
     $target_academic_period_id = (int)($_POST['target_academic_period_id'] ?? 0);
     
@@ -42,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     } else {
         $_SESSION['error'] = 'Migration failed: ' . $result['message'];
+        // Add some debugging
+        error_log('Migration failed: ' . $result['message']);
         header('Location: courses.php');
         exit();
     }

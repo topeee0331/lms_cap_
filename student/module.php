@@ -655,7 +655,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         /* Global Styles */
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
             min-height: 100vh;
             color: var(--gray-800);
         }
@@ -715,7 +715,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .card-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             border: none;
             color: white;
             font-weight: 600;
@@ -769,7 +769,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         
         .module-badge {
             display: inline-block;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 25px;
@@ -836,7 +836,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
         
         .course-icon-wrapper {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             border-radius: 50%;
             width: 120px;
             height: 120px;
@@ -955,7 +955,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark), var(--primary-color));
+            background: var(--primary-color);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
@@ -976,7 +976,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .video-card.watched::before, .assessment-card.completed::before {
-            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+            background: #28a745;
             opacity: 1;
         }
 
@@ -985,7 +985,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: relative;
             overflow: hidden;
             border-radius: 15px 15px 0 0;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             height: 160px;
         }
 
@@ -1017,7 +1017,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(46, 94, 78, 0.9), rgba(30, 86, 49, 0.9));
+            background: rgba(46, 94, 78, 0.9);
             color: white;
             border: none;
             border-radius: 50%;
@@ -1034,7 +1034,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .video-card-preview .play-button:hover {
-            background: linear-gradient(135deg, rgba(46, 94, 78, 1), rgba(30, 86, 49, 1));
+            background: rgba(46, 94, 78, 1);
             transform: translate(-50%, -50%) scale(1.15);
             box-shadow: 0 12px 35px rgba(46, 94, 78, 0.4);
         }
@@ -1046,7 +1046,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            background: rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -1194,7 +1194,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             width: 60px;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             border-radius: 2px;
         }
 
@@ -1210,7 +1210,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: absolute;
             top: 15px;
             right: 15px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #10b981;
             color: white;
             border-radius: 50%;
             width: 30px;
@@ -1225,7 +1225,7 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .assessment-card.completed {
             border-left: 4px solid var(--success-color);
-            background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+            background: #f0fff4;
             position: relative;
         }
 
@@ -1234,7 +1234,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             position: absolute;
             top: 15px;
             right: 15px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #10b981;
             color: white;
             border-radius: 50%;
             width: 30px;
@@ -1249,11 +1249,11 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .assessment-card.locked {
             opacity: 0.7;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
         }
 
         .assessment-card.locked::before {
-            background: linear-gradient(90deg, #6c757d, #495057, #6c757d);
+            background: #6c757d;
         }
 
         /* Loading Animation for Cards */
@@ -1289,7 +1289,7 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         /* Assessment Progress Indicators */
         .assessment-progress {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
             border-radius: 10px;
             padding: 0.75rem;
             margin: 1rem 0;
@@ -1297,7 +1297,7 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .assessment-progress-bar {
             height: 8px;
-            background: linear-gradient(90deg, #e9ecef, #dee2e6);
+            background: #e9ecef;
             border-radius: 4px;
             overflow: hidden;
             position: relative;
@@ -1305,7 +1305,7 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .assessment-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #10b981, #059669);
+            background: #10b981;
             border-radius: 4px;
             transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -1318,7 +1318,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            background: rgba(255, 255, 255, 0.3);
             animation: shimmer 2s infinite;
         }
 
@@ -1338,7 +1338,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         .stat-item {
             text-align: center;
             padding: 0.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            background: #f8f9fa;
             border-radius: 8px;
             border: 1px solid rgba(46, 94, 78, 0.1);
         }
@@ -1369,17 +1369,17 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .difficulty-easy {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            background: #d4edda;
             color: #155724;
         }
 
         .difficulty-medium {
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            background: #fff3cd;
             color: #856404;
         }
 
         .difficulty-hard {
-            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            background: #f8d7da;
             color: #721c24;
         }
 
@@ -1393,7 +1393,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .video-overview-card {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             border-radius: 20px;
             overflow: hidden;
             position: relative;
@@ -1406,7 +1406,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            background: rgba(255, 255, 255, 0.1);
             animation: shimmer-overview 3s infinite;
         }
 
@@ -1436,7 +1436,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             display: flex;
             align-items: center;
             padding: 1rem;
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            background: #ffffff;
             border: 1px solid rgba(46, 94, 78, 0.1);
             border-radius: 15px;
             margin-bottom: 0.75rem;
@@ -1452,7 +1452,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
@@ -1469,11 +1469,11 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .video-list-item.watched {
             border-color: rgba(40, 167, 69, 0.3);
-            background: linear-gradient(145deg, #f0fff4 0%, #ffffff 100%);
+            background: #f0fff4;
         }
 
         .video-list-item.watched::before {
-            background: linear-gradient(90deg, #28a745, #20c997);
+            background: #28a745;
             opacity: 1;
         }
 
@@ -1482,7 +1482,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             height: 60px;
             border-radius: 10px;
             overflow: hidden;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             position: relative;
             flex-shrink: 0;
             margin-right: 1rem;
@@ -1502,7 +1502,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(46, 94, 78, 0.9), rgba(30, 86, 49, 0.9));
+            background: rgba(46, 94, 78, 0.9);
             color: white;
             border: none;
             border-radius: 50%;
@@ -1518,7 +1518,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .video-list-thumbnail .play-button:hover {
-            background: linear-gradient(135deg, rgba(46, 94, 78, 1), rgba(30, 86, 49, 1));
+            background: rgba(46, 94, 78, 1);
             transform: translate(-50%, -50%) scale(1.1);
         }
 
@@ -1640,7 +1640,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             display: flex;
             align-items: center;
             padding: 1rem;
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            background: #ffffff;
             border: 1px solid rgba(46, 94, 78, 0.1);
             border-radius: 15px;
             margin-bottom: 0.75rem;
@@ -1656,7 +1656,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
@@ -1673,11 +1673,11 @@ $module_files = []; // This would need to be implemented based on how files are 
 
         .assessment-list-item.completed {
             border-color: rgba(40, 167, 69, 0.3);
-            background: linear-gradient(145deg, #f0fff4 0%, #ffffff 100%);
+            background: #f0fff4;
         }
 
         .assessment-list-item.completed::before {
-            background: linear-gradient(90deg, #28a745, #20c997);
+            background: #28a745;
             opacity: 1;
         }
 
@@ -1694,7 +1694,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             width: 60px;
             height: 60px;
             border-radius: 12px;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1856,23 +1856,23 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .badge.bg-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, var(--primary-color) 100%) !important;
+            background: var(--success-color) !important;
         }
 
         .badge.bg-danger {
-            background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%) !important;
+            background: var(--danger-color) !important;
         }
 
         .badge.bg-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+            background: var(--primary-color) !important;
         }
 
         .badge.bg-secondary {
-            background: linear-gradient(135deg, var(--gray-500) 0%, var(--gray-600) 100%) !important;
+            background: var(--gray-500) !important;
         }
 
         .badge.bg-warning {
-            background: linear-gradient(135deg, var(--warning-color) 0%, var(--primary-color) 100%) !important;
+            background: var(--warning-color) !important;
         }
 
         /* Button Styling */
@@ -1902,7 +1902,7 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             box-shadow: var(--shadow-md);
         }
 
@@ -1984,7 +1984,7 @@ $module_files = []; // This would need to be implemented based on how files are 
             justify-content: center;
             gap: 0.75rem;
             padding: 1.2rem 2.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            background: var(--primary-color);
             color: white;
             text-decoration: none;
             border-radius: 15px;
@@ -2414,6 +2414,29 @@ $module_files = []; // This would need to be implemented based on how files are 
             transform: translateX(100%);
         }
 
+        /* Make video cards clearly clickable */
+        a .video-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        a .video-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(46, 94, 78, 0.15);
+            border-color: rgba(46, 94, 78, 0.3);
+        }
+
+        a .video-card:hover .play-button {
+            transform: translate(-50%, -50%) scale(1.2);
+            background: rgba(46, 94, 78, 1);
+            box-shadow: 0 8px 25px rgba(46, 94, 78, 0.4);
+        }
+
+        /* Ensure play button is always visible and clickable */
+        a .video-card .play-button {
+            pointer-events: none; /* Let the link handle the click */
+        }
+
         /* Staggered animation for cards */
         .video-card, .assessment-card {
             animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -2600,15 +2623,15 @@ $module_files = []; // This would need to be implemented based on how files are 
         }
 
         .progress-enhanced .progress-bar.bg-success {
-            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            background: #28a745;
         }
 
         .progress-enhanced .progress-bar.bg-warning {
-            background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+            background: #ffc107;
         }
 
         .progress-enhanced .progress-bar.bg-danger {
-            background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+            background: #dc3545;
         }
 
         /* Add pulse animation for active progress bars */
@@ -3278,7 +3301,8 @@ $module_files = []; // This would need to be implemented based on how files are 
                         <div class="row g-3">
                             <?php foreach ($videos as $index => $video): ?>
                                 <div class="col-md-6 col-lg-4">
-                                    <div class="card video-card h-100 border-0 shadow-sm <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
+                                    <a href="video_player.php?id=<?php echo $video['id']; ?>&module_id=<?php echo $module_id; ?>" class="text-decoration-none">
+                                        <div class="card video-card h-100 border-0 shadow-sm <?php echo $video['is_watched'] ? 'watched' : ''; ?>" data-video-id="<?php echo htmlspecialchars($video['id']); ?>">
                                         <!-- Watched Badge -->
                                         <?php if ($video['is_watched']): ?>
                                             <div class="video-watched-badge">
@@ -3390,12 +3414,6 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             
                                             <!-- Action Buttons -->
                                             <div class="d-grid gap-2">
-                                                <?php if ($video['video_url'] ?? $video['video_file'] ?? ''): ?>
-                                                    <a href="video_player.php?id=<?php echo $video['id']; ?>&module_id=<?php echo $module_id; ?>" class="action-button start">
-                                                        <i class="fas fa-play"></i>
-                                                        <span>Watch Video</span>
-                                                    </a>
-                                                <?php endif; ?>
                                                 
                                                 <?php if ($video['is_watched']): ?>
                                                     <div class="text-center">
@@ -3418,6 +3436,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                             </div>
                                         </div>
                                     </div>
+                                    </a>
                                 </div>
                             <?php endforeach; ?>
                                 </div>

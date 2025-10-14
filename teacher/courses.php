@@ -1,6 +1,13 @@
 <?php
 require_once '../config/database.php';
+require_once '../config/config.php';
+
+// Check if user is logged in and has teacher role BEFORE including header.php
+requireLogin();
+requireRole('teacher');
+
 require_once '../includes/header.php';
+require_once '../includes/content_migration.php';
 ?>
 <!-- Font Awesome for icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -191,7 +198,7 @@ require_once '../includes/header.php';
 </style>
 <?php
 
-// Assume teacher is logged in and their ID is in $_SESSION['user_id']
+// Get teacher ID from session (already validated by requireLogin())
 $teacher_id = $_SESSION['user_id'];
 
 // 1. Fetch all academic periods for the dropdown
@@ -715,6 +722,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                                         <button class="btn btn-outline-primary" onclick="manageCourseBadges(<?php echo $course['id']; ?>, '<?php echo htmlspecialchars($course['course_name']); ?>')">
                                             <i class="bi bi-award me-1"></i>Manage Badges
                                         </button>
+                                        <?php if (!$is_acad_year_active): ?>
+                                            <button class="btn btn-warning" onclick="migrateCourse(<?php echo $course['id']; ?>, '<?php echo htmlspecialchars($course['course_name']); ?>', '<?php echo htmlspecialchars($course['academic_year'] . ' - ' . $course['semester_name']); ?>')">
+                                                <i class="bi bi-arrow-right-circle me-1"></i>Migrate to Active Period
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
@@ -873,6 +885,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_course'])) {
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Migration Modal -->
+<div class="modal fade" id="migrationModal" tabindex="-1" aria-labelledby="migrationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="migrationModalLabel">
+                    <i class="bi bi-arrow-right-circle me-2"></i>Migrate Course to Active Period
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="migrate_course.php">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will copy all course content (modules, assessments, and questions) to an active academic period.
+                        The original content will remain unchanged.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-muted">Source Course:</h6>
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <strong id="sourceCourseName"></strong><br>
+                                    <small class="text-muted" id="sourceCoursePeriod"></small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="target_academic_period" class="form-label fw-bold">
+                                <i class="bi bi-calendar-check me-1"></i>Target Academic Period:
+                            </label>
+                            <select class="form-select" id="target_academic_period" name="target_academic_period_id" required>
+                                <option value="">Select Active Academic Period</option>
+                                <?php
+                                $active_periods = getActiveAcademicPeriods($db);
+                                foreach ($active_periods as $period): ?>
+                                    <option value="<?php echo $period['id']; ?>">
+                                        <?php echo htmlspecialchars($period['academic_year'] . ' - ' . $period['semester_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6 class="fw-bold">What will be migrated:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check text-success me-2"></i>Course structure and details</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All modules and content</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All assessments</li>
+                            <li><i class="bi bi-check text-success me-2"></i>All questions and answers</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Note:</strong> Assessment locks and student progress will be reset in the new academic period.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <input type="hidden" name="source_course_id" id="sourceCourseId">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-right-circle me-1"></i>Migrate Content
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1581,6 +1667,18 @@ function clearFilters() {
     document.getElementById('categoryFilter').value = '';
     document.getElementById('contextFilter').value = '';
     filterBadges();
+}
+
+// Function to migrate course
+function migrateCourse(courseId, courseName, academicPeriod) {
+    // Set the source course information
+    document.getElementById('sourceCourseId').value = courseId;
+    document.getElementById('sourceCourseName').textContent = courseName;
+    document.getElementById('sourceCoursePeriod').textContent = academicPeriod;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('migrationModal'));
+    modal.show();
 }
 
 // Function to save course badges

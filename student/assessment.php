@@ -1227,7 +1227,7 @@ $previous_attempts = $stmt->fetchAll();
             top: 80px; /* Below the navbar */
             right: 24px;
             z-index: 1020; /* Below navbar but above content */
-            background: linear-gradient(135deg, var(--success-color), var(--primary-color));
+            background: #28a745;
             color: white;
             padding: 20px 24px;
             border-radius: 20px;
@@ -1242,12 +1242,12 @@ $previous_attempts = $stmt->fetchAll();
         }
         
         .timer.warning {
-            background: linear-gradient(135deg, var(--warning-color), #d97706);
+            background: #ffc107;
             animation: timerWarning 1s ease-in-out infinite;
         }
         
         .timer.danger {
-            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+            background: #dc3545;
             animation: timerDanger 0.5s ease-in-out infinite;
         }
         

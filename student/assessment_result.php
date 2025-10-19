@@ -1071,7 +1071,7 @@ $is_view_only = !$assessment_status['is_active'];
                     $has_ever_passed = hasStudentPassedAssessment($pdo, $user_id, $attempt['assessment_id']);
                     ?>
                     <?php if (!$is_view_only && !$has_ever_passed): ?>
-                        <a href="assessment.php?id=<?php echo $attempt['assessment_id']; ?>&new_attempt=1" class="btn btn-primary">
+                        <a href="assessment.php?id=<?php echo $attempt['assessment_id']; ?>&reset=1" class="btn btn-primary">
                             <i class="fas fa-redo"></i> Retake Assessment
                         </a>
                     <?php elseif ($has_ever_passed): ?>

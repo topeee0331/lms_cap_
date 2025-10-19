@@ -363,11 +363,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
     // Debug: Log received answers
     error_log("Received answers: " . print_r($answers, true));
     
-    // Get questions from the questions table - NO ORDERING at database level
+    // Get questions from the questions table
     $stmt = $pdo->prepare("
         SELECT id, question_text, question_type, question_order, points, options
         FROM questions 
         WHERE assessment_id = ?
+        ORDER BY question_order ASC
     ");
     $stmt->execute([$assessment_id]);
     $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -710,10 +711,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_assessment'])
             unset($_SESSION['assessment_in_progress']);
         }
     }
-    
-    // Set a flag to indicate assessment was just completed (for redirect detection)
-    $_SESSION['assessment_just_completed'] = true;
-    $_SESSION['completed_assessment_id'] = $assessment_id;
 
     // Clear any output buffers
     while (ob_get_level()) {
@@ -748,11 +745,12 @@ if (!$assessment_data) {
     exit();
 }
 
-// Get questions from the questions table - NO ORDERING at database level
+// Get questions from the questions table
 $stmt = $pdo->prepare("
     SELECT id, question_text, question_type, question_order, points, options
     FROM questions 
     WHERE assessment_id = ?
+    ORDER BY question_order ASC
 ");
 $stmt->execute([$assessment_id]);
 $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -761,30 +759,6 @@ $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 error_log("Assessment ID: " . $assessment_id);
 error_log("Assessment: " . $assessment_data['assessment_title']);
 error_log("Questions count: " . count($questions));
-
-// IMMEDIATELY randomize questions after loading from database
-// This ensures no teacher order is ever used
-if (!empty($questions)) {
-    $questionIds = array_column($questions, 'id');
-    $seed = $user_id . $assessment_id . time() . rand(1000, 9999);
-    mt_srand(crc32($seed));
-    shuffle($questionIds);
-    
-    // Reorder questions according to the randomized order
-    $questionById = [];
-    foreach ($questions as $questionRow) {
-        $questionById[$questionRow['id']] = $questionRow;
-    }
-    $shuffledQuestions = [];
-    foreach ($questionIds as $qid) {
-        if (isset($questionById[$qid])) {
-            $shuffledQuestions[] = $questionById[$qid];
-        }
-    }
-    $questions = $shuffledQuestions;
-    
-    error_log("Questions randomized immediately after database load: " . implode(',', $questionIds));
-}
 
 // Check if we have any questions
 if (empty($questions)) {
@@ -815,18 +789,8 @@ if (!isset($_SESSION['assessment_in_progress'])) {
     $_SESSION['assessment_in_progress'] = [];
 }
 
-// Check if this is a new attempt by looking for a 'new_attempt' parameter or if no in-progress session exists
-$is_new_attempt = isset($_GET['new_attempt']) && $_GET['new_attempt'] === '1';
-$is_retake = (isset($_GET['reset']) && $_GET['reset'] === '1') || (isset($_GET['new_attempt']) && $_GET['new_attempt'] === '1');
-$currently_in_progress = $_SESSION['assessment_in_progress'][$orderKey] ?? false;
-
-// Check if assessment was just completed (indicates a new attempt should start)
-$assessment_just_completed = isset($_SESSION['assessment_just_completed']) && 
-                           $_SESSION['assessment_just_completed'] && 
-                           isset($_SESSION['completed_assessment_id']) && 
-                           $_SESSION['completed_assessment_id'] == $assessment_id;
-
-// If caller requested a reset (e.g., explicit retake), clear previous order
+// If caller requested a reset (e.g., explicit retake), clear previous order ONLY if not currently in-progress
+$is_retake = isset($_GET['reset']) && $_GET['reset'] === '1';
 if ($is_retake) {
     // Check if student has already passed this assessment
     if (hasStudentPassedAssessment($pdo, $user_id, $assessment_id)) {
@@ -835,68 +799,39 @@ if ($is_retake) {
         exit();
     }
     
-    // ALWAYS clear previous order for retakes to ensure fresh randomization
-    if (isset($_SESSION['random_question_order'][$orderKey])) {
+    $inProgress = $_SESSION['assessment_in_progress'][$orderKey] ?? false;
+    if (!$inProgress && isset($_SESSION['random_question_order'][$orderKey])) {
         unset($_SESSION['random_question_order'][$orderKey]);
         if (empty($_SESSION['random_question_order'])) {
             unset($_SESSION['random_question_order']);
         }
     }
-    
-    // Also clear in-progress flag for retakes
-    if (isset($_SESSION['assessment_in_progress'][$orderKey])) {
-        unset($_SESSION['assessment_in_progress'][$orderKey]);
-        if (empty($_SESSION['assessment_in_progress'])) {
-            unset($_SESSION['assessment_in_progress']);
-        }
-    }
 }
-
 // Initialize random question order session if not exists
 if (!isset($_SESSION['random_question_order'])) {
     $_SESSION['random_question_order'] = [];
 }
 
-// ALWAYS randomize questions for students - no teacher order should be used
-// The only exception is if student is currently in the middle of an attempt (to prevent mid-attempt reshuffling)
-$should_randomize = true; // Always randomize by default
-
-// Only skip randomization if student is currently in progress of the same attempt
-if ($currently_in_progress && isset($_SESSION['random_question_order'][$orderKey])) {
-    $should_randomize = false;
-}
-
-// But ALWAYS randomize for new attempts, retakes, or if no order exists
-if ($is_new_attempt || $is_retake || $assessment_just_completed || 
-    !isset($_SESSION['random_question_order'][$orderKey])) {
-    $should_randomize = true;
-}
-
-if ($should_randomize) {
-    // Use the already randomized questions from above
+// Create randomized question order if not exists
+if (!isset($_SESSION['random_question_order'][$orderKey])) {
     $questionIds = array_column($questions, 'id');
+    // Shuffle to create a per-student randomized order for this assessment
+    shuffle($questionIds);
     $_SESSION['random_question_order'][$orderKey] = $questionIds;
-    
-    // Log the randomization for debugging
-    $randomization_reason = '';
-    if ($is_new_attempt) $randomization_reason .= 'new_attempt ';
-    if ($is_retake) $randomization_reason .= 'retake ';
-    if ($assessment_just_completed) $randomization_reason .= 'just_completed ';
-    if (!isset($_SESSION['random_question_order'][$orderKey])) $randomization_reason .= 'no_existing_order ';
-    if (!$currently_in_progress) $randomization_reason .= 'not_in_progress ';
-    
-    error_log("RANDOMIZATION TRIGGERED for assessment {$assessment_id}, student {$user_id}. Reason: {$randomization_reason}. New order: " . implode(',', $questionIds));
-} else {
-    error_log("NO RANDOMIZATION for assessment {$assessment_id}, student {$user_id}. Current order: " . implode(',', $_SESSION['random_question_order'][$orderKey] ?? []));
 }
 
-// Clear completion flags after using them to prevent affecting subsequent loads
-if ($assessment_just_completed) {
-    unset($_SESSION['assessment_just_completed']);
-    unset($_SESSION['completed_assessment_id']);
+// Reorder questions according to the randomized order stored in session
+$questionById = [];
+foreach ($questions as $questionRow) {
+    $questionById[$questionRow['id']] = $questionRow;
 }
-
-// Questions are already randomized above, no need to reorder
+$shuffledQuestions = [];
+foreach ($_SESSION['random_question_order'][$orderKey] as $qid) {
+    if (isset($questionById[$qid])) {
+        $shuffledQuestions[] = $questionById[$qid];
+    }
+}
+$questions = $shuffledQuestions;
 
 // Mark this assessment as in-progress for this user (prevents accidental reshuffle on refresh)
 $_SESSION['assessment_in_progress'][$orderKey] = true;
@@ -1050,7 +985,7 @@ $previous_attempts = $stmt->fetchAll();
         }
 
         .progress-bar-fill {
-            background: #7DCB80;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
             height: 100%;
             border-radius: 12px;
             transition: width 0.5s ease;
@@ -1065,7 +1000,7 @@ $previous_attempts = $stmt->fetchAll();
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255,255,255,0.2);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             animation: shimmer 2s infinite;
         }
 
@@ -1413,7 +1348,7 @@ $previous_attempts = $stmt->fetchAll();
         }
 
         .nav-button-primary {
-            background: #2E5E4E;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             box-shadow: var(--shadow-md);
         }
@@ -1437,7 +1372,7 @@ $previous_attempts = $stmt->fetchAll();
         }
 
         .nav-button-danger {
-            background: #ef4444;
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
             color: white;
             box-shadow: var(--shadow-md);
         }
@@ -1449,7 +1384,7 @@ $previous_attempts = $stmt->fetchAll();
         }
 
         .nav-button-success {
-            background: #7DCB80;
+            background: linear-gradient(135deg, var(--success-color), #059669);
             color: white;
             box-shadow: var(--shadow-md);
         }
@@ -1466,7 +1401,7 @@ $previous_attempts = $stmt->fetchAll();
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: #7DCB80;
+            background: linear-gradient(135deg, var(--secondary-color), #d97706);
             color: white;
             padding: 20px 32px;
             border-radius: 16px;
@@ -1571,7 +1506,7 @@ $previous_attempts = $stmt->fetchAll();
             left: -100%;
             width: 100%;
             height: 100%;
-            background: rgba(255,255,255,0.3);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
             animation: progressShine 2s infinite;
         }
 
@@ -1743,11 +1678,6 @@ $previous_attempts = $stmt->fetchAll();
                                     }
                                     ?>
                                 </div>
-                                <?php if (isset($_SESSION['random_question_order'][$orderKey])): ?>
-                                <div class="debug-info" style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                                    <small>Debug: Question Order: <?php echo implode(', ', $_SESSION['random_question_order'][$orderKey]); ?></small>
-                                </div>
-                                <?php endif; ?>
                             </div>
                                 </div>
                                 

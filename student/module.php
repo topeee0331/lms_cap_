@@ -102,15 +102,7 @@ $videos = $module['videos'] ?? [];
 // Get assessments that belong to the current module from course modules JSON
 $assessments = [];
 if (isset($module['assessments']) && is_array($module['assessments'])) {
-    // Filter out archived assessments first
-    $non_archived_assessments = [];
-    foreach ($module['assessments'] as $module_assessment) {
-        if (!isset($module_assessment['is_archived']) || !$module_assessment['is_archived']) {
-            $non_archived_assessments[] = $module_assessment;
-        }
-    }
-    
-    $module_assessment_ids = array_column($non_archived_assessments, 'id');
+    $module_assessment_ids = array_column($module['assessments'], 'id');
     
     if (!empty($module_assessment_ids)) {
         $placeholders = str_repeat('?,', count($module_assessment_ids) - 1) . '?';
@@ -3544,7 +3536,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                 <i class="fas fa-lock me-1"></i>Locked
                                             </button>
                                         <?php else: ?>
-                                            <a href="assessment.php?id=<?php echo $assessment['id']; ?>&new_attempt=1" class="btn btn-primary btn-sm">
+                                            <a href="assessment.php?id=<?php echo $assessment['id']; ?>" class="btn btn-primary btn-sm">
                                                 <i class="fas fa-play me-1"></i>Take
                                             </a>
                                         <?php endif; ?>
@@ -3688,7 +3680,7 @@ $module_files = []; // This would need to be implemented based on how files are 
                                                         No retakes allowed for passed assessments
                                                     </small>
                                                 <?php else: ?>
-                                                    <a href="assessment.php?id=<?php echo $assessment['id']; ?>&new_attempt=1" class="action-button start">
+                                                    <a href="assessment.php?id=<?php echo $assessment['id']; ?>" class="action-button start">
                                                         <i class="fas fa-play"></i>
                                                         <span>Take Assessment</span>
                                                     </a>

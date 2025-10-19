@@ -43,12 +43,9 @@ if (!empty($all_course_ids)) {
     $stmt->execute($params);
     $assessments = $stmt->fetchAll();
 
-    // Extract module titles from JSON, add academic period status, and filter out archived assessments
-    $filtered_assessments = [];
-    foreach ($assessments as $assessment) {
+    // Extract module titles from JSON and add academic period status
+    foreach ($assessments as &$assessment) {
         $module_title = 'Module Assessment';
-        $is_archived = false;
-        
         if ($assessment['course_id']) {
             $stmt = $pdo->prepare("SELECT modules FROM courses WHERE id = ?");
             $stmt->execute([$assessment['course_id']]);
@@ -62,10 +59,6 @@ if (!empty($all_course_ids)) {
                             foreach ($module['assessments'] as $module_assessment) {
                                 if ($module_assessment['id'] === $assessment['id']) {
                                     $module_title = $module['module_title'] ?? 'Module Assessment';
-                                    // Check if assessment is archived
-                                    if (isset($module_assessment['is_archived']) && $module_assessment['is_archived']) {
-                                        $is_archived = true;
-                                    }
                                     break 2;
                                 }
                             }
@@ -74,18 +67,10 @@ if (!empty($all_course_ids)) {
                 }
             }
         }
-        
-        // Only include non-archived assessments
-        if (!$is_archived) {
-            $assessment['module_title'] = $module_title;
-            $assessment['academic_year_active'] = $assessment['academic_period_active'];
-            $assessment['semester_active'] = $assessment['academic_period_active'];
-            $filtered_assessments[] = $assessment;
-        }
+        $assessment['module_title'] = $module_title;
+        $assessment['academic_year_active'] = $assessment['academic_period_active'];
+        $assessment['semester_active'] = $assessment['academic_period_active'];
     }
-    
-    // Replace the original assessments array with filtered ones
-    $assessments = $filtered_assessments;
 
     // Group assessments by course for sequence checking
     $assessments_by_course = [];
@@ -2650,7 +2635,7 @@ $average_score = $completed_assessments > 0 ? round($total_score / $completed_as
                                                                     </div>
                                                                 <?php else: ?>
                                                                     <!-- Assessment not passed yet - allow taking/retaking -->
-                                                                    <a href="assessment.php?id=<?php echo $assessment['id']; ?>&new_attempt=1" class="action-button <?php echo $assessment['attempt_count'] > 0 ? 'retake' : 'start'; ?>">
+                                                                    <a href="assessment.php?id=<?php echo $assessment['id']; ?>" class="action-button <?php echo $assessment['attempt_count'] > 0 ? 'retake' : 'start'; ?>">
                                                                         <i class="fas fa-<?php echo $assessment['attempt_count'] > 0 ? 'redo' : 'play'; ?>"></i>
                                                                         <span><?php echo $assessment['attempt_count'] > 0 ? 'Retake Assessment' : 'Start Assessment'; ?></span>
                                                                     </a>

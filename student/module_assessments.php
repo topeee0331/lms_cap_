@@ -1587,7 +1587,7 @@ $theme_icon = $theme['icon'];
                                             </div>
                                         <?php else: ?>
                                             <!-- Assessment not passed yet - allow taking/retaking -->
-                                            <a href="assessment.php?id=<?php echo $assessment['id']; ?>&new_attempt=1" class="action-button <?php echo $assessment['attempt_count'] > 0 ? 'retake' : 'start'; ?>">
+                                            <a href="assessment.php?id=<?php echo $assessment['id']; ?>" class="action-button <?php echo $assessment['attempt_count'] > 0 ? 'retake' : 'start'; ?>">
                                                 <?php if ($assessment['attempt_count'] > 0): ?>
                                                     <i class="fas fa-redo me-1"></i>Retake Assessment
                                                 <?php else: ?>

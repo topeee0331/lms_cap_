@@ -1554,7 +1554,7 @@ function generateCSV(assessments) {
         assessment.difficulty,
         assessment.time_limit ? assessment.time_limit + ' min' : 'No limit',
         assessment.attempt_count,
-        assessment.average_score ? assessment.average_score.toFixed(1) + '%' : 'No attempts',
+        assessment.average_score && !isNaN(parseFloat(assessment.average_score)) ? parseFloat(assessment.average_score).toFixed(1) + '%' : 'No attempts',
         assessment.is_active ? 'Active' : 'Inactive',
         assessment.is_locked ? 'Locked' : 'Unlocked'
     ]);

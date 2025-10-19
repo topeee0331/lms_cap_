@@ -2325,7 +2325,7 @@ function updateProgressTable(students) {
         if (row) {
             // Update progress text
             const progressText = row.querySelector('.progress-text');
-            const progressPercentage = parseFloat(student.course_progress) || 0;
+            const progressPercentage = parseFloat(student.avg_progress) || 0;
             
             console.log('Student', student.student_id, 'Progress:', progressPercentage, 'Found elements:', {
                 progressText: !!progressText

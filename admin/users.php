@@ -829,7 +829,11 @@ function get_user_sections($db, $user_id, $role, $sections) {
     if ($role === 'student') {
         $sql = "SELECT id FROM sections WHERE JSON_SEARCH(students, 'one', ?) IS NOT NULL";
     } elseif ($role === 'teacher') {
-        $sql = "SELECT id FROM sections WHERE JSON_SEARCH(teachers, 'one', ?) IS NOT NULL";
+        // Get sections from courses where teacher is assigned
+        $sql = "SELECT DISTINCT s.id 
+                FROM courses c 
+                JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
+                WHERE c.teacher_id = ? AND c.is_archived = 0";
     } else {
         return [];
     }
@@ -854,6 +858,25 @@ function get_teacher_courses($db, $teacher_id) {
     $stmt = $db->prepare($sql);
     $stmt->execute([$teacher_id]);
     return $stmt->fetchAll();
+}
+
+// Get sections for a specific course
+function get_course_sections($db, $course_id) {
+    $sql = "SELECT s.section_name, s.year_level 
+            FROM courses c 
+            JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
+            WHERE c.id = ? 
+            ORDER BY s.year_level, s.section_name";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$course_id]);
+    $sections = $stmt->fetchAll();
+    
+    $formatted_sections = [];
+    foreach ($sections as $section) {
+        $formatted_sections[] = formatSectionName($section);
+    }
+    
+    return $formatted_sections;
 }
 
 // Generate courses display for teacher
@@ -886,6 +909,9 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
                 break;
         }
         
+        // Get sections for this course
+        $sections = get_course_sections($db, $course['id']);
+        
         $courses_html .= '
             <div class="col-md-6">
                 <div class="card border-0 bg-light h-100">
@@ -906,6 +932,30 @@ function generateTeacherCoursesDisplay($db, $teacher_id) {
         }
         
         $courses_html .= '</div>';
+        
+        // Add sections information
+        if (!empty($sections)) {
+            $courses_html .= '<div class="mt-2">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="bi bi-people-fill me-1 text-primary small"></i>
+                                    <strong class="small text-primary">Sections:</strong>
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">';
+            
+            foreach ($sections as $section) {
+                $courses_html .= '<span class="badge bg-primary bg-opacity-10 text-primary small">' . htmlspecialchars($section) . '</span>';
+            }
+            
+            $courses_html .= '</div></div>';
+        } else {
+            $courses_html .= '<div class="mt-2">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="bi bi-people-fill me-1 text-muted small"></i>
+                                    <strong class="small text-muted">Sections:</strong>
+                                </div>
+                                <span class="text-muted small">No sections assigned</span>
+                              </div>';
+        }
         
         if (!empty($course['description'])) {
             $description = strlen($course['description']) > 80 ? substr($course['description'], 0, 80) . '...' : $course['description'];

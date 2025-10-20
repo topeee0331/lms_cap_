@@ -766,9 +766,9 @@ function formatYear($year) {
     return $year . ($suffixes[$year] ?? 'th') . ' Year';
 }
 
-// Fetch all active courses for assignment
+// Fetch all active courses for assignment (unfiltered; used as fallback)
 $courses_for_assignment = [];
-$course_stmt = $db->prepare("SELECT id, course_name, course_code FROM courses WHERE is_archived = 0 ORDER BY course_name");
+$course_stmt = $db->prepare("SELECT id, course_name, course_code, year_level FROM courses WHERE is_archived = 0 ORDER BY course_name");
 $course_stmt->execute();
 $courses_for_assignment = $course_stmt->fetchAll();
 
@@ -2245,12 +2245,14 @@ $teacher_summary['unique_teachers_assigned'] = $unique_teachers_result['unique_t
                                                                 </div>
                                                                 <div class="border rounded p-2 assign-courses-list" style="max-height: 200px; overflow-y: auto; background: #f8f9fa;">
                                                                     <?php foreach ($courses_for_assignment as $course): ?>
-                                                                        <div class="form-check mb-1">
-                                                                            <input class="form-check-input assign-course-checkbox" type="checkbox" name="assigned_courses[]" value="<?= $course['id'] ?>" id="edit_course_<?= $section['id'] ?>_<?= $course['id'] ?>" <?= in_array($course['id'], $assigned_course_ids) ? 'checked' : '' ?>>
-                                                                            <label class="form-check-label" for="edit_course_<?= $section['id'] ?>_<?= $course['id'] ?>">
-                                                                                <?= htmlspecialchars($course['course_name'] . ' (' . $course['course_code'] . ')') ?>
-                                                                            </label>
-                                                                        </div>
+                                                                        <?php if (!isset($course['year_level']) || $course['year_level'] == $section['year_level']): ?>
+                                                                            <div class="form-check mb-1">
+                                                                                <input class="form-check-input assign-course-checkbox" type="checkbox" name="assigned_courses[]" value="<?= $course['id'] ?>" id="edit_course_<?= $section['id'] ?>_<?= $course['id'] ?>" <?= in_array($course['id'], $assigned_course_ids) ? 'checked' : '' ?>>
+                                                                                <label class="form-check-label" for="edit_course_<?= $section['id'] ?>_<?= $course['id'] ?>">
+                                                                                    <?= htmlspecialchars($course['course_name'] . ' (' . $course['course_code'] . ')') ?>
+                                                                                </label>
+                                                                            </div>
+                                                                        <?php endif; ?>
                                                                     <?php endforeach; ?>
                                                                 </div>
                                                                 <small class="text-muted">Check to assign courses to this section.</small>

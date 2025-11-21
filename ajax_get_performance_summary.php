@@ -80,9 +80,18 @@ try {
     // Since assessment_question_answers table doesn't exist, we'll provide empty data
     $question_type_performance = [];
     
+    // Safely normalize numeric values to avoid deprecated warnings when NULL
+    $total_attempts = (int)($assessment_stats['total_attempts'] ?? 0);
+    $students_with_attempts = (int)($assessment_stats['students_with_attempts'] ?? 0);
+    $average_score = isset($assessment_stats['average_score']) && $assessment_stats['average_score'] !== null
+        ? round((float)$assessment_stats['average_score'], 1)
+        : 0;
+    $passing_attempts = (int)($assessment_stats['passing_attempts'] ?? 0);
+    $completed_attempts = (int)($assessment_stats['completed_attempts'] ?? 0);
+
     // Calculate passing rate
-    $passing_rate = $assessment_stats['total_attempts'] > 0 ? 
-        round(($assessment_stats['passing_attempts'] / $assessment_stats['total_attempts']) * 100, 1) : 0;
+    $passing_rate = $total_attempts > 0 ? 
+        round(($passing_attempts / $total_attempts) * 100, 1) : 0;
     
     $performance_data = [
         'success' => true,
@@ -90,11 +99,11 @@ try {
         'data' => [
             'overview' => [
                 'total_students' => (int)$total_students,
-                'total_attempts' => (int)$assessment_stats['total_attempts'],
-                'students_with_attempts' => (int)$assessment_stats['students_with_attempts'],
-                'average_score' => round($assessment_stats['average_score'], 1),
+                'total_attempts' => $total_attempts,
+                'students_with_attempts' => $students_with_attempts,
+                'average_score' => $average_score,
                 'passing_rate' => $passing_rate,
-                'completed_attempts' => (int)$assessment_stats['completed_attempts']
+                'completed_attempts' => $completed_attempts
             ],
             'recent_activity' => [
                 'active_students_today' => (int)$recent_activity['active_students_today'],

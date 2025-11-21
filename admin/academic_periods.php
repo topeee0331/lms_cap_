@@ -468,9 +468,9 @@ if ($res && $res->rowCount() > 0) {
 // Get statistics
 $stats_stmt = $db->prepare("
     SELECT 
-        COUNT(*) as total_periods,
-        COUNT(CASE WHEN is_active = 1 THEN 1 END) as active_periods,
-        COUNT(CASE WHEN is_active = 0 THEN 1 END) as inactive_periods,
+        COUNT(DISTINCT ap.id) as total_periods,
+        COUNT(DISTINCT CASE WHEN ap.is_active = 1 THEN ap.id END) as active_periods,
+        COUNT(DISTINCT CASE WHEN ap.is_active = 0 THEN ap.id END) as inactive_periods,
         COUNT(DISTINCT c.id) as total_courses
     FROM academic_periods ap
     LEFT JOIN courses c ON ap.id = c.academic_period_id

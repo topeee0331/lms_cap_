@@ -1,8 +1,4 @@
 <?php
-// Disable error reporting to prevent warnings from being output
-error_reporting(0);
-ini_set('display_errors', 0);
-
 // Start output buffering immediately
 ob_start();
 
@@ -197,9 +193,7 @@ function exportOverviewCSV($course_id, $course) {
         $stmt = $db->prepare("SELECT JSON_LENGTH(COALESCE(students, '[]')) as student_count FROM sections WHERE id = ?");
         $stmt->execute([$section['id']]);
         $studentCount = $stmt->fetchColumn();
-        $year = $section['year'] ?? 'N/A';
-        $name = $section['name'] ?? 'N/A';
-        $csv_data[] = ['BSIT-' . $year . $name, $year, $studentCount];
+        $csv_data[] = ['BSIT-' . $section['year_level'] . $section['section_name'], $section['year_level'], $studentCount];
     }
     
     return $csv_data;
@@ -246,9 +240,7 @@ function exportSectionDataCSV($course_id, $section_id, $course) {
     $csv_data[] = ['Student Assessment Scores'];
     $csv_data[] = [];
     $csv_data[] = ['Course:', $course['course_name']];
-    $year = $section['year_level'] ?? 'N/A';
-    $name = $section['section_name'] ?? 'N/A';
-    $csv_data[] = ['Section:', 'BSIT-' . $year . $name];
+    $csv_data[] = ['Section:', 'BSIT-' . $section['year_level'] . $section['section_name']];
     $csv_data[] = ['Export Date:', date('Y-m-d H:i:s')];
     $csv_data[] = [];
     

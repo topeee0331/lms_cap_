@@ -7,7 +7,7 @@ require_once '../includes/header.php';
 $video_id = sanitizeInput($_GET['id'] ?? '');
 
 if (!$video_id) {
-    redirectWithMessage('courses.php', 'Video ID is required.', 'danger');
+    redirectWithMessage('videos.php', 'Video ID is required.', 'danger');
 }
 
 // Find the video in the JSON modules structure
@@ -43,7 +43,7 @@ foreach ($courses_data as $course_data) {
 }
 
 if (!$video || !$course) {
-    redirectWithMessage('courses.php', 'Video not found or access denied.', 'danger');
+    redirectWithMessage('videos.php', 'Video not found or access denied.', 'danger');
 }
 
 // Handle video edit
@@ -158,7 +158,7 @@ $hourly_engagement = $stmt->fetchAll();
                     </p>
                 </div>
                 <div class="btn-group">
-                    <a href="module_videos.php?module_id=<?php echo htmlspecialchars($module['id'] ?? ''); ?>" class="btn btn-outline-secondary">
+                    <a href="videos.php" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i>Back to Videos
                     </a>
                     <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVideoModal">

@@ -465,18 +465,24 @@ if ($res && $res->rowCount() > 0) {
     $periods = $res->fetchAll();
 }
 
-// Get statistics
+// Get statistics - count all periods (including archived) for accurate totals
 $stats_stmt = $db->prepare("
     SELECT 
         COUNT(DISTINCT ap.id) as total_periods,
         COUNT(DISTINCT CASE WHEN ap.is_active = 1 THEN ap.id END) as active_periods,
-        COUNT(DISTINCT CASE WHEN ap.is_active = 0 THEN ap.id END) as inactive_periods,
+        COUNT(DISTINCT CASE WHEN ap.is_active = 0 OR ap.is_active IS NULL THEN ap.id END) as inactive_periods,
         COUNT(DISTINCT c.id) as total_courses
     FROM academic_periods ap
     LEFT JOIN courses c ON ap.id = c.academic_period_id
 ");
 $stats_stmt->execute();
-$stats = $stats_stmt->fetch();
+$stats_raw = $stats_stmt->fetch();
+$stats = [
+    'total_periods' => (int)($stats_raw['total_periods'] ?? 0),
+    'active_periods' => (int)($stats_raw['active_periods'] ?? 0),
+    'inactive_periods' => (int)($stats_raw['inactive_periods'] ?? 0),
+    'total_courses' => (int)($stats_raw['total_courses'] ?? 0)
+];
 ?>
 
 <div class="page-container">
@@ -630,7 +636,7 @@ $stats = $stats_stmt->fetch();
                                 // Get course count for this period
                                 $course_count_stmt = $db->prepare("SELECT COUNT(*) FROM courses WHERE academic_period_id = ?");
                                 $course_count_stmt->execute([$period['id']]);
-                                $course_count = $course_count_stmt->fetchColumn();
+                                $course_count = (int)($course_count_stmt->fetchColumn() ?: 0);
                                 ?>
                                     <tr class="<?= (isset($period['is_archived']) && $period['is_archived']) ? 'table-warning opacity-75' : '' ?>">
                                             <td>

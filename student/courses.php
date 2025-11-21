@@ -809,25 +809,12 @@ $course_themes = [
             gap: 1rem;
             padding: 0.5rem 0;
             -webkit-overflow-scrolling: touch;
-            /* Scrollbar is now visible */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
         }
 
         .course-slider::-webkit-scrollbar {
-            height: 8px; /* Chrome, Safari, Opera */
-        }
-        
-        .course-slider::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        .course-slider::-webkit-scrollbar-thumb {
-            background: #2E5E4E;
-            border-radius: 4px;
-        }
-        
-        .course-slider::-webkit-scrollbar-thumb:hover {
-            background: #1e5631;
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .course-slide {
@@ -873,53 +860,6 @@ $course_themes = [
             -webkit-box-orient: vertical;
             line-height: 1.4;
             max-height: 4.2em; /* 3 lines * 1.4 line-height */
-        }
-
-        /* Enhanced scrollable description styling */
-        .course-description {
-            max-height: 120px;
-            overflow-y: auto;
-            padding: 8px 12px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
-            margin: 8px 0;
-            position: relative;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            color: #495057;
-            transition: all 0.3s ease;
-        }
-
-        .course-description::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .course-description::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-
-        .course-description::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            border-radius: 3px;
-            transition: background 0.3s ease;
-        }
-
-        .course-description::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #0056b3, #004085);
-        }
-
-        .course-description:hover {
-            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-            border-color: #007bff;
-            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-        }
-
-        /* Modal course descriptions */
-        .modal .course-description {
-            max-height: 80px;
-            font-size: 0.85rem;
         }
 
         /* Ensure buttons stay at the bottom */
@@ -1214,8 +1154,11 @@ $course_themes = [
 
                 <!-- Browse Courses from Other Sections -->
                 <div class="mb-4">
-                    <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <h3>Available Courses for My Year Level</h3>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollCourseModal">
+                            <i class="fas fa-graduation-cap"></i> Browse Year Level Courses
+                        </button>
                     </div>
                 </div>
 
@@ -1278,9 +1221,7 @@ $course_themes = [
                                                     </div>
                                                 </div>
                                                 
-                                                <div class="course-description">
-                                                    <?php echo htmlspecialchars($course['description'] ?? 'No description available.'); ?>
-                                                </div>
+                                                <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
                                                 
                                                 <!-- Course Statistics -->
                                                 <div class="row text-center mb-3">
@@ -1321,6 +1262,14 @@ $course_themes = [
                 <div class="mb-4">
                     <div class="section-header">
                         <h3><?php echo empty($enrolled_courses) ? 'My Section Courses' : 'Other Courses in My Section'; ?></h3>
+                        <div class="slider-controls">
+                            <button class="btn btn-outline-secondary btn-sm" id="available-prev">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="available-next">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
                     <p class="text-muted mb-3">
                         <i class="fas fa-info-circle"></i> These courses are specifically assigned to your section. You can enroll directly in these courses.
@@ -1427,9 +1376,7 @@ $course_themes = [
                                                     </div>
                                                 </div>
                                                 
-                                                <div class="course-description">
-                                                    <?php echo htmlspecialchars($course['description'] ?? 'No description available.'); ?>
-                                                </div>
+                                                <p class="card-text"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 100)); ?>...</p>
                                                 
                                                 <!-- Course Statistics -->
                                                 <div class="row text-center mb-3">
@@ -1606,9 +1553,7 @@ $course_themes = [
                                         <div class="card-body">
                                             <h6 class="card-title course-name"><?php echo htmlspecialchars($course['course_name'] ?? ''); ?></h6>
                                             <p class="card-text text-muted small teacher-name">by <?php echo htmlspecialchars($course['teacher_name'] ?? ''); ?></p>
-                                            <div class="course-description">
-                                                <?php echo htmlspecialchars($course['description'] ?? 'No description available.'); ?>
-                                            </div>
+                                            <p class="card-text small"><?php echo htmlspecialchars(substr($course['description'] ?? '', 0, 80)); ?>...</p>
                                             <div class="row text-center mb-2">
                                                 <div class="col-4">
                                                     <small class="text-muted">
@@ -1866,10 +1811,7 @@ document.addEventListener('DOMContentLoaded', function() {
              rejectionReasonElement.style.direction = 'ltr';
              rejectionReasonElement.style.unicodeBidi = 'normal';
          }
-    }, 100);
-
-    // Initialize auto-dismiss alerts after DOM is ready
-    initAutoDismissAlerts();
+     }, 100);
 });
 
 // Course Slider Functionality
@@ -1933,12 +1875,59 @@ function initCourseSlider(sliderId, prevBtnId, nextBtnId) {
     }
 }
 
-    // Initialize sliders with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
-        // available-slider now uses scrollbar instead of buttons
-    }, 100);
-}
+    // Initialize sliders
+    initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
+    initCourseSlider('available-slider', 'available-prev', 'available-next');
+    
+    // Auto-dismiss alerts
+    initAutoDismissAlerts();
+    
+    // Auto-close alert when Browse Year Level Courses button is clicked
+    const browseButton = document.querySelector('button[data-bs-target="#enrollCourseModal"]');
+    if (browseButton) {
+        browseButton.addEventListener('click', function() {
+            // Find the alert in the same section (outside modal)
+            const alert = this.closest('.mb-4').querySelector('.alert.auto-dismiss');
+            if (alert) {
+                // Auto-close the alert after 1 second
+                setTimeout(function() {
+                    alert.classList.add('fade');
+                    setTimeout(function() {
+                        if (alert.parentNode) {
+                            alert.parentNode.removeChild(alert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }, 1000); // 1 second delay
+            }
+            
+            // Also auto-close the alert inside the modal after 3 seconds
+            setTimeout(function() {
+                const modalAlert = document.querySelector('#enrollCourseModal .alert.alert-info');
+                if (modalAlert) {
+                    modalAlert.classList.add('fade');
+                    setTimeout(function() {
+                        if (modalAlert.parentNode) {
+                            modalAlert.parentNode.removeChild(modalAlert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }
+            }, 3000); // 3 second delay
+            
+            // Also auto-close the "No courses available" alert if it exists
+            setTimeout(function() {
+                const noCoursesAlert = document.querySelector('#enrollCourseModal .alert.alert-info.text-center');
+                if (noCoursesAlert) {
+                    noCoursesAlert.classList.add('fade');
+                    setTimeout(function() {
+                        if (noCoursesAlert.parentNode) {
+                            noCoursesAlert.parentNode.removeChild(noCoursesAlert);
+                        }
+                    }, 300); // Bootstrap fade duration
+                }
+            }, 1000); // 1 second delay
+        });
+    }
+});
 
 // Auto-dismiss alerts functionality
 function initAutoDismissAlerts() {

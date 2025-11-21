@@ -1349,28 +1349,7 @@ $total_stats = $total_stats_stmt->fetch();
   </div>
 </div>
 
-<?php
-// Helper function to get course sections with student counts
-function getCourseSectionsWithStudentCounts($db, $course_id) {
-    $sql = "SELECT s.id, s.section_name, s.year_level, 
-                   COUNT(DISTINCT u.id) as student_count
-            FROM courses c 
-            JOIN sections s ON JSON_SEARCH(c.sections, 'one', s.id) IS NOT NULL 
-            LEFT JOIN users u ON JSON_SEARCH(s.students, 'one', u.id) IS NOT NULL AND u.role = 'student'
-            WHERE c.id = ? 
-            GROUP BY s.id, s.section_name, s.year_level
-            ORDER BY s.year_level, s.section_name";
-    $stmt = $db->prepare($sql);
-    $stmt->execute([$course_id]);
-    return $stmt->fetchAll();
-}
-
-// Helper function to format section name
-function formatSectionName($section) {
-    return "BSIT-{$section['year_level']}{$section['section_name']}";
-}
-
-foreach ($courses as $course): ?>
+<?php foreach ($courses as $course): ?>
 <div class="modal fade" id="viewCourseModal<?= $course['id'] ?>" tabindex="-1" aria-labelledby="viewCourseLabel<?= $course['id'] ?>" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -1410,42 +1389,6 @@ foreach ($courses as $course): ?>
             <i class="bi bi-collection me-2"></i>Modules
           </dt>
           <dd class="col-sm-9"><?= (int)$course['module_count'] ?></dd>
-          <dt class="col-sm-3 fw-semibold">
-            <i class="bi bi-people-fill me-2"></i>Sections
-          </dt>
-          <dd class="col-sm-9">
-            <?php 
-            $course_sections = getCourseSectionsWithStudentCounts($db, $course['id']);
-            if (!empty($course_sections)): 
-            ?>
-              <div class="row g-2">
-                <?php foreach ($course_sections as $section): ?>
-                  <div class="col-md-6">
-                    <div class="card border-0 bg-light">
-                      <div class="card-body p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                          <div>
-                            <h6 class="mb-0 fw-semibold text-primary small"><?= htmlspecialchars(formatSectionName($section)) ?></h6>
-                            <small class="text-muted">Section: <?= htmlspecialchars($section['section_name']) ?></small>
-                          </div>
-                          <div class="text-end">
-                            <span class="badge bg-info">
-                              <i class="bi bi-people me-1"></i><?= (int)$section['student_count'] ?> students
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-            <?php else: ?>
-              <div class="text-center text-muted py-3">
-                <i class="bi bi-people-fill fs-4 mb-2"></i>
-                <p class="mb-0">No sections assigned to this course</p>
-              </div>
-            <?php endif; ?>
-          </dd>
         </dl>
       </div>
       <div class="modal-footer">

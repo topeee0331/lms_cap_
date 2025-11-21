@@ -1866,7 +1866,10 @@ document.addEventListener('DOMContentLoaded', function() {
              rejectionReasonElement.style.direction = 'ltr';
              rejectionReasonElement.style.unicodeBidi = 'normal';
          }
-     }, 100);
+    }, 100);
+
+    // Initialize auto-dismiss alerts after DOM is ready
+    initAutoDismissAlerts();
 });
 
 // Course Slider Functionality
@@ -1935,12 +1938,7 @@ function initCourseSlider(sliderId, prevBtnId, nextBtnId) {
         initCourseSlider('enrolled-slider', 'enrolled-prev', 'enrolled-next');
         // available-slider now uses scrollbar instead of buttons
     }, 100);
-    
-    
-    // Auto-dismiss alerts
-    initAutoDismissAlerts();
-    
-});
+}
 
 // Auto-dismiss alerts functionality
 function initAutoDismissAlerts() {

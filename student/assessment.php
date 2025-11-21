@@ -69,7 +69,10 @@ if (!$assessment_id) {
 $current_question = (int)($_GET['q'] ?? 0);
 
 try {
-    $pdo = getConnection();
+    if (!isset($pdo) || !$pdo) {
+        $database = new Database();
+        $pdo = $database->getConnection();
+    }
     
     // Get assessment details
     $stmt = $pdo->prepare("
@@ -1720,3 +1723,16 @@ try {
         </script>
     </body>
     </html>
+    <?php
+} catch (PDOException $e) {
+    error_log('Assessment loading error: ' . $e->getMessage());
+    $_SESSION['error'] = 'Unable to load the assessment right now. Please try again later.';
+    header('Location: assessments.php');
+    exit();
+} catch (Exception $e) {
+    error_log('Assessment unexpected error: ' . $e->getMessage());
+    $_SESSION['error'] = 'An unexpected error occurred. Please try again later.';
+    header('Location: assessments.php');
+    exit();
+}
+?>
